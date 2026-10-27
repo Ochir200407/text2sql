@@ -1,0 +1,30 @@
+% =============================================================================
+% Хавсралт Б: Төслийн файлын бүтэц
+% =============================================================================
+
+\chapter{Төслийн файлын бүтэц}
+\label{app:files}
+
+\begin{lstlisting}[language={}, basicstyle=\ttfamily\scriptsize, numbers=none]
+text2sql-new/
+  src/mn_text2sql/       (*@Python багц (85 модуль)@*)
+    pipeline/            (*@orchestrator, translate, dialect, postproc, selection, intent\_check@*)
+    retrieval/ knowledge/ (*@BM25, BGE-M3, schema linking@*)
+    llm/ security/ db/ datagen/ eval/ training/ text/
+    service/             (*@FastAPI, Text2SQL Studio (static/builder.html), flow.py@*)
+  config/                (*@experiments.yaml (84 тохиргоо), models.yaml, flows.yaml@*)
+  knowledge/             (*@semantic\_model, glossary, metrics, examples*.jsonl@*)
+  evalset/               (*@dev.jsonl (300), test.jsonl (200), AUTHORING.md@*)
+  evalset_shift/         (*@T-2 (нэр сольсон схем), T-4 (тодорхойлолт)@*)
+  data/mt/v2/            (*@MT v2: 2 828 хос, SFT мөр, human\_review.html@*)
+  data/t2s_inv/          (*@S1-S4 сургалтын prompt@*)
+  db/                    (*@DB-ийн хуулбар ба CHANGES.md@*)
+  scripts/server/        (*@run\_plan\_l4.sh (STAGE=...)@*)
+  scripts/notebook/      (*@bootstrap.sh, pack\_code.py, merge\_lora.py, make\_web\_kaggle.py@*)
+  scripts/mt/ scripts/t2s_inv/  (*@MT ба тогтвортой сургалтын скрипт@*)
+  notebooks/             (*@Kaggle / Colab notebook@*)
+  results/runs/<split>/<ID>/   (*@асуулт бүрийн үр дүн, summary, meta@*)
+  tests/                 (*@pytest@*)
+  docs/                  (*@WORKLOG, MT\_INVARIANT\_PLAN, AGENT, CLOUD ...@*)
+  report_diplom/         (*@энэ тайлан@*)
+\end{lstlisting}

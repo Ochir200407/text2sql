@@ -1,0 +1,52 @@
+% =============================================================================
+% Хавсралт Б: Eval set-ийн бичлэгийн бүтэц
+% =============================================================================
+
+\chapter{Eval set-ийн бичлэгийн бүтэц}
+\label{AppendixB}
+\pagecolor{white}
+
+Eval set нь \tsql{evalset/dev.jsonl} (300) ба \tsql{evalset/test.jsonl} (200) файлд, мөр бүр нэг JSON бичлэг
+хэлбэрээр хадгалагдана. Хувилбар бүрийн hash нь \tsql{evalset/MANIFEST.json}-д бичигдэх ба run бүрийн бичлэгт хамт
+хадгалагдана. Талбаруудыг Хүснэгт~\ref{tab:eval-fields}-д тайлбарлав.
+
+\begin{table}[H]
+\centering\small
+\caption{Eval set-ийн бичлэгийн талбарууд}
+\label{tab:eval-fields}
+\begin{tabularx}{\textwidth}{p{3.6cm}X}
+\toprule
+Талбар & Утга \\
+\midrule
+\tsql{id}, \tsql{family} & Асуултын ID ба хэв загварын бүлэг (хуваалт бүлгээр) \\
+\tsql{domain} & applications, loans, payments, collection, customers, deposits, gl\_trends, cross \\
+\tsql{category} & answerable, unanswerable, ambiguous \\
+\tsql{difficulty} & easy, medium, hard (хариулах боломжтой асуултад) \\
+\tsql{question\_mn} / \tsql{\_latin} / \tsql{\_en} / \tsql{\_mixed} & Кирилл, латин галиг, англи, холимог хувилбар \\
+\tsql{gold\_sql}, \tsql{alt\_sql} & Лавлах SQL ба орлох (тэнцүү) SQL-үүд (\tsql{t2s} схем дээр) \\
+\tsql{order\_matters} & Үр дүнгийн эрэмбэ чухал эсэх \\
+\tsql{interpretations}, \tsql{clarification\_mn} & Хоёрдмол асуултын тайлбарууд ба тодруулах асуулт \\
+\tsql{unanswerable\_reason} & pii, missing\_data, non\_sql, external\_knowledge, future, write\_operation \\
+\tsql{tags}, \tsql{contains\_value}, \tsql{values}, \tsql{glossary\_terms} & Задаргааны шошго, асуултад гарсан утга, нэр томьёо \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, caption={Бичлэгийн жишээ (dev, A001; уншихад хялбар болгож мөр таслав, зарим талбарыг орхив)}, breaklines=true, showstringspaces=false, language={}]
+{"id": "A001", "family": "A-f01", "domain": "applications",
+ "category": "answerable", "difficulty": "easy",
+ "question_mn": "2025 онд нийт хэдэн зээлийн хүсэлт ирсэн бэ?",
+ "question_latin": "2025 ond niit heden zeeliin hvselt irsen be?",
+ "question_en": "How many loan applications were received in 2025 in total?",
+ "gold_sql": "SELECT count(*) FROM t2s.loan_applications
+              WHERE submitted_date BETWEEN '2025-01-01' AND '2025-12-31'",
+ "order_matters": false, "tags": ["aggregation", "date"]}
+\end{lstlisting}
+
+Run бүрийн бичлэг дараах файлд хадгалагдана:
+\begin{center}
+\tsql{results/runs/<split>/<ID>/<загвар>\_\_<хувилбар>\_\_s<seed>.jsonl}
+\end{center}
+Бичлэг нь асуултын ID, үүсгэсэн SQL, үр дүнгийн hash, зөв эсэх (EX, хатуу EX, TS-EX), төлөв, алдааны шат (extract,
+guard, exec, empty, refusal), итгэл, нэр дэвшигчдийн hash, retrieval-ийн мэдээлэл, agent-ийн алхам, хугацаа, токен,
+eval set ба кодын хувилбарыг агуулна.

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ББСБ асуулт-хариулт</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Literata:opsz,wght@7..72,600&display=swap">
+<style>
+/* Layout: one column — question box on top, newest answer card first, earlier answers below */
+:root{
+  --bg:#f5f6f4; --surface:#fff; --fg:#1d2420; --muted:#5d6862; --line:#d9ddd8; --accent:#1f6f5c; --accent-fg:#fff;
+  --ok:#2e7d4f; --ok-bg:#e3f2e8; --bad:#b4442f; --bad-bg:#f8e4df; --warn:#7a6a2c; --warn-bg:#f4eed6; --code-bg:#eef1ee;
+  --f-display:"Literata",Georgia,serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141917; --surface:#1b211f; --fg:#e4e9e5; --muted:#9aa59f; --line:#2e3733; --accent:#5cc2a6; --accent-fg:#0f1513;
+  --ok:#6fcf97; --ok-bg:#1d3327; --bad:#ef8a75; --bad-bg:#3a221d; --warn:#d9c37a; --warn-bg:#332d17; --code-bg:#222a27; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:900px;margin:0 auto;padding:28px 16px 60px}
+h1{font-family:var(--f-display);font-size:1.8rem;margin:0 0 4px}
+.lede{color:var(--muted);margin:0 0 18px}
+form{display:flex;gap:8px;flex-wrap:wrap}
+textarea{flex:1 1 420px;min-width:0;font:inherit;font-size:1rem;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);resize:vertical;min-height:52px}
+button{font:inherit;font-weight:600;padding:10px 18px;border-radius:8px;border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+textarea:focus-visible,button:focus-visible,.ex:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.examples{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.ex{font:inherit;font-size:.82rem;font-weight:400;padding:4px 10px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.status-line{font-size:.85rem;color:var(--muted);min-height:1.4em;margin:6px 0 0}
+.list{display:flex;flex-direction:column;gap:14px;margin-top:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.q{font-weight:600;font-size:1.05rem}
+.meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.8rem;color:var(--muted);align-items:center}
+.pill{font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:10px}
+.pill.answered{background:var(--ok-bg);color:var(--ok)}
+.pill.refused,.pill.abstained,.pill.error{background:var(--bad-bg);color:var(--bad)}
+.pill.clarify{background:var(--warn-bg);color:var(--warn)}
+h3{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;font-weight:600}
+pre{margin:0;background:var(--code-bg);border-radius:6px;padding:8px 10px;font-family:var(--f-mono);font-size:.8rem;white-space:pre-wrap;word-break:break-word}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;font-size:.85rem;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:500}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:6px 10px;font-size:.88rem}
+.err{background:var(--bad-bg);color:var(--bad);border-radius:6px;padding:6px 10px;font-family:var(--f-mono);font-size:.78rem;white-space:pre-wrap}
+details summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+.health{font-size:.8rem;color:var(--muted);margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ББСБ асуулт-хариулт</h1>
+  <p class="lede">Зээл, хадгаламж, харилцагч, эргэн төлөлтийн талаар монголоор (кирилл эсвэл латин) асуу. Систем асуултыг SQL болгож өгөгдлийн сангаас хариулна. Өгөгдөл зохиомол, ажлын өдөр 2026-06-30.</p>
+  <div class="health" id="health">Холболт шалгаж байна…</div>
+  <form id="f">
+    <label for="q" style="position:absolute;left:-9999px">Асуулт</label>
+    <textarea id="q" placeholder="Жишээ: Хугацаа хэтэрсэн зээлийн үлдэгдэл салбараар хэд вэ?" required></textarea>
+    <button id="go" type="submit">Асуух</button>
+  </form>
+  <div class="examples" id="examples"></div>
+  <div class="status-line" id="st"></div>
+  <div class="list" id="list"></div>
+</div>
+<script>
+const EX = ["Идэвхтэй зээлийн багцын нийт үлдэгдэл хэд вэ?", "Салбар бүрийн NPL хувь", "2026 оны 5-р сард хэдэн зээл олгосон бэ?",
+  "Хамгийн их хадгаламжтай 5 харилцагч", "Сүүлийн 3 сард эргэн төлөлтийн амлалтын биелэлт хэдэн хувь вэ?", "zeeliin dundaj hvv hed we"];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ST = {answered:"хариулсан", refused:"татгалзсан", abstained:"хариулаагүй", clarify:"тодруулга хэрэгтэй", error:"алдаа", shadow_logged:"shadow горим"};
+$("#examples").innerHTML = EX.map(e => `<button type="button" class="ex">${esc(e)}</button>`).join("");
+$("#examples").addEventListener("click", e => { if (e.target.classList.contains("ex")) { $("#q").value = e.target.textContent; $("#q").focus(); }});
+fetch("/health").then(r => r.json()).then(h => { $("#health").textContent = `Тохиргоо ${h.run} · горим ${h.mode}`; })
+  .catch(() => { $("#health").textContent = "Сервертэй холбогдсонгүй."; });
+function card(q, r){
+  const rows = r.rows && r.rows.length ? `<div class="tw"><table><thead><tr>${r.columns.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${r.rows.map(row=>`<tr>${row.map(v=>`<td>${esc(v ?? "NULL")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${r.row_count>r.rows.length?`<div class="meta">нийт ${r.row_count} мөр, эхний ${r.rows.length}</div>`:""}` : (r.status==="answered" ? `<div class="meta">Үр дүн хоосон (0 мөр).</div>` : "");
+  return `<article class="card">
+    <div class="q">${esc(q)}</div>
+    <div class="meta"><span class="pill ${esc(r.status)}">${ST[r.status]||esc(r.status)}</span>
+      ${r.confidence!=null?`<span>итгэл ${Math.round(r.confidence*100)}%</span>`:""}
+      ${r.latency_ms?`<span>${(r.latency_ms/1000).toFixed(1)} с</span>`:""}
+      ${r.tables&&r.tables.length?`<span>хүснэгт: ${r.tables.map(esc).join(", ")}</span>`:""}</div>
+    ${r.explanation_mn?`<div class="note">${esc(r.explanation_mn)}</div>`:""}
+    ${rows}
+    ${r.sql?`<div><h3>SQL</h3><pre>${esc(r.sql)}</pre></div>`:""}
+    ${r.error?`<div class="err">${esc(r.error_stage||"")}: ${esc(r.error)}</div>`:""}
+    <details><summary>Дэлгэрэнгүй</summary>
+      ${r.question_en?`<p><b>Загварт өгсөн англи орчуулга:</b> ${esc(r.question_en)}</p>`:""}
+      ${r.term_hints&&r.term_hints.length?`<p><b>Орчуулагчид өгсөн нэр томьёо:</b> ${r.term_hints.map(esc).join("; ")}</p>`:""}
+      ${r.linked_tables?`<p><b>Холбогдох гэж олсон хүснэгт:</b> ${r.linked_tables.map(esc).join(", ")}</p>`:""}
+      ${r.examples?`<p><b>Ашигласан жишээ:</b> ${r.examples.map(esc).join(", ")}</p>`:""}
+      <p class="meta">request ${esc(r.request_id)}</p>
+    </details>
+  </article>`;
+}
+let timer;
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = $("#q").value.trim(); if (!q) return;
+  $("#go").disabled = true; const t0 = Date.now();
+  timer = setInterval(() => { $("#st").textContent = `Бодож байна… ${Math.round((Date.now()-t0)/1000)} с (орчуулга → хайлт → SQL → DB)`; }, 500);
+  try {
+    // урт хүсэлтийг tunnel тасалдаг тул ажил эхлүүлээд 2 с тутам шалгана
+    const key = new URLSearchParams(location.search).get("k");
+    const kq = key ? "?k=" + encodeURIComponent(key) : "";
+    const getJson = async (url, init) => {
+      const res = await fetch(url, init); const txt = await res.text(); let j;
+      try { j = JSON.parse(txt); } catch { throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`); }
+      if (!res.ok) throw new Error(j.detail || res.status); return j;
+    };
+    const {job} = await getJson("/ask_job" + kq, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({question:q})});
+    let r = null;
+    while (true) {
+      await new Promise(ok => setTimeout(ok, 2000));
+      let j; try { j = await getJson(`/job/${job}` + kq); } catch (e) { if (/^HTTP 5/.test(e.message)) continue; throw e; }
+      if (j.done) { if (j.error) throw new Error(j.error); r = j.result; break; }
+    }
+    $("#list").insertAdjacentHTML("afterbegin", card(q, r));
+    $("#st").textContent = "";
+  } catch (err) {
+    $("#st").textContent = `Алдаа: ${err.message}. Серверийн цонхны логийг шалгана уу.`;
+  } finally { clearInterval(timer); $("#go").disabled = false; }
+});
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#f").requestSubmit(); }});
+</script>
+</body>
+</html>

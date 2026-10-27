@@ -1,0 +1,71 @@
+%-------------------------------------------------------------------------------
+%	WORK PLAN PAGE
+%   Үзлэг, явц, шүүмжийн гарын үсэгтэй хуудсуудыг scan хийж signatures/huudas1..5.pdf нэрээр хадгалаад
+%   доорх \includepdf мөрүүдийн %-ийг арилгана (text2sql-thesis/thesis/FILL_IN.md-тэй ижил).
+%-------------------------------------------------------------------------------
+
+\begin{titlepage}
+\small
+\noindent Батлав. \deptname ийн эрхлэгч:
+\begin{flushright}
+\makebox[6cm]{\dotfill} /\chairname/
+\end{flushright}
+Удирдагч:\makebox[6cm]{ \dotfill} /\supname/
+\begin{center}
+\vspace*{0.5cm}
+\textbf{{\large \textsc{Дипломын төсөл гүйцэтгэх төлөвлөгөө}}}\\[0.5cm]
+\end{center}
+\noindent \textbf{Дипломын төслийн сэдэв:}\\
+\textbf{Монгол}: «\ttitle» \\
+\textbf{Англи}: «\ttitleng»\\
+
+\noindent \textbf{Төслийн зорилго}: Монгол хэлээр (кирилл, латин галиг) асуусан асуултыг банк бус санхүүгийн байгууллагын
+PostgreSQL өгөгдлийн сан дээр гүйцэтгэх SQL болгон хөрвүүлэх, нээлттэй эхийн загварт суурилсан системийг судалгааны
+үр дүнд тулгуурлан бүтээж, хяналттай туршилтаар үнэлэх.\\
+
+\noindent \textbf{Гүйцэтгэх оюутны овог нэр}:\makebox[4cm]{ } \shortname /\studentcode/ \\
+\textbf{Холбоо барих утас}: \makebox[7cm]{ }\phonenum \\
+\noindent
+	\begin{tabularx}{\textwidth}{|>{\centering\arraybackslash}p{0.6cm}|X|>{\centering\arraybackslash}p{1.3cm}|>{\centering\arraybackslash}p{1.8cm}|}
+	\hline
+	\textbf{№} & \textbf{Ажлын бүлэг, хэсгийн нэр} & \textbf{Эзлэх хувь} & \textbf{Дуусах хугацаа} \\ \hline
+	\multicolumn{4}{|l|}{\textbf{Бүлэг №1. Text2SQL-ийн онол ба судалгааны тойм}} \\ \hline
+	1 & 1.1 Text2SQL асуудал ба хөгжил\newline
+	    1.2 Том хэлний загварт суурилсан архитектур\newline
+	    1.3 Хайлтаар баяжуулсан үүсгэлт (RAG)\newline
+	    1.4 Fine-tuning: SFT ба бататгах сургалт\newline
+	    1.5 Agentic Text2SQL\newline
+	    1.6 Бага нөөцтэй хэл ба монгол хэлний сорилт\newline
+	    1.7 Үнэлгээ ба аюулгүй байдал\newline
+	    1.8 Бүлгийн дүгнэлт & 30\% & end5896 \\ \hline
+	\multicolumn{4}{|l|}{\textbf{Бүлэг №2. Системийн зохиомж ба хэрэгжүүлэлт}} \\ \hline
+	2 & 2.1 Шаардлага ба ерөнхий архитектур\newline
+	    2.2 Өгөгдлийн сан ба text2sql давхарга\newline
+	    2.3 Мэдлэгийн давхарга ба хайлт\newline
+	    2.4 Загварын протокол ба SQL хамгаалалт\newline
+	    2.5 Agentic урсгал\newline
+	    2.6 Fine-tuning-ийн дамжлага\newline
+	    2.7 Үйлчилгээ ба аюулгүй байдал\newline
+	    2.8 Бүлгийн дүгнэлт & 30\% & end5896 \\ \hline
+	\multicolumn{4}{|l|}{\textbf{Бүлэг №3. Туршилт ба үр дүн}} \\ \hline
+	3 & 3.1 Үнэлгээний асуултын сан\newline
+	    3.2 Үнэлгээний арга зүй\newline
+	    3.3 Туршилтын төлөвлөгөө\newline
+	    3.4 Системийн баталгаажуулалт\newline
+	    3.5 Туршилтын үр дүн\newline
+	    3.6 text2sql-thesis-тэй харьцуулалт\newline
+	    3.7 Хязгаарлалт\newline
+	    3.8 Бүлгийн дүгнэлт & 40\% & end5896 \\ \hline
+	\multicolumn{4}{|l|}{\textbf{Ерөнхий дүгнэлт ба хавсралт}} \\ \hline
+\end{tabularx}
+
+\vspace{0.5cm}
+Төлөвлөгөөг боловсруулсан оюутан: \makebox[3cm]{\dotfill} /\shortname/
+\end{titlepage}
+
+% Гарын үсэгтэй scan хуудсууд (байгаа бол %-ийг арилга):
+%\includepdf[pages=-]{signatures/huudas1.pdf}
+%\includepdf[pages=-]{signatures/huudas2.pdf}
+%\includepdf[pages=-]{signatures/huudas3.pdf}
+%\includepdf[pages=-]{signatures/huudas4.pdf}
+%\includepdf[pages=-]{signatures/huudas5.pdf}

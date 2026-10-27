@@ -1,0 +1,320 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Их сургуулийн оюутны тезис  
+% LaTeX Загвар
+% Version 2.3 (25/3/16)
+%
+% Энэ загвар нь дараах сайтаас авсан загварын монгол хувилбар юм.
+% http://www.LaTeXTemplates.com
+%
+% Version 2.x major modifications by:
+% Vel (vel@latextemplates.com)
+%
+% Анхдагч загварын эх үүсвэр:
+% Steve Gunn (http://users.ecs.soton.ac.uk/srg/softwaretools/document/templates/)
+% Sunil Patel (http://www.sunilpatel.co.uk/thesis-template/)
+%
+% Загварын лиценз:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%-------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%-------------------------------------------------------------------------------
+
+\documentclass[
+11pt, % Баримтын фонтын хэмжээ, сонголт: 10pt, 11pt, 12pt
+oneside, % Хоёр талаар хэвлэж үдэхээр тохируулсан. Нэг тал бол комментыг арилга
+%chapterinoneline,% Нэг мөрөнд бүлгийн дугаар, нэрийг гаргах
+mongolian, % babel багцын хэлний тохиргоо
+singlespacing, % Мөр хоорондын зай. Сонголтууд: singlespacing, onehalfspacing, doublespacing
+%draft, % Ноорог горимд шилжихийн тулд комментыг арилга(зураг, холбоос, hboxes гарахгүй)
+nolistspacing, % Хэрэв мөр хоорондын зай onehalfspacing эсвэл doublespacing бол, жагсаалтын мөр хоорондын зайг single болгохын тулд комментыг арилга
+%liststotoc, % Зураг/хүснэгт/бусад жагсаалтыг гарчигт оруулахын тулд комментыг арилга
+%toctotoc, % Uncomment to add the main table of contents to the table of contents
+%parskip, % Параграф хооронд зай оруулахын тулд комментыг арилга
+%nohyperref, % hyperref багцыг ачаалахгүй бол комментыг арилга
+headsepline, % Толгой мөрийн доогуур шугам татахын тулд комментыг арилга
+]{MUSTThesis} % Энэ класс файл нь баримтын бүтцийг тодорхойлно
+
+\usepackage[utf8]{inputenc} % Олон улсын тэмдэгт оруулахад хэрэгтэй
+\usepackage[T2A]{fontenc} % Олон улсын тэмдэгтийн гаралтын кодчилол
+
+\usepackage[mongolian]{babel}
+
+% Текстийн зэрэгцүүлэлт ба paragraph-ийн уян хатан байдлыг сайжруулах
+\usepackage{microtype} % Typography сайжруулах (overfull hbox багасгах)
+\setlength{\emergencystretch}{3em} % Урт мөр шахах нөөц
+\tolerance=1000 % Текстийн зэрэгцүүлэлтийн уян хатан байдал
+\hbadness=10000 % Underfull hbox warning-ийг бууруулах
+
+\usepackage{titlesec}
+\usepackage[table]{xcolor}
+\usepackage{rotating} % эргүүлэх
+\usepackage{multirow}
+
+\usepackage{tcolorbox}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{float} % [H] placement-д хэрэгтэй
+\usepackage{adjustbox} % өргөн хүснэгтийг \textwidth-д багтаах (max width)
+\setlength{\emergencystretch}{2em} % урт нэр томьёоны улмаас мөр хальхаас сэргийлэх (зөөлөн)
+\tcbuselibrary{skins}
+
+% Зурганд хоосон зай үлдээхгүй float тохиргоо
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{3}
+\setcounter{totalnumber}{5}
+
+\newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+\newcolumntype{Z}{>{\centering\arraybackslash}X}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+% Хүснэгтийн мөрийн өндөр (\arraystretch=1.4)-г \mainmatter-ийн дараа зөөсөн:
+% нүүр хуудас, Товчилсон үгс зэрэг front matter-ийн tabular-ыг 1.0 (suvdaa шиг) байлгана.
+
+\tcbset{tab2/.style={enhanced,fonttitle=\bfseries,fontupper=\scriptsize\rmfamily,
+        colback=white,colframe=black,colbacktitle=white,
+        coltitle=black,center title,sharp corners=all,
+        boxsep=0pt,left=2pt,right=2pt,top=2pt,bottom=2pt,
+        tabularx*={\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.0}}}}
+
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{braket} % Dirac notation: \ket, \bra, \braket
+
+\usepackage{tikz} % зураг зурах
+\usetikzlibrary{shapes,arrows,automata,positioning,calc,decorations.pathreplacing,trees,fit,shadows}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{subcaption}
+
+\usepackage{pdfpages} % Гарын үсэгтэй scan хуудсуудыг (PDF) шууд оруулах
+
+\usepackage{pagecolor}
+\definecolor{LigthBlue}{RGB}{102,255,255}
+\definecolor{Beige}{RGB}{255,220,180}
+
+\definecolor{OliveGreen}{cmyk}{0.64,0,0.95,0.40}
+\definecolor{CadetBlue}{cmyk}{0.62,0.57,0.23,0}
+
+
+\definecolor{lightlightgray}{gray}{0.9}
+\usepackage{listings}
+\usepackage{fancyvrb} % UTF-8 кирилл текст агуулсан скриптүүдийг хавсралтад оруулахад
+\usepackage{algorithm}
+\usepackage{algpseudocode} % псевдокод (algorithmic environment) — Хавсралт Б,В,Г-д ашиглана
+\usepackage{newunicodechar}
+% Box-drawing, math symbols, emoji-уудыг скриптийн VerbatimInput-д орлуулах
+\newunicodechar{─}{-}
+\newunicodechar{═}{=}
+\newunicodechar{│}{|}
+\newunicodechar{║}{|}
+\newunicodechar{┌}{+}
+\newunicodechar{┐}{+}
+\newunicodechar{└}{+}
+\newunicodechar{┘}{+}
+\newunicodechar{├}{+}
+\newunicodechar{┤}{+}
+\newunicodechar{┬}{+}
+\newunicodechar{┴}{+}
+\newunicodechar{┼}{+}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{X}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{←}{\ensuremath{\leftarrow}}
+\newunicodechar{↔}{\ensuremath{\leftrightarrow}}
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{≠}{\ensuremath{\neq}}
+\newunicodechar{—}{---}
+\newunicodechar{–}{--}
+\newunicodechar{×}{\ensuremath{\times}}
+\newunicodechar{°}{\textdegree}
+\newunicodechar{μ}{\ensuremath{\mu}}
+\newunicodechar{Ω}{\ensuremath{\Omega}}
+\newunicodechar{α}{\ensuremath{\alpha}}
+\newunicodechar{β}{\ensuremath{\beta}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{π}{\ensuremath{\pi}}
+\newunicodechar{∞}{\ensuremath{\infty}}
+\newunicodechar{·}{\ensuremath{\cdot}}
+\newunicodechar{💨}{*}
+\newunicodechar{✨}{*}
+\newunicodechar{⚡}{*}
+\newunicodechar{🔑}{*}
+\newunicodechar{🔒}{*}
+\newunicodechar{📊}{*}
+\renewcommand{\lstlistingname}{Эх код} % Програмын эх код хэвлэх
+\lstset{
+language={[x86masm]Assembler},                             % Code langugage  [x86masm]Assembler C VHDL Phyton 
+basicstyle=\ttfamily,                   % Code font
+keywordstyle=\color{OliveGreen},        % Keywords font ('*' = uppercase)
+commentstyle=\color{gray},              % Comments font
+numbers=left,                           % Line nums position
+numberstyle=\tiny,                      % Line-numbers fonts
+stepnumber=1,                           % Step between two line-numbers
+numbersep=5pt,                          % How far are line-numbers from code
+backgroundcolor=\color{lightlightgray}, % Choose background color
+frame=none,                             % A frame around the code
+tabsize=2,                              % Default tab size
+captionpos=b,                           % Caption-position = bottom
+breaklines=true,                        % Automatic line breaking?
+breakatwhitespace=false,                % Automatic breaks only at whitespace?
+showspaces=false,                       % Dont make spaces visible
+showtabs=false,                         % Dont make tabls visible
+escapeinside={(*@}{@*)},                % Монгол тэмдэгтийг lstlisting-д ашиглах
+extendedchars=true,                     % UTF-8 тэмдэгт зөв уншуулах (Cyrillic, etc.)
+inputencoding=utf8,
+literate=%
+  {а}{{\cyra}}1 {б}{{\cyrb}}1 {в}{{\cyrv}}1 {г}{{\cyrg}}1 {д}{{\cyrd}}1
+  {е}{{\cyre}}1 {ё}{{\cyryo}}1 {ж}{{\cyrzh}}1 {з}{{\cyrz}}1 {и}{{\cyri}}1
+  {й}{{\cyrishrt}}1 {к}{{\cyrk}}1 {л}{{\cyrl}}1 {м}{{\cyrm}}1 {н}{{\cyrn}}1
+  {о}{{\cyro}}1 {п}{{\cyrp}}1 {р}{{\cyrr}}1 {с}{{\cyrs}}1 {т}{{\cyrt}}1
+  {у}{{\cyru}}1 {ү}{{\cyryu}}1 {ф}{{\cyrf}}1 {х}{{\cyrh}}1 {ц}{{\cyrc}}1
+  {ч}{{\cyrch}}1 {ш}{{\cyrsh}}1 {щ}{{\cyrshch}}1 {ъ}{{\cyrhrdsn}}1
+  {ы}{{\cyrery}}1 {ь}{{\cyrsftsn}}1 {э}{{\cyrerev}}1 {ю}{{\cyryu}}1 {я}{{\cyrya}}1
+  {ө}{{\cyrotld}}1 {Ө}{{\CYROTLD}}1 {Ү}{{\CYRYU}}1
+  {А}{{\CYRA}}1 {Б}{{\CYRB}}1 {В}{{\CYRV}}1 {Г}{{\CYRG}}1 {Д}{{\CYRD}}1
+  {Е}{{\CYRE}}1 {Ж}{{\CYRZH}}1 {З}{{\CYRZ}}1 {И}{{\CYRI}}1 {Й}{{\CYRISHRT}}1
+  {К}{{\CYRK}}1 {Л}{{\CYRL}}1 {М}{{\CYRM}}1 {Н}{{\CYRN}}1 {О}{{\CYRO}}1
+  {П}{{\CYRP}}1 {Р}{{\CYRR}}1 {С}{{\CYRS}}1 {Т}{{\CYRT}}1 {У}{{\CYRU}}1
+  {Ф}{{\CYRF}}1 {Х}{{\CYRH}}1 {Ц}{{\CYRC}}1 {Ч}{{\CYRCH}}1 {Ш}{{\CYRSH}}1
+  {Щ}{{\CYRSHCH}}1 {Ы}{{\CYRERY}}1 {Э}{{\CYREREV}}1 {Я}{{\CYRYA}}1
+  {–}{{-}}1 {—}{{---}}1 {„}{{,,}}1 {“}{{``}}1
+}
+
+\usepackage[autostyle=false]{csquotes} % Ном зүйд хэлнээс хамаарсан хашилт оруулахад хэрэгтэй
+
+% \usepackage[backend=bibtex,natbib=true,sorting=none,sortcites]{biblatex} % Ном зүйд bibtex -г ашиглах
+% Өөрчилсөн мөр bumbayar bumabuma035@gmail.com
+\usepackage[backend=biber, natbib=true, sorting=none, sortcites]{biblatex}
+% babel mongolian-д biblatex-ийн mongolian.lbx файл байхгүй тул ном зүйн bibstring-ууд
+% (and, in, pages, andothers, сарын нэр) bold болж рендерлэгддэг. English хэл рүү
+% mapping хийснээр bibstring англиар, энгийн (тод биш) болно.
+\DeclareLanguageMapping{mongolian}{english}
+\addbibresource{references.bib} % Ном зүйн файл
+
+% -----------------------------------------------------------------------------
+% Гарчгийн дугаарлал ба агуулга
+% -----------------------------------------------------------------------------
+%   secnumdepth = 1 : 1, 1.1 дугаарлагдана; subsection (1.1.1) дугаарлагдахгүй
+%   tocdepth    = 1 : Агуулгад chapter + section хүртэл л харагдана
+\setcounter{secnumdepth}{1}
+\setcounter{tocdepth}{1}
+
+% Section гарчгийг зүүн талд шахсан, Bold; subsection нь дугаарлагдаагүй Bold
+\titleformat{\section}{\Large\bfseries\raggedright}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\raggedright}{}{0pt}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\raggedright}{}{0pt}{}
+
+\newcommand{\authorshipname}{Зохиогчийн эрх хамгаалал}
+\newcommand{\abbrevname}{Товчилсон үгс}
+\newcommand{\constantsname}{Тогтмолууд}
+\newcommand{\symbolsname}{Таних тэмдэгтүүд}
+\newcommand{\acknowledgementname}{Талархал}
+\newcommand{\abstractname}{Хураангуй}
+\newcommand{\conclusionname}{Дүгнэлт}
+% --- text2sql-new-ийн тайланд нэмсэн багц, тэмдэгт -----------------------------
+\usepackage{longtable}
+\usepackage{pifont}
+\newunicodechar{−}{\ensuremath{-}}
+\newunicodechar{±}{\ensuremath{\pm}}
+\newunicodechar{Δ}{\ensuremath{\Delta}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
+\newunicodechar{…}{\ldots}
+\newunicodechar{’}{'}
+\newunicodechar{√}{\ensuremath{\surd}}
+\newcommand{\tsql}[1]{\texttt{\small #1}}
+\lstdefinelanguage{SQLmn}{morekeywords={SELECT,FROM,WHERE,GROUP,BY,ORDER,JOIN,ON,AND,OR,AS,COUNT,SUM,AVG,BETWEEN,LIMIT,WITH,CASE,WHEN,THEN,ELSE,END,DISTINCT,HAVING,IN,NOT,NULL,IS},sensitive=false,morecomment=[l]{--},morestring=[b]'}
+\newunicodechar{✔}{\ensuremath{\checkmark}}
+\newunicodechar{≫}{\ensuremath{\gg}}
+
+%-------------------------------------------------------------------------------
+%	THESIS INFORMATION
+%   `end5896` — таны өөрөө бөглөх газар (text2sql-thesis/thesis/FILL_IN.md-тэй ижил журам)
+%-------------------------------------------------------------------------------
+
+\thesistitle{Том хэлний загварт (LLM) суурилсан Text-to-SQL агентыг хөгжүүлэх нь}
+\thesistitleeng{Developing an LLM-Based Text-to-SQL Agent}
+\thesistype{Бакалаврын төгсөлтийн ажил}
+\authorshort{Б.Очир}
+\authorlong{Батчулуун Очир}
+\authorcode{B221960026}
+\addresses{} % ← оюутны и-мэйл (бөглөвөл хураангуйд гарна)
+\phonenumber{}
+
+\supervisor{Доктор (Ph.D) Д.Золзаяа} % сэдэв батлах хуудаснаас (F.CS04)
+\reader{\makebox[3cm]{\dotfill}} % ← шүүмжлэгч (томилогдоогүй)
+\advisorA{Б.Батзолбоо} % сэдэв батлах хуудаснаас (F.CS03); эрдмийн зэргийг нэмнэ
+\advisorB{}
+\degreeind{061902000000002306} % Хиймэл оюун (Б.Болоржингийн ажилтай ижил мэргэжил) — шалгах
+\degree{Хиймэл оюун}
+\subject{Компьютерын ухаан}
+\keywords{«Text2SQL», монгол хэл, том хэлний загвар, «RAG», машин орчуулга, «LoRA», санал хураалт, ББСБ, «PostgreSQL»}
+\department{Компьютерын ухааны тэнхим}
+\deptchair{Доктор (PhD), дэд проф. А.Хүдэр} % 2026-2027 намрын хамгаалалтын хуваариас (КУ-ны тэнхимийн эрхлэгч)
+\group{}
+\faculty{\href{http://www.sict.edu.mn}{Мэдээлэл, Холбооны Технологийн Сургууль}}
+\university{\href{http://www.must.edu.mn}{Шинжлэх Ухаан, Технологийн Их Сургууль}}
+
+\hypersetup{pdftitle=\ttitle}
+\hypersetup{pdfauthor=\shortname}
+\hypersetup{pdfkeywords=\keywordnames}
+\hypersetup{allcolors=black}
+
+\begin{document}
+
+\frontmatter
+\pagestyle{plain}
+
+\include{FrontBackMatter/Titlepage}
+\include{FrontBackMatter/Plan-Review}
+\include{FrontBackMatter/Declaration}
+\include{FrontBackMatter/Abstract}
+\include{FrontBackMatter/Acknowledgments}
+\include{FrontBackMatter/Abbreviations}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\mainmatter
+\renewcommand{\arraystretch}{1.3}
+\pagestyle{thesis}
+\myformat
+
+% Бүтэц нь «diplom ajluud»-ын Б.Болоржингийн ажилтай ижил: Оршил → 6 бүлэг → Дүгнэлт → Ном зүй (хавсралтгүй).
+% Хуучин 9 бүлэгтэй хувилбарын файлуудыг (Ch1_Intro … Ch9_Conclusion) 2026-10-27-нд хассан.
+\include{Chapters/Intro}
+\include{Chapters/Ch1_Related}
+\include{Chapters/Ch2_Method}
+\include{Chapters/Ch3_Data}
+\include{Chapters/Ch4_Model}
+\include{Chapters/Ch5_System}
+\include{Chapters/Ch6_Results}
+\include{Chapters/Conclusion}
+
+% Хавсралт (хамгаалалтын хуваарь: Үзлэг 3-т «хавсралтууд» шаардлагатай)
+\myformat
+\appendix
+% Хавсралтыг монгол үсгээр (А, Б, В, Г) дугаарлана; hyperref-ийн холбоос латин (\theHchapter) хэвээр
+\renewcommand{\thechapter}{\ifcase\value{chapter}\or А\or Б\or В\or Г\or Д\fi}
+\include{Appendices/AppendixA}
+\include{Appendices/AppendixB}
+\include{Appendices/AppendixC}
+\include{Appendices/AppendixD}
+
+\defformat
+\addchaptertocentry{Ном зүй}
+\printbibliography[heading=bibliography,title={Ном зүй}]
+
+\end{document}

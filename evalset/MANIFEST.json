@@ -1,0 +1,94 @@
+{
+  "version": "v1",
+  "created": "2026-10-15T14:38:02",
+  "seed": 42,
+  "as_of_date": "2026-06-30",
+  "db": {
+    "name": "nbfi",
+    "seed": 42,
+    "scale": 1.0
+  },
+  "files": {
+    "dev": {
+      "path": "evalset/dev.jsonl",
+      "sha1": "c046d6c97a4a",
+      "n": 300,
+      "category": {
+        "answerable": 224,
+        "unanswerable": 38,
+        "ambiguous": 38
+      },
+      "difficulty_answerable": {
+        "easy": 57,
+        "medium": 121,
+        "hard": 46
+      },
+      "domain": {
+        "applications": 37,
+        "collection": 38,
+        "cross": 36,
+        "customers": 38,
+        "deposits": 38,
+        "gl_trends": 36,
+        "loans": 39,
+        "payments": 38
+      },
+      "mixed_variant": 56,
+      "families": 271
+    },
+    "test": {
+      "path": "evalset/test.jsonl",
+      "sha1": "c496255b10c8",
+      "n": 200,
+      "category": {
+        "answerable": 151,
+        "unanswerable": 24,
+        "ambiguous": 25
+      },
+      "difficulty_answerable": {
+        "easy": 38,
+        "medium": 82,
+        "hard": 31
+      },
+      "domain": {
+        "applications": 25,
+        "collection": 25,
+        "cross": 25,
+        "customers": 25,
+        "deposits": 25,
+        "gl_trends": 24,
+        "loans": 26,
+        "payments": 25
+      },
+      "mixed_variant": 38,
+      "families": 177
+    },
+    "examples": {
+      "path": "knowledge/examples.jsonl",
+      "sha1": "1c3f6c1b5a58",
+      "n": 160
+    }
+  },
+  "sources": [
+    "applications.jsonl",
+    "collection.jsonl",
+    "cross.jsonl",
+    "customers.jsonl",
+    "deposits.jsonl",
+    "gl_trends.jsonl",
+    "loans.jsonl",
+    "payments.jsonl",
+    "applications_examples.jsonl",
+    "collection_examples.jsonl",
+    "cross_examples.jsonl",
+    "customers_examples.jsonl",
+    "deposits_examples.jsonl",
+    "gl_trends_examples.jsonl",
+    "loans_examples.jsonl",
+    "payments_examples.jsonl"
+  ],
+  "near_duplicates": {
+    "examples_vs_eval": [],
+    "dev_vs_test": []
+  }
+}

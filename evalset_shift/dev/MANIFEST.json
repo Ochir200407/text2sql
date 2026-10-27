@@ -1,0 +1,36 @@
+{
+  "created": "2026-10-25T18:44:50",
+  "split": "dev",
+  "seed": 2026,
+  "items": 224,
+  "stats": {
+    "answerable": 224,
+    "ok:syn2": 224,
+    "ok:short": 224,
+    "ok:mn2": 224,
+    "ok:opq2": 224
+  },
+  "name_overlap": {
+    "xsyn2": {
+      "names": 337,
+      "same_as_original": 47,
+      "seen_in_training": 0
+    },
+    "xshort": {
+      "names": 337,
+      "same_as_original": 28,
+      "seen_in_training": 36
+    },
+    "xmn2": {
+      "names": 336,
+      "same_as_original": 25,
+      "seen_in_training": 125
+    },
+    "xopq2": {
+      "names": 337,
+      "same_as_original": 0,
+      "seen_in_training": 0
+    }
+  },
+  "sha256_items": "dbe9f373e98c057c971dfdef8d66ff341d33c2983235a60d8d6b47a692d959a1"
+}

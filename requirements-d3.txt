@@ -1,0 +1,11 @@
+# D3 (STAGE=train_d3, Kaggle 2×T4) — scripts/server/run_plan_l4.sh bootstrap-ийн дараа суулгана (D3_PINS=0 бол алгасна).
+# training/sft.py-ийн QLoRA, хэсэгчилсэн completion loss, DDP-г эдгээр хувилбарын эх кодоор шалгасан (2026-10-18):
+# TRL 1.16 (4 битийн загварын LoRA-г bf16 болгодог, fused head-ээр forward-ийг нөхдөг), transformers 5.19
+# (Trainer.loss_is_scaled_for_ga), PEFT 0.21 (prepare_model_for_kbit_training). vLLM 0.32.0 нь
+# transformers>=5.16.1,<5.20.0 шаарддаг тул transformers 5.19.0 (vLLM-ээр D3s-ийг мөн сессэд үнэлнэ).
+vllm==0.32.0
+transformers==5.19.0
+trl==1.16.0
+peft==0.21.2
+accelerate==1.15.0
+bitsandbytes==0.50.2

@@ -1,0 +1,105 @@
+# =====================================================================
+# Загварын бүртгэл. Туршилтын төлөвлөгөөний гол хоёр загвар: arctic-r1-7b, sqrl-9b.
+# Бусад нь суурь харьцуулалт (зааврын 5-р хэсэг, 1-р алхам) ба орчуулагч/intent загвар.
+# vllm_args: scripts/server/serve_model.sh-д shlex-ээр задлагдаж дамжина (JSON аргументыг нэг хашилтад). revision: Hugging Face commit (run бүрийн лог-д бичигдэнэ).
+# Decoding: гол харьцуулалт greedy (temperature 0); санал хураалт (E2) — family-ийн sampling.
+# =====================================================================
+models:
+  arctic-r1-7b:
+    hf_id: Snowflake/Arctic-Text2SQL-R1-7B
+    revision: main
+    family: omnisql
+    served_name: arctic-r1-7b
+    max_model_len: 24576
+    max_tokens: 3072
+    schema_token_budget: 13000      # B1-ийн бүрэн тайлбар (~12.3k токен) багтана
+    sampling: {temperature: 0.8, top_p: 1.0}
+    vllm_args: "--dtype bfloat16 --max-model-len 24576 --gpu-memory-utilization 0.90 --enable-prefix-caching"
+    notes: "Qwen2.5-Coder-7B суурьтай (32k context), GRPO. BF16 ≈ 15 GB — L4 (24 GB)-д багтана."
+
+  sqrl-9b:
+    hf_id: feyninc/sqrl-9b
+    revision: main
+    family: sqrl
+    served_name: sqrl-9b
+    max_model_len: 32768
+    max_tokens: 4096
+    schema_token_budget: 13000
+    sampling: {temperature: 0.7, top_p: 0.95}
+    # Загварын картын дагуу: reasoning parser-ийг БҮҮ асаа. L4 (24 GB) дээр FP8 (төлөвлөгөө: "Arctic BF16, sqrl FP8").
+    vllm_args: "--max-model-len 32768 --gpu-memory-utilization 0.92 --quantization fp8 --limit-mm-per-prompt '{\"image\":0,\"video\":0}'"
+    vllm_args_80gb: "--dtype bfloat16 --max-model-len 32768 --gpu-memory-utilization 0.90 --limit-mm-per-prompt '{\"image\":0,\"video\":0}'"
+    notes: "Qwen3.5-9B суурьтай agentic загвар (<sql>/<answer>). BF16 ≈ 20 GB; L4 дээр FP8."
+
+  # ---- нэмэлт суурь загварууд (сонголттой)
+  qwen3.5-9b:
+    hf_id: Qwen/Qwen3.5-9B
+    revision: main
+    family: generic
+    served_name: qwen3.5-9b
+    max_model_len: 32768
+    max_tokens: 4096
+    sampling: {temperature: 0.7, top_p: 0.95}
+    extra_body: {chat_template_kwargs: {enable_thinking: false}}
+    vllm_args: "--max-model-len 32768 --gpu-memory-utilization 0.92 --quantization fp8 --limit-mm-per-prompt '{\"image\":0,\"video\":0}'"
+    notes: "A4 орчуулагч, F7 intent загвар болгон ч ашиглана."
+
+  gemma-4-e4b:
+    hf_id: google/gemma-4-E4B-it
+    revision: main
+    family: generic
+    served_name: gemma-4-e4b
+    max_model_len: 16384
+    max_tokens: 2048
+    sampling: {temperature: 0.7, top_p: 0.95}
+    vllm_args: "--dtype bfloat16 --max-model-len 16384 --gpu-memory-utilization 0.90"
+    notes: "F7: монгол хэлэнд хүчтэй жижиг загвар (intent JSON)."
+
+  gemma-4-12b:
+    hf_id: google/gemma-4-12B-it
+    revision: main
+    family: generic
+    served_name: gemma-4-12b
+    max_model_len: 16384
+    max_tokens: 2048
+    sampling: {temperature: 0.7, top_p: 0.95}
+    vllm_args: "--max-model-len 16384 --gpu-memory-utilization 0.92 --quantization fp8"
+
+  omnisql-7b:
+    hf_id: seeklhy/OmniSQL-7B
+    revision: main
+    family: omnisql_plain
+    served_name: omnisql-7b
+    max_model_len: 16384
+    max_tokens: 2048
+    sampling: {temperature: 0.8, top_p: 1.0}
+    vllm_args: "--dtype bfloat16 --max-model-len 16384 --gpu-memory-utilization 0.90"
+
+  xiyan-7b:
+    hf_id: XGenerationLab/XiYanSQL-QwenCoder-7B-2504
+    revision: main
+    family: xiyan
+    served_name: xiyan-7b
+    max_model_len: 16384
+    max_tokens: 1024
+    sampling: {temperature: 0.8, top_p: 0.8}
+    vllm_args: "--dtype bfloat16 --max-model-len 16384 --gpu-memory-utilization 0.90"
+
+  kwai-autosql-14b:
+    hf_id: Kwai-AutoSQL/Kwai-AutoSQL-14B
+    revision: main
+    family: generic
+    served_name: kwai-autosql-14b
+    max_model_len: 16384
+    max_tokens: 4096
+    sampling: {temperature: 0.7, top_p: 0.95}
+    extra_body: {chat_template_kwargs: {enable_thinking: false}}
+    vllm_args: "--max-model-len 16384 --gpu-memory-utilization 0.92 --quantization fp8"
+
+# A4 орчуулагч, F8 router, F7 intent-ийн анхдагч загвар (Apache лицензтэй; NLLB-200 нь CC-BY-NC тул хэрэглэхгүй)
+translator: qwen3.5-9b
+# translator_prompt: v1 (анхдагч, zero-shot few-shot prompt) | sft — fine-tune хийсэн орчуулагч (M1; pipeline/translate.translate_v2,
+# scripts/mt/render_sft.py-ийн сургалтын формат). M1 нь MT-7-г давсны дараа л sft болгоно.
+translator_prompt: v1
+router_model: qwen3.5-9b
+intent_model: gemma-4-e4b

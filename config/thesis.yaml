@@ -1,0 +1,28 @@
+# =====================================================================
+# Thesis benchmark: text2sql-thesis-ийн 150 кейс (цахим худалдааны DB) дээр шинэ системийг ажиллуулах.
+#   t2s --config config/thesis.yaml thesis-import --src ../text2sql-thesis   # DB, кейс, мэдлэг (нэг удаа)
+#   t2s --config config/thesis.yaml index-build
+#   t2s --config config/thesis.yaml eval --run B5 --model arctic-r1-7b --split dev --variants mn,en
+# Туршилтын ID (A1…G4) нь ББСБ-тэй ижил (config/experiments.yaml); зөвхөн DB, мэдлэг, eval set, results солигдоно.
+# docs/THESIS_BENCH.md
+# =====================================================================
+project:
+  as_of_date: "2025-12-31"        # thesis-ийн өгөгдөл 2023-01-01 … 2025-12-31
+
+db:
+  name: "thesis_ecom"
+  testsuite:
+    count: 0                       # thesis-д test-suite хуулбар DB байхгүй
+
+knowledge:
+  semantic_model: "knowledge/thesis/semantic_model.yaml"
+  glossary: "knowledge/thesis/glossary.yaml"
+  examples: "knowledge/thesis/examples.jsonl"   # thesis-ийн train split (31)
+  metrics: "knowledge/thesis/metrics.yaml"      # KPI тодорхойлолт байхгүй → F8 чиглүүлэхгүй
+  index_dir: "build/index_thesis"
+
+eval:
+  dev_file: "data/thesis/dev.jsonl"
+  test_file: "data/thesis/test.jsonl"
+  results_dir: "results/thesis"
+  testsuite: false

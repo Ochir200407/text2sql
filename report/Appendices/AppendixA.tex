@@ -1,0 +1,44 @@
+% =============================================================================
+% Хавсралт А: Сервер дээр ажиллуулах заавар
+% =============================================================================
+
+\chapter{Сервер дээр ажиллуулах заавар}
+\label{AppendixA}
+\pagecolor{white}
+
+Систем Ubuntu 22.04/24.04, NVIDIA L4 (24 GB, үнэлгээ) ба A100 (80 GB, сургалт) дээр ажиллахаар бэлтгэгдсэн.
+Дэлгэрэнгүйг репозиторын \tsql{README.md}, \tsql{docs/SERVER.md}, \tsql{docs/TRAINING.md}-ээс үзнэ.
+
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize, caption={Ажиллуулах дараалал}, showstringspaces=false]
+# 1) Suulgalt: PostgreSQL 16, venv, DB, test-suite DB, indeks, shalgalt
+export T2S_PG_PASSWORD='...'
+bash scripts/server/setup.sh
+
+# 2) Surgaltgui test (L4): ue shat bureer
+STAGE=caches bash scripts/server/run_plan_l4.sh
+STAGE=A      bash scripts/server/run_plan_l4.sh       # REPORT.md -> BEST_A
+STAGE=B BEST_A=A6 bash scripts/server/run_plan_l4.sh
+STAGE=F BEST_A=A6 bash scripts/server/run_plan_l4.sh
+
+# 3) Surgalt (A100), daraa ni L4 deer unelgee
+STEPS="data sample build sft" BEST_A=A6 bash scripts/server/train_a100.sh arctic-r1-7b
+BEST_A=A6 bash scripts/server/eval_adapters.sh arctic-r1-7b                 # -> BEST_SFT
+STEPS=grpo BEST_A=A6 BEST_SFT=C3 bash scripts/server/train_a100.sh arctic-r1-7b
+
+# 4) E, G (A-D-iin shildeg deer), thesis benchmark, test
+STAGE=E      BEST_A=A6 BEST_CONFIG=D1 bash scripts/server/run_plan_l4.sh
+STAGE=G      BEST_A=A6 BEST_CONFIG=D1 bash scripts/server/run_plan_l4.sh
+STAGE=thesis BEST_A=A6 BEST_CONFIG=D1 bash scripts/server/run_plan_l4.sh
+STAGE=test   BEST_A=A6 BEST_CONFIG=D1 TEST_IDS=A6,B5,D1,E2 bash scripts/server/run_plan_l4.sh
+
+# 5) Tailan ba ene barimtiin khusnegtuud
+python -m mn_text2sql report
+python -m mn_text2sql report-latex
+cd report && bash build.sh
+\end{lstlisting}
+
+Үе шат бүр өмнөхийн шилдэг тохиргооноос хамаарна. \tsql{BEST\_A} нь A1/A6/A7-ийн шилдэг, \tsql{BEST\_SFT} нь C-ийн
+шилдэг, \tsql{BEST\_CONFIG} нь A--D-ийн шилдэг байна (E1 биш: E1-ийн суурь нь өөрөө \tsql{best\_config}). Эдгээрийг
+\tsql{results/REPORT.md}-ээс сонгоно. \tsql{BEST\_CONFIG} нь adapter-тай (жишээ нь D1) бол E ба G үе шатыг загвар бүрээр
+тусад нь, LoRA-тай ажиллуулна: \tsql{MODELS=arctic-r1-7b LORA=c3=adapters/c3\_\_arctic-r1-7b STAGE=E ...}. Тасарвал ижил
+командыг дахин ажиллуулахад дууссан асуултыг алгасна. Тохиргоо өөрчлөгдсөн бол runner зогсоно.

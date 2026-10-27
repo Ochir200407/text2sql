@@ -1,0 +1,1091 @@
+% references.bib — Bibliography for the Mongolian Text2SQL report (text2sql-new)
+% Topic: Монгол хэлээр асуусан асуултыг ББСБ-ийн PostgreSQL өгөгдлийн сан дээр SQL болгон
+%        хөрвүүлэх нээлттэй эхийн загварт суурилсан систем ба түүний хяналттай туршилт
+%        (entries up to linkedin_sqlbot are inherited from the author's previous thesis,
+%         the rest were added for this report and checked on 2026-10-16)
+% Author: Батчулууны Очир (B221960026), ШУТИС МХТС
+% Format: BibLaTeX (compiled with biber)
+% Last updated: 2026-10-16
+%
+% Conventions:
+%   * keys are lowercase, underscore-separated: author_year_topic or org_doc
+%   * arXiv preprints use @misc with eprint/eprinttype/primaryclass; when a
+%     peer-reviewed version exists it is preferred (@inproceedings/@article)
+%     and the arXiv id is kept as eprint for convenience
+%   * more than six authors -> first six + "and others"
+%   * every entry was checked against arxiv.org/abs, ACL Anthology, Crossref
+%     or the publisher page on 2026-09-21; no DOI is given where none was found
+
+% =============================================================================
+% Section 1: Text-to-SQL benchmarks and datasets
+% =============================================================================
+
+% Spider — cross-domain text-to-SQL benchmark; origin of exact-match / EX metrics
+@inproceedings{yu_2018_spider,
+  author    = {Yu, Tao and Zhang, Rui and Yang, Kai and Yasunaga, Michihiro and Wang, Dongxu and Li, Zifan and others},
+  title     = {{Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task}},
+  booktitle = {Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2018},
+  pages     = {3911--3921},
+  address   = {Brussels, Belgium},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/D18-1425},
+  eprint    = {1809.08887},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% BIRD — large-scale, database-grounded benchmark with dirty values; the main leaderboard cited in Ch. 2
+@inproceedings{li_2023_bird,
+  author    = {Li, Jinyang and Hui, Binyuan and Qu, Ge and Yang, Jiaxi and Li, Binhua and Li, Bowen and others},
+  title     = {{Can LLM Already Serve as A Database Interface? A BIg Bench for Large-Scale Database Grounded Text-to-SQLs}},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023), Datasets and Benchmarks Track},
+  year      = {2023},
+  eprint    = {2305.03111},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2305.03111}
+}
+
+% UniQL — 16-dialect benchmark (incl. Oracle, ClickHouse); 33.66% cross-dialect survival -> Consistency@2 motivation
+@misc{gao_2026_uniql,
+  author    = {Gao, Jianling and Tao, Chongyang and Bai, Jiayuan and Yang, Liu and Pan, Xuanguang and Liu, Jinrui and others},
+  title     = {{UniQL: Towards Dialect-Universal Benchmarking for Text-to-SQL}},
+  year      = {2026},
+  eprint    = {2606.08018},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2606.08018}
+}
+
+% PolySQL — automated backend isomorphism; -10.1% dialect drop, logic (61%) vs syntax (8%) errors
+@misc{perlitz_2026_polysql,
+  author    = {Perlitz, Yotam and Venezian, Elad and Royer, Corentin and Fusco, Francesco and Giovannini, Andrea},
+  title     = {{PolySQL: Scaling Text-to-SQL Evaluation Across SQL Dialects via Automated Backend Isomorphism}},
+  year      = {2026},
+  eprint    = {2605.07796},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2605.07796}
+}
+
+% PARROT — SQL->SQL cross-system translation benchmark; LLMs < 38.53% -> justifies rule-based sqlglot transpile
+@inproceedings{zhou_2025_parrot,
+  author    = {Zhou, Wei and Li, Guoliang and Wang, Haoyu and Han, Yuxing and Wu, Xufei and Wu, Fan and Zhou, Xuanhe},
+  title     = {{PARROT: A Benchmark for Evaluating LLMs in Cross-System SQL Translation}},
+  booktitle = {Advances in Neural Information Processing Systems 38 (NeurIPS 2025)},
+  year      = {2025},
+  eprint    = {2509.23338},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB},
+  url       = {https://arxiv.org/abs/2509.23338}
+}
+
+% Dr.Spider — 17 perturbation types for text-to-SQL robustness; basis of MN perturbation eval (A5)
+@inproceedings{chang_2023_drspider,
+  author    = {Chang, Shuaichen and Wang, Jun and Dong, Mingwen and Pan, Lin and Zhu, Henghui and Li, Alexander Hanbo and others},
+  title     = {{Dr.Spider: A Diagnostic Evaluation Benchmark towards Text-to-SQL Robustness}},
+  booktitle = {The Eleventh International Conference on Learning Representations (ICLR 2023)},
+  year      = {2023},
+  eprint    = {2301.08881},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2301.08881}
+}
+
+% Jin et al. — annotation errors in BIRD Mini-Dev (52.8%) and Spider 2.0-Snow (62.8%); gold-audit protocol (D2)
+@misc{jin_2026_annotation_errors,
+  author    = {Jin, Tengjun and Choi, Yoojin and Zhu, Yuxuan and Kang, Daniel},
+  title     = {{Pervasive Annotation Errors Break Text-to-SQL Benchmarks and Leaderboards}},
+  year      = {2026},
+  eprint    = {2601.08778},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2601.08778}
+}
+
+% Wretblad et al. — ~49% noisy data points in BIRD financial domain; zero-shot beats SOTA prompting on corrected gold
+@inproceedings{wretblad_2024_bird_noise,
+  author    = {Wretblad, Niklas and Riseby, Fredrik Gordh and Biswas, Rahul and Ahmadi, Amin and Holmstr{\"o}m, Oskar},
+  title     = {{Understanding the Effects of Noise in Text-to-SQL: An Examination of the BIRD-Bench Benchmark}},
+  booktitle = {Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers)},
+  year      = {2024},
+  pages     = {356--369},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.acl-short.34},
+  eprint    = {2402.12243},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% NL2SQL-BUGs — 9 main / 31 sub-category taxonomy of semantic SQL errors; used for error classification
+@inproceedings{liu_2025_nl2sql_bugs,
+  author    = {Liu, Xinyu and Shen, Shuyu and Li, Boyan and Tang, Nan and Luo, Yuyu},
+  title     = {{NL2SQL-BUGs: A Benchmark for Detecting Semantic Errors in NL2SQL Translation}},
+  booktitle = {Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD 2025)},
+  year      = {2025},
+  eprint    = {2503.11984},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB},
+  url       = {https://arxiv.org/abs/2503.11984}
+}
+
+% AmbiQT — column/table synonym, join and pre-computed-aggregate ambiguity; question-writing checklist (D3)
+@inproceedings{bhaskar_2023_ambiqt,
+  author    = {Bhaskar, Adithya and Tomar, Tushar and Sathe, Ashutosh and Sarawagi, Sunita},
+  title     = {{Benchmarking and Improving Text-to-SQL Generation under Ambiguity}},
+  booktitle = {Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2023},
+  pages     = {7053--7074},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2023.emnlp-main.436}
+}
+
+% AMBROSIA — scope / attachment / vagueness ambiguity taxonomy
+@inproceedings{saparina_2024_ambrosia,
+  author    = {Saparina, Irina and Lapata, Mirella},
+  title     = {{AMBROSIA: A Benchmark for Parsing Ambiguous Questions into Database Queries}},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024), Datasets and Benchmarks Track},
+  year      = {2024},
+  eprint    = {2406.19073},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2406.19073}
+}
+
+% =============================================================================
+% Section 2: Open-source Text-to-SQL models (7B-class, locally runnable)
+% =============================================================================
+
+% Arctic-Text2SQL-R1 — GRPO with simple execution rewards on Qwen2.5-Coder 7B/14B/32B; BIRD dev/test numbers
+@misc{yao_2025_arctic_text2sql_r1,
+  author    = {Yao, Zhewei and Sun, Guoheng and Borchmann, Lukasz and Nuti, Gaurav and Shen, Zheyu and Deng, Minghang and others},
+  title     = {{Arctic-Text2SQL-R1: Simple Rewards, Strong Reasoning in Text-to-SQL}},
+  year      = {2025},
+  eprint    = {2505.20315},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2505.20315}
+}
+
+% OmniSQL — SynSQL-2.5M synthetic data, SFT of Qwen2.5-Coder 7B/14B/32B; OmniSQL-7B baseline candidate
+@article{li_2025_omnisql,
+  author    = {Li, Haoyang and Wu, Shang and Zhang, Xiaokang and Huang, Xinmei and Zhang, Jing and Jiang, Fuxin and others},
+  title     = {{OmniSQL: Synthesizing High-quality Text-to-SQL Data at Scale}},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {18},
+  number    = {11},
+  pages     = {4695--4709},
+  year      = {2025},
+  doi       = {10.14778/3749646.3749723},
+  eprint    = {2503.02240},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2503.02240}
+}
+
+% XiYan-SQL — multi-generator ensemble; introduces the M-Schema schema representation used in this thesis
+@misc{gao_2024_xiyan_sql,
+  author    = {Gao, Yingqi and Liu, Yifu and Li, Xiaoxia and Shi, Xiaorong and Zhu, Yin and Wang, Yiming and others},
+  title     = {{A Preview of XiYan-SQL: A Multi-Generator Ensemble Framework for Text-to-SQL}},
+  year      = {2024},
+  eprint    = {2411.08599},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2411.08599}
+}
+
+% On-prem frontier — single-author study: schema retrieval gives no significant gain for 7-8B models on BIRD (B5)
+@misc{beskorovainyi_2026_onprem_frontier,
+  author    = {Beskorovainyi, Vladimir},
+  title     = {{How Far Do On-Prem Open LLMs Get on Text-to-SQL? A Cross-Family Size x Technique Frontier on BIRD}},
+  year      = {2026},
+  eprint    = {2606.29733},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2606.29733}
+}
+
+% ExeSQL — execution-driven self-taught bootstrapping for SQL dialects (PostgreSQL, MySQL, Oracle)
+@inproceedings{zhang_2025_exesql,
+  author    = {Zhang, Jipeng and Yang, Haolin and Miao, Kehao and Zhang, Ruiyuan and Pi, Renjie and Gao, Jiahui and Zhou, Xiaofang},
+  title     = {{ExeSQL: Self-Taught Text-to-SQL Models with Execution-Driven Bootstrapping for SQL Dialects}},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2025},
+  year      = {2025},
+  pages     = {24305--24326},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2025.findings-emnlp.1320},
+  eprint    = {2505.17231},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% Contrastive rewards + GRPO — 3B model on MultiSpider 7 languages reaches EX 87.4% with 3,000 RL samples
+@misc{kattamuri_2025_contrastive_grpo,
+  author    = {Kattamuri, Ashish and Prasad, Ishita and Malhotra, Meetu and Vats, Arpita and Raja, Rahul and Lie, Albert},
+  title     = {{Bridging the Semantic Gap: Contrastive Rewards for Multilingual Text-to-SQL with GRPO}},
+  year      = {2025},
+  note      = {20th International Workshop on Semantic and Social Media Adaptation \& Personalization},
+  eprint    = {2510.13827},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2510.13827}
+}
+
+% =============================================================================
+% Section 3: Agent, prompting, RAG and self-correction methods
+% =============================================================================
+
+% DAIL-SQL — systematic prompt-engineering benchmark; masked-question similarity few-shot selection (A3, B2)
+@article{gao_2024_dail_sql,
+  author    = {Gao, Dawei and Wang, Haibin and Li, Yaliang and Sun, Xiuyu and Qian, Yichen and Ding, Bolin and Zhou, Jingren},
+  title     = {{Text-to-SQL Empowered by Large Language Models: A Benchmark Evaluation}},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {17},
+  number    = {5},
+  pages     = {1132--1145},
+  year      = {2024},
+  doi       = {10.14778/3641204.3641221},
+  eprint    = {2308.15363},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+% DIN-SQL — decomposed in-context learning with self-correction; precedent for planner/writer/critic split
+@inproceedings{pourreza_2023_din_sql,
+  author    = {Pourreza, Mohammadreza and Rafiei, Davood},
+  title     = {{DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction}},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  year      = {2023},
+  eprint    = {2304.11015},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2304.11015}
+}
+
+% MAC-SQL — multi-agent (selector / decomposer / refiner) collaborative framework
+@inproceedings{wang_2025_mac_sql,
+  author    = {Wang, Bing and Ren, Changyu and Yang, Jian and Liang, Xinnian and Bai, Jiaqi and Chai, LinZheng and others},
+  title     = {{MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL}},
+  booktitle = {Proceedings of the 31st International Conference on Computational Linguistics (COLING 2025)},
+  pages     = {540--557},
+  year      = {2025},
+  publisher = {Association for Computational Linguistics},
+  eprint    = {2312.11242},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2312.11242}
+}
+
+% CHESS — contextual harnessing: entity/value retrieval, schema selection, candidate generation with unit tests
+@misc{talaei_2024_chess,
+  author    = {Talaei, Shayan and Pourreza, Mohammadreza and Chang, Yu-Chen and Mirhoseini, Azalia and Saberi, Amin},
+  title     = {{CHESS: Contextual Harnessing for Efficient SQL Synthesis}},
+  year      = {2024},
+  eprint    = {2405.16755},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2405.16755}
+}
+
+% CHASE-SQL — multi-path candidate generation and pairwise selection; BIRD 73.0 test (Gemini)
+@inproceedings{pourreza_2024_chase_sql,
+  author    = {Pourreza, Mohammadreza and Li, Hailong and Sun, Ruoxi and Chung, Yeounoh and Talaei, Shayan and Kakkar, Gaurav Tarlok and others},
+  title     = {{CHASE-SQL: Multi-Path Reasoning and Preference Optimized Candidate Selection in Text-to-SQL}},
+  booktitle = {The Thirteenth International Conference on Learning Representations (ICLR 2025)},
+  year      = {2025},
+  eprint    = {2410.01943},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2410.01943}
+}
+
+% MCS-SQL — multiple prompts + multiple-choice selection; deterministic multi-candidate consensus (B1)
+@inproceedings{lee_2025_mcs_sql,
+  author    = {Lee, Dongjun and Park, Choongwon and Kim, Jaehyuk and Park, Heesoo},
+  title     = {{MCS-SQL: Leveraging Multiple Prompts and Multiple-Choice Selection For Text-to-SQL Generation}},
+  booktitle = {Proceedings of the 31st International Conference on Computational Linguistics (COLING 2025)},
+  year      = {2025},
+  pages     = {337--353},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://aclanthology.org/2025.coling-main.24/},
+  eprint    = {2405.07467},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% RAG — retrieval-augmented generation; basis of the schema / value / few-shot retriever layer
+@inproceedings{lewis_2020_rag,
+  author    = {Lewis, Patrick and Perez, Ethan and Piktus, Aleksandra and Petroni, Fabio and Karpukhin, Vladimir and Goyal, Naman and others},
+  title     = {{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}},
+  booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS 2020)},
+  year      = {2020},
+  eprint    = {2005.11401},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2005.11401}
+}
+
+% ReAct — reasoning + acting loop; conceptual basis of the Explorer / Orchestrator agent loop
+@inproceedings{yao_2023_react,
+  author    = {Yao, Shunyu and Zhao, Jeffrey and Yu, Dian and Du, Nan and Shafran, Izhak and Narasimhan, Karthik and Cao, Yuan},
+  title     = {{ReAct: Synergizing Reasoning and Acting in Language Models}},
+  booktitle = {The Eleventh International Conference on Learning Representations (ICLR 2023)},
+  year      = {2023},
+  eprint    = {2210.03629},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2210.03629}
+}
+
+% Reflexion — verbal self-reflection from environment feedback; basis of the Critic retry loop
+@inproceedings{shinn_2023_reflexion,
+  author    = {Shinn, Noah and Cassano, Federico and Berman, Edward and Gopinath, Ashwin and Narasimhan, Karthik and Yao, Shunyu},
+  title     = {{Reflexion: Language Agents with Verbal Reinforcement Learning}},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  year      = {2023},
+  url       = {https://papers.nips.cc/paper_files/paper/2023/hash/1b44b878bb782e6954cd888628510e90-Abstract-Conference.html},
+  eprint    = {2303.11366},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI}
+}
+
+% "Death of Schema Linking" — full schema in context beats schema linking for strong models (71.83% BIRD)
+@misc{maamari_2024_death_schema_linking,
+  author    = {Maamari, Karime and Abubaker, Fadhil and Jaroslawicz, Daniel and Mhedhbi, Amine},
+  title     = {{The Death of Schema Linking? Text-to-SQL in the Age of Well-Reasoned Language Models}},
+  year      = {2024},
+  eprint    = {2408.07702},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2408.07702}
+}
+
+% Huang et al. — intrinsic self-correction without external feedback can hurt; motivates code-only Critic trigger (B3)
+@inproceedings{huang_2024_self_correct,
+  author    = {Huang, Jie and Chen, Xinyun and Mishra, Swaroop and Zheng, Huaixiu Steven and Yu, Adams Wei and Song, Xinying and Zhou, Denny},
+  title     = {{Large Language Models Cannot Self-Correct Reasoning Yet}},
+  booktitle = {The Twelfth International Conference on Learning Representations (ICLR 2024)},
+  year      = {2024},
+  eprint    = {2310.01798},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2310.01798}
+}
+
+% ErrorLLM — self-correction often overwrites correct SQL; error modeling for refinement (B3)
+@inproceedings{hong_2026_errorllm,
+  author    = {Hong, Zijin and Chen, Hao and Yuan, Zheng and Zhang, Qinggang and Zhuang, Luyao and Liao, Qing and others},
+  title     = {{ErrorLLM: Modeling SQL Errors for Text-to-SQL Refinement}},
+  booktitle = {Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD 2026)},
+  year      = {2026},
+  eprint    = {2603.03742},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2603.03742}
+}
+
+% Tai et al. — chain-of-thought styles for text-to-SQL; QDecomp question decomposition (Planner, B4)
+@inproceedings{tai_2023_cot_text2sql,
+  author    = {Tai, Chang-Yu and Chen, Ziru and Zhang, Tianshu and Deng, Xiang and Sun, Huan},
+  title     = {{Exploring Chain of Thought Style Prompting for Text-to-SQL}},
+  booktitle = {Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2023},
+  pages     = {5376--5393},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2023.emnlp-main.327},
+  eprint    = {2305.14215},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% Chung et al. — long-context LLMs do not get lost with the full schema; against aggressive schema pruning (B5)
+@article{chung_2025_long_context_nl2sql,
+  author    = {Chung, Yeounoh and Kakkar, Gaurav T. and Gan, Yu and Milne, Brenton and {\"O}zcan, Fatma},
+  title     = {{Is Long Context All You Need? Leveraging LLM's Extended Context for NL2SQL}},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {18},
+  number    = {8},
+  pages     = {2735--2747},
+  year      = {2025},
+  doi       = {10.14778/3742728.3742761},
+  eprint    = {2501.12372},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+% LinkedIn SQL Bot paper — enterprise text-to-SQL: retrieval, ranking, validation, UX; "one agent, one job"
+@misc{chen_2025_enterprise_text2sql,
+  author    = {Chen, Albert and Bundele, Manas and Ahlawat, Gaurav and Stetz, Patrick and Wang, Zhitao and Fei, Qiang and others},
+  title     = {{Text-to-SQL for Enterprise Data Analytics}},
+  year      = {2025},
+  note      = {Workshop on Agentic AI for Enterprise, KDD 2025},
+  eprint    = {2507.14372},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2507.14372}
+}
+
+% Survey — LLM-based text-to-SQL (prompting, fine-tuning, evaluation); used for the Ch. 2 taxonomy
+@article{shi_2025_survey_llm_text2sql,
+  author    = {Shi, Liang and Tang, Zhengju and Zhang, Nan and Zhang, Xiaotong and Yang, Zhi},
+  title     = {{A Survey on Employing Large Language Models for Text-to-SQL Tasks}},
+  journal   = {ACM Computing Surveys},
+  volume    = {58},
+  number    = {2},
+  pages     = {1--37},
+  year      = {2025},
+  doi       = {10.1145/3737873},
+  eprint    = {2407.15186},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% =============================================================================
+% Section 4: Multi-dialect SQL generation and dialect translation
+% =============================================================================
+
+% Dial — dialect-aware planning + HINT-KB + execution-driven debugging; closest prior system (+10.25% accuracy)
+@article{zhang_2026_dial,
+  author    = {Zhang, Xiang and Xu, Hongming and Zhou, Le and Zhou, Wei and Zhou, Xuanhe and Li, Guoliang and others},
+  title     = {{Dial: A Knowledge-Grounded Dialect-Specific NL2SQL System}},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {19},
+  number    = {11},
+  pages     = {3718--3731},
+  year      = {2026},
+  doi       = {10.14778/3836663.3836720},
+  eprint    = {2603.07449},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+% CrackSQL — hybrid rule + LLM dialect translation (SIGMOD 2025); modern competitor to sqlglot
+@article{zhou_2025_cracksql,
+  author    = {Zhou, Wei and Gao, Yuyang and Zhou, Xuanhe and Li, Guoliang},
+  title     = {{Cracking SQL Barriers: An LLM-based Dialect Translation System}},
+  journal   = {Proceedings of the ACM on Management of Data},
+  volume    = {3},
+  number    = {3},
+  pages     = {1--26},
+  year      = {2025},
+  doi       = {10.1145/3725278},
+  note      = {Extended arXiv version titled \enquote{CrackSQL: A Hybrid SQL Dialect Translation System Powered by Large Language Models}},
+  eprint    = {2504.00882},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+% RISE — rule-driven dialect translation via query reduction (ICSE 2026)
+@inproceedings{xie_2026_rise,
+  author    = {Xie, Xudong and Zhang, Yuwei and Dou, Wensheng and Gao, Yu and Cui, Ziyu and Song, Jiansen and others},
+  title     = {{RISE: Rule-Driven SQL Dialect Translation via Query Reduction}},
+  booktitle = {Proceedings of the 48th IEEE/ACM International Conference on Software Engineering (ICSE 2026)},
+  year      = {2026},
+  eprint    = {2601.05579},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB},
+  url       = {https://arxiv.org/abs/2601.05579}
+}
+
+% Dialect-agnostic parsing — LLM-based segmentation for parsing any dialect; compared with sqlglot in Ch. 3
+@article{an_2026_dialect_agnostic_parsing,
+  author    = {An, Junwen and Mahathevan, Kabilan and Rigger, Manuel},
+  title     = {{Dialect-Agnostic SQL Parsing via LLM-Based Segmentation}},
+  journal   = {Proceedings of the ACM on Management of Data},
+  volume    = {4},
+  number    = {3},
+  pages     = {1--28},
+  year      = {2026},
+  doi       = {10.1145/3802038},
+  eprint    = {2603.16155},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+% sqlglot — dependency-free SQL parser/transpiler used by the validator and transpile.py
+@software{mao_2026_sqlglot,
+  author    = {Mao, Toby and others},
+  title     = {{sqlglot: A no-dependency SQL parser, transpiler, optimizer, and engine}},
+  version   = {30.18.0},
+  year      = {2026},
+  url       = {https://github.com/tobymao/sqlglot},
+  urldate   = {2026-09-21},
+  note      = {MIT License}
+}
+
+% =============================================================================
+% Section 5: Multilingual text-to-SQL and Mongolian-language resources
+% =============================================================================
+
+% MultiSpider — Spider in 7 languages; 6.1% absolute drop for non-English; schema synonym augmentation (A4)
+@article{dou_2023_multispider,
+  author    = {Dou, Longxu and Gao, Yan and Pan, Mingyang and Wang, Dingzirui and Che, Wanxiang and Zhan, Dechen and Lou, Jian-Guang},
+  title     = {{MultiSpider: Towards Benchmarking Multilingual Text-to-SQL Semantic Parsing}},
+  journal   = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume    = {37},
+  number    = {11},
+  pages     = {12745--12753},
+  year      = {2023},
+  doi       = {10.1609/aaai.v37i11.26499},
+  eprint    = {2212.13492},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% MultiSpider 2.0 — Spider 2.0 in 8 languages; SOTA 4% EX, collaborative agents 15.4%; ablation template
+@inproceedings{pham_2026_multispider2,
+  author    = {Pham, Khanh Trinh and Nguyen, Thu Huong and Jo, Jun and Nguyen, Quoc Viet Hung and Nguyen, Thanh Tam},
+  title     = {{Multilingual Text-to-SQL: Benchmarking the Limits of Language Models with Collaborative Language Agents}},
+  booktitle = {Databases Theory and Applications (ADC 2025)},
+  series    = {Lecture Notes in Computer Science},
+  publisher = {Springer Nature Singapore},
+  pages     = {108--123},
+  year      = {2026},
+  doi       = {10.1007/978-981-95-6196-4_8},
+  eprint    = {2509.24405},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% IndicDB — 7 Indian-language variants, 9.00% "Indic gap"
+@misc{dawar_2026_indicdb,
+  author    = {Dawar, Aviral and Karanth, Roshan and Goyal, Vikram and Kumar, Dhruv},
+  title     = {{IndicDB -- Benchmarking Multilingual Text-to-SQL Capabilities in Indian Languages}},
+  year      = {2026},
+  eprint    = {2604.13686},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2604.13686}
+}
+
+% Dialect2SQL — Moroccan Darija text-to-SQL dataset (9,428 pairs, 69 DBs); low-resource precedent
+@misc{chafik_2025_dialect2sql,
+  author    = {Chafik, Salmane and Ezzini, Saad and Berrada, Ismail},
+  title     = {{Dialect2SQL: A Novel Text-to-SQL Dataset for Arabic Dialects with a Focus on Moroccan Darija}},
+  year      = {2025},
+  note      = {Also in Proceedings of the WACL 2025 workshop},
+  eprint    = {2501.11498},
+  eprinttype = {arxiv},
+  primaryclass = {cs.SE},
+  url       = {https://arxiv.org/abs/2501.11498}
+}
+
+% TUR2SQL — first cross-domain Turkish text-to-SQL dataset (10,809 pairs); agglutinative-language precedent
+@inproceedings{kanburoglu_2023_tur2sql,
+  author    = {Kanburo{\u{g}}lu, Ali Bu{\u{g}}ra and Tek, F. Boray},
+  title     = {{TUR2SQL: A Cross-Domain Turkish Dataset For Text-to-SQL}},
+  booktitle = {2023 8th International Conference on Computer Science and Engineering (UBMK)},
+  year      = {2023},
+  pages     = {206--211},
+  publisher = {IEEE},
+  doi       = {10.1109/UBMK59864.2023.10286686}
+}
+
+% BIRDTurk — BIRD adapted to Turkish (SIGTURK 2026); benchmark-translation methodology
+@inproceedings{aktas_2026_birdturk,
+  author    = {Akta{\c{s}}, Burak and Baytekin, Mehmet Can and K{\"o}se, S{\"u}ha Ka{\u{g}}an and {\.I}lbilgi, {\"O}mer and Y{\i}lmaz, Elif {\"O}zge and Toraman, Cagri and others},
+  title     = {{BIRDTurk: Adaptation of the BIRD Text-to-SQL Dataset to Turkish}},
+  booktitle = {Proceedings of the Second Workshop on Natural Language Processing for Turkic Languages (SIGTURK 2026)},
+  year      = {2026},
+  pages     = {155--171},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2026.sigturk-1.13}
+}
+
+% Self-translate — multilingual LLMs perform better when they translate the input to English themselves (A2)
+@inproceedings{etxaniz_2024_self_translate,
+  author    = {Etxaniz, Julen and Azkune, Gorka and Soroa, Aitor and Lopez de Lacalle, Oier and Artetxe, Mikel},
+  title     = {{Do Multilingual Language Models Think Better in English?}},
+  booktitle = {Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 2: Short Papers)},
+  year      = {2024},
+  pages     = {550--564},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.naacl-short.46},
+  eprint    = {2308.01223},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% XRICL — cross-lingual retrieval-augmented in-context learning with in-prompt translation ("translation-as-CoT", A1)
+@inproceedings{shi_2022_xricl,
+  author    = {Shi, Peng and Zhang, Rui and Bai, He and Lin, Jimmy},
+  title     = {{XRICL: Cross-lingual Retrieval-Augmented In-Context Learning for Cross-lingual Text-to-SQL Semantic Parsing}},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2022},
+  year      = {2022},
+  pages     = {5248--5259},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2022.findings-emnlp.384},
+  eprint    = {2210.13693},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% XLT — cross-lingual-thought prompting template; reasoning in English for non-English inputs (A2)
+@inproceedings{huang_2023_xlt,
+  author    = {Huang, Haoyang and Tang, Tianyi and Zhang, Dongdong and Zhao, Wayne Xin and Song, Ting and Xia, Yan and Wei, Furu},
+  title     = {{Not All Languages Are Created Equal in LLMs: Improving Multilingual Capability by Cross-Lingual-Thought Prompting}},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2023},
+  year      = {2023},
+  pages     = {12365--12394},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2023.findings-emnlp.826},
+  eprint    = {2305.07004},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% Translation Barrier Hypothesis — 65-78% of multilingual generation errors are implicit-translation failures
+@inproceedings{bafna_2025_translation_barrier,
+  author    = {Bafna, Niyati and Li, Tianjian and Murray, Kenton and Mortensen, David R. and Yarowsky, David and Sirin, Hale and Khashabi, Daniel},
+  title     = {{The Translation Barrier Hypothesis: Multilingual Generation with Large Language Models Suffers from Implicit Translation Failure}},
+  booktitle = {Proceedings of the 14th International Joint Conference on Natural Language Processing and the 4th Conference of the Asia-Pacific Chapter of the Association for Computational Linguistics (IJCNLP-AACL 2025)},
+  year      = {2025},
+  pages     = {1541--1568},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2025.ijcnlp-long.83},
+  eprint    = {2506.22724},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% MM-Eval — hierarchical benchmark for modern (Cyrillic) Mongolian in LLMs; no SQL task -> research gap
+@misc{zhang_2024_mm_eval,
+  author    = {Zhang, Mengyuan and Wang, Ruihui and Xia, Bo and Sun, Yuan and Zhao, Xiaobing},
+  title     = {{MM-Eval: A Hierarchical Benchmark for Modern Mongolian Evaluation in LLMs}},
+  year      = {2024},
+  eprint    = {2411.09492},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2411.09492}
+}
+
+% TM-Bench — traditional Mongolian script benchmark (SIGIR 2026); Mongolian is low-resource for LLMs
+@inproceedings{gao_2026_tm_bench,
+  author    = {Gao, Zhenjie and Bao, Feilong and Bai, Aruukhan and Hou, Ruichen and Ji, Xieqi and Wang, Dabalgan and others},
+  title     = {{TM-Bench: Benchmarking Large Language Models on Low-Resource Traditional Mongolian}},
+  booktitle = {Proceedings of the 49th International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR 2026)},
+  year      = {2026},
+  pages     = {3175--3182},
+  publisher = {ACM},
+  doi       = {10.1145/3805712.3808632}
+}
+
+% MonCulture-Eval — Mongolian cultural-capability benchmark across scripts and regions (Findings ACL 2026)
+@inproceedings{minggad_2026_monculture_eval,
+  author    = {Minggad, Quulgan and Zinan, Xiao and Sun, Yuan},
+  title     = {{MonCulture-Eval: A Hierarchical Benchmark for Evaluating Mongolian Cultural Capabilities of Large Language Models across Scripts and Regions}},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2026},
+  year      = {2026},
+  pages     = {28997--29014},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2026.findings-acl.1449}
+}
+
+% =============================================================================
+% Section 6: Evaluation metrics and gold-SQL quality
+% =============================================================================
+
+% Test-suite accuracy — distilled DB variants approximate semantic equivalence; EX on one DB is insufficient (D1)
+@inproceedings{zhong_2020_test_suite,
+  author    = {Zhong, Ruiqi and Yu, Tao and Klein, Dan},
+  title     = {{Semantic Evaluation for Text-to-SQL with Distilled Test Suites}},
+  booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2020},
+  pages     = {396--411},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2020.emnlp-main.29},
+  eprint    = {2010.02840},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% FLEX — false-less execution metric; noisy-gold detection idea (D1, D2)
+@inproceedings{kim_2025_flex,
+  author    = {Kim, Heegyu and Jeon, Taeyang and Choi, Seunghwan and Choi, Seungtaek and Cho, Hyunsouk},
+  title     = {{FLEX: Expert-level False-Less EXecution Metric for Text-to-SQL Benchmark}},
+  booktitle = {Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)},
+  year      = {2025},
+  pages     = {4448--4475},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2025.naacl-long.228},
+  eprint    = {2409.19014},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% =============================================================================
+% Section 7: Insight generation, NL2VIS and dashboard synthesis
+% =============================================================================
+
+% NL2Dashboard — LLM -> intermediate representation -> deterministic renderer; design decision 1 in INSIGHT_ARCH
+@misc{shi_2026_nl2dashboard,
+  author    = {Shi, Boshen and Yang, Kexin and Yang, Yuanbo and Chang, Guanguang and Chi, Ce and Wang, Zhendong and others},
+  title     = {{NL2Dashboard: A Lightweight and Controllable Framework for Generating Dashboards with LLMs}},
+  year      = {2026},
+  eprint    = {2601.06126},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2601.06126}
+}
+
+% Multi-agent visualization + narrative — "move critical logic out of the LLM into deterministic components"
+@misc{wolter_2025_multiagent_vis,
+  author    = {Wolter, Anton and Vidalakis, Georgios and Yu, Michael and Grover, Ankit and Dhanoa, Vaishali},
+  title     = {{Multi-Agent Data Visualization and Narrative Generation}},
+  year      = {2025},
+  eprint    = {2509.00481},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2509.00481}
+}
+
+% Data-to-Dashboard — multi-perspective analysis with iterative self-critique; multi-panel design decision 3
+@misc{zhang_2025_data_to_dashboard,
+  author    = {Zhang, Ran and Elhamod, Mohannad},
+  title     = {{Data-to-Dashboard: Multi-Agent LLM Framework for Insightful Visualization in Enterprise Analytics}},
+  year      = {2025},
+  eprint    = {2505.23695},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2505.23695}
+}
+
+% nvBench — NL2VIS benchmarks can be synthesized from NL2SQL benchmarks (SIGMOD 2021)
+@inproceedings{luo_2021_nvbench,
+  author    = {Luo, Yuyu and Tang, Nan and Li, Guoliang and Chai, Chengliang and Li, Wenbo and Qin, Xuedi},
+  title     = {{Synthesizing Natural Language to Visualization (NL2VIS) Benchmarks from NL2SQL Benchmarks}},
+  booktitle = {Proceedings of the 2021 International Conference on Management of Data (SIGMOD 2021)},
+  year      = {2021},
+  pages     = {1235--1247},
+  publisher = {ACM},
+  doi       = {10.1145/3448016.3457261}
+}
+
+% nvBench 2.0 — ambiguity in text-to-visualization: one question, several valid charts
+@misc{luo_2025_nvbench2,
+  author    = {Luo, Tianqi and Huang, Chuhan and Shen, Leixian and Li, Boyan and Shen, Shuyu and Zeng, Wei and others},
+  title     = {{nvBench 2.0: Resolving Ambiguity in Text-to-Visualization through Stepwise Reasoning}},
+  year      = {2025},
+  eprint    = {2503.12880},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2503.12880}
+}
+
+% VisEval — validity / legality / readability checkers for LLM-generated charts; validate_spec design (C2)
+@article{chen_2025_viseval,
+  author    = {Chen, Nan and Zhang, Yuge and Xu, Jiahang and Ren, Kan and Yang, Yuqing},
+  title     = {{VisEval: A Benchmark for Data Visualization in the Era of Large Language Models}},
+  journal   = {IEEE Transactions on Visualization and Computer Graphics},
+  volume    = {31},
+  number    = {1},
+  pages     = {1301--1311},
+  year      = {2025},
+  doi       = {10.1109/TVCG.2024.3456320},
+  eprint    = {2407.00981},
+  eprinttype = {arxiv},
+  primaryclass = {cs.HC}
+}
+
+% ChaTS-Pi — sentence-level entailment against the data table; drop unsupported sentences (grounding, C1)
+@inproceedings{krichene_2024_chatspi,
+  author    = {Krichene, Syrine and Piccinno, Francesco and Liu, Fangyu and Eisenschlos, Julian Martin},
+  title     = {{Faithful Chart Summarization with ChaTS-Pi}},
+  booktitle = {Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2024},
+  pages     = {8705--8723},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.acl-long.472},
+  eprint    = {2405.19094},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% InsightBench — multi-step insight generation; AgentPoirot's k root x n follow-up question design (C3)
+@inproceedings{sahu_2025_insightbench,
+  author    = {Sahu, Gaurav and Puri, Abhay and Rodriguez, Juan and Abaskohi, Amirhossein and Chegini, Mohammad and Drouin, Alexandre and others},
+  title     = {{InsightBench: Evaluating Business Analytics Agents Through Multi-Step Insight Generation}},
+  booktitle = {The Thirteenth International Conference on Learning Representations (ICLR 2025)},
+  year      = {2025},
+  eprint    = {2407.06423},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2407.06423}
+}
+
+% QUIS — question-guided insight generation for automated EDA (question generation + insight extraction)
+@inproceedings{manatkar_2024_quis,
+  author    = {Manatkar, Abhijit and Akella, Ashlesha and Gupta, Parthivi and Narayanam, Krishnasuri},
+  title     = {{QUIS: Question-guided Insights Generation for Automated Exploratory Data Analysis}},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry Track},
+  year      = {2024},
+  pages     = {1523--1535},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.emnlp-industry.111},
+  eprint    = {2410.10270},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI}
+}
+
+% DataNarrative — generator + critic for data stories; single-pass narrative repair (C4)
+@inproceedings{islam_2024_datanarrative,
+  author    = {Islam, Mohammed Saidul and Laskar, Md Tahmid Rahman and Parvez, Md Rizwan and Hoque, Enamul and Joty, Shafiq},
+  title     = {{DataNarrative: Automated Data-Driven Storytelling with Visualizations and Texts}},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2024},
+  pages     = {19253--19286},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.emnlp-main.1073},
+  eprint    = {2408.05346},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% Do LVLMs understand charts? — factual errors in chart captioning; models without the data table err more (design decision 2)
+@inproceedings{huang_2024_lvlm_charts,
+  author    = {Huang, Kung-Hsiang and Zhou, Mingyang and Chan, Hou Pong and Fung, Yi R. and Wang, Zhenhailong and Zhang, Lingyu and others},
+  title     = {{Do LVLMs Understand Charts? Analyzing and Correcting Factual Errors in Chart Captioning}},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2024},
+  year      = {2024},
+  publisher = {Association for Computational Linguistics},
+  eprint    = {2312.10160},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2312.10160}
+}
+
+% =============================================================================
+% Section 8: Base LLMs, training and inference infrastructure
+% =============================================================================
+
+% Qwen2.5-Coder — base 7B coder model family used by Arctic-R1, OmniSQL and this thesis
+@misc{hui_2024_qwen25_coder,
+  author    = {Hui, Binyuan and Yang, Jian and Cui, Zeyu and Yang, Jiaxi and Liu, Dayiheng and Zhang, Lei and others},
+  title     = {{Qwen2.5-Coder Technical Report}},
+  year      = {2024},
+  eprint    = {2409.12186},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2409.12186}
+}
+
+% vLLM — PagedAttention serving engine used for the GPU server profile
+@inproceedings{kwon_2023_vllm,
+  author    = {Kwon, Woosuk and Li, Zhuohan and Zhuang, Siyuan and Sheng, Ying and Zheng, Lianmin and Yu, Cody Hao and others},
+  title     = {{Efficient Memory Management for Large Language Model Serving with PagedAttention}},
+  booktitle = {Proceedings of the 29th Symposium on Operating Systems Principles (SOSP 2023)},
+  year      = {2023},
+  pages     = {611--626},
+  publisher = {ACM},
+  doi       = {10.1145/3600006.3613165},
+  eprint    = {2309.06180},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG}
+}
+
+% DeepSeekMath — introduces GRPO, the RL algorithm behind Arctic-R1 and contrastive-reward text-to-SQL
+@misc{shao_2024_deepseekmath,
+  author    = {Shao, Zhihong and Wang, Peiyi and Zhu, Qihao and Xu, Runxin and Song, Junxiao and Bi, Xiao and others},
+  title     = {{DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models}},
+  year      = {2024},
+  eprint    = {2402.03300},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2402.03300}
+}
+
+% LoRA — low-rank adaptation; planned fine-tuning method (METHOD §3)
+@inproceedings{hu_2022_lora,
+  author    = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and others},
+  title     = {{LoRA: Low-Rank Adaptation of Large Language Models}},
+  booktitle = {The Tenth International Conference on Learning Representations (ICLR 2022)},
+  year      = {2022},
+  url       = {https://openreview.net/forum?id=nZeVKeeFYf9},
+  eprint    = {2106.09685},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% QLoRA — 4-bit quantized LoRA fine-tuning on a single GPU; enables 7B fine-tuning within the thesis budget
+@inproceedings{dettmers_2023_qlora,
+  author    = {Dettmers, Tim and Pagnoni, Artidoro and Holtzman, Ari and Zettlemoyer, Luke},
+  title     = {{QLoRA: Efficient Finetuning of Quantized LLMs}},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  year      = {2023},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2023/hash/1feb87871436031bdc0f2beaa62a049b-Abstract-Conference.html},
+  eprint    = {2305.14314},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG}
+}
+
+% =============================================================================
+% Section 9: Standards and official documentation
+% =============================================================================
+
+% SQL:2023 standard — framework part; reference point for "standard SQL" vs dialect deviations
+@techreport{iso_9075_2023,
+  author      = {{International Organization for Standardization and International Electrotechnical Commission}},
+  title       = {{ISO/IEC 9075-1:2023 Information technology --- Database languages SQL --- Part 1: Framework (SQL/Framework)}},
+  institution = {ISO/IEC},
+  year        = {2023},
+  month       = jun,
+  type        = {International Standard},
+  number      = {ISO/IEC 9075-1:2023},
+  address     = {Geneva, Switzerland},
+  url         = {https://www.iso.org/standard/76583.html}
+}
+
+% ClickHouse SQL reference — source of the ClickHouse dialect rules in prompts/dialect_rules and the validator
+@online{clickhouse_sql_reference,
+  author  = {{ClickHouse, Inc.}},
+  title   = {{ClickHouse SQL Reference}},
+  year    = {2026},
+  url     = {https://clickhouse.com/docs/sql-reference},
+  urldate = {2026-09-21}
+}
+
+% Oracle SQL Language Reference — source of the Oracle dialect rules (FETCH FIRST, NVL, TO_DATE, quoting)
+@online{oracle_sql_reference,
+  author  = {{Oracle Corporation}},
+  title   = {{Oracle Database SQL Language Reference, Release 26}},
+  year    = {2026},
+  note    = {Part number G57157-07},
+  url     = {https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/},
+  urldate = {2026-09-21}
+}
+
+% SQLite SQL documentation — the third target dialect and the BIRD/Spider reference engine
+@online{sqlite_lang,
+  author  = {{SQLite Consortium}},
+  title   = {{SQL As Understood By SQLite}},
+  year    = {2026},
+  url     = {https://www.sqlite.org/lang.html},
+  urldate = {2026-09-21}
+}
+
+% =============================================================================
+% Section 10: Deployed production systems (industry blogs)
+% =============================================================================
+
+% Uber QueryGPT — ~1.2M interactive queries/month platform, ~300 DAU, 78% users report time saved
+@online{uber_querygpt,
+  author  = {Johnson, Jeffrey and Busch, Callie and Khune, Abhi and Chakka, Pradeep},
+  title   = {{QueryGPT -- Natural Language to SQL Using Generative AI}},
+  organization = {Uber Engineering Blog},
+  year    = {2024},
+  month   = sep,
+  url     = {https://www.uber.com/us/en/blog/query-gpt/},
+  urldate = {2026-09-21}
+}
+
+% LinkedIn SQL Bot — multi-agent text-to-SQL on LangGraph with knowledge-graph grounding (blog version)
+@online{linkedin_sqlbot,
+  author  = {Chen, Albert and Bundele, Manas and Ahlawat, Gaurav and Stetz, Patrick and Wang, Zhitao and Fei, Qiang and others},
+  title   = {{Practical Text-to-SQL for Data Analytics}},
+  organization = {LinkedIn Engineering Blog},
+  year    = {2024},
+  month   = dec,
+  url     = {https://www.linkedin.com/blog/engineering/ai/practical-text-to-sql-for-data-analytics},
+  urldate = {2026-09-21}
+}
+
+% ---------------------------------------------------------------------------
+% text2sql-new-ийн тайланд нэмсэн эх сурвалжууд
+% ---------------------------------------------------------------------------
+@misc{lee_2024_trustsql,
+  author    = {Lee, Gyubok and Chay, Woosog and Cho, Seonhee and Choi, Edward},
+  title     = {{TrustSQL: Benchmarking Text-to-SQL Reliability with Penalty-Based Scoring}},
+  year      = {2024},
+  eprint    = {2403.15879},
+  eprinttype = {arxiv},
+  url       = {https://arxiv.org/abs/2403.15879}
+}
+@inproceedings{chen_2024_bge_m3,
+  author    = {Chen, Jianlyu and Xiao, Shitao and Zhang, Peitian and Luo, Kun and Lian, Defu and Liu, Zheng},
+  title     = {{M3-Embedding: Multi-Linguality, Multi-Functionality, Multi-Granularity Text Embeddings Through Self-Knowledge Distillation}},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2024},
+  pages     = {2318--2335},
+  year      = {2024},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.findings-acl.137},
+  eprint    = {2402.03216},
+  eprinttype = {arxiv},
+  url       = {https://aclanthology.org/2024.findings-acl.137/}
+}
+@article{robertson_2009_bm25,
+  author    = {Robertson, Stephen and Zaragoza, Hugo},
+  title     = {{The Probabilistic Relevance Framework: BM25 and Beyond}},
+  journal   = {Foundations and Trends in Information Retrieval},
+  volume    = {3},
+  number    = {4},
+  pages     = {333--389},
+  year      = {2009}
+}
+@article{mcnemar_1947,
+  author    = {McNemar, Quinn},
+  title     = {{Note on the Sampling Error of the Difference Between Correlated Proportions or Percentages}},
+  journal   = {Psychometrika},
+  volume    = {12},
+  number    = {2},
+  pages     = {153--157},
+  year      = {1947}
+}
+@online{feyn_2026_sqrl,
+  author    = {{Feyn}},
+  title     = {{sqrl-9b: model card}},
+  year      = {2026},
+  url       = {https://huggingface.co/feyninc/sqrl-9b},
+  urldate   = {2026-10-16}
+}
+@online{snowflake_2025_arctic_card,
+  author    = {{Snowflake}},
+  title     = {{Arctic-Text2SQL-R1-7B: model card}},
+  year      = {2025},
+  url       = {https://huggingface.co/Snowflake/Arctic-Text2SQL-R1-7B},
+  urldate   = {2026-10-16}
+}
+@inproceedings{pedro_2025_p2sql,
+  author    = {Pedro, Rodrigo and Coimbra, Miguel E. and Castro, Daniel and Carreira, Paulo and Santos, Nuno},
+  title     = {{Prompt-to-SQL Injections in LLM-Integrated Web Applications: Risks and Defenses}},
+  booktitle = {Proceedings of the IEEE/ACM 47th International Conference on Software Engineering (ICSE)},
+  pages     = {1768--1780},
+  year      = {2025},
+  doi       = {10.1109/ICSE55347.2025.00007}
+}
+@misc{text2sql_thesis_2026,
+  author    = {Очир, Б.},
+  title     = {{Монгол болон англи хэлний асуултыг олон диалектын SQL болгон хөрвүүлэх нээлттэй эх агент системийн туршилт судалгаа}},
+  note      = {Өмнөх ажил, text2sql-thesis репозитор},
+  year      = {2026}
+}
+@article{li_2024_codes,
+  author    = {Li, Haoyang and Zhang, Jing and Liu, Hanbing and Fan, Ju and Zhang, Xiaokang and Zhu, Jun and others},
+  title     = {{CodeS: Towards Building Open-source Language Models for Text-to-SQL}},
+  journal   = {Proceedings of the ACM on Management of Data},
+  volume    = {2},
+  number    = {3},
+  pages     = {1--28},
+  year      = {2024},
+  doi       = {10.1145/3654930},
+  eprint    = {2402.16347},
+  eprinttype = {arxiv},
+  url       = {https://arxiv.org/abs/2402.16347}
+}
+@inproceedings{wang_2023_self_consistency,
+  author    = {Wang, Xuezhi and Wei, Jason and Schuurmans, Dale and Le, Quoc and Chi, Ed and Narang, Sharan and others},
+  title     = {{Self-Consistency Improves Chain of Thought Reasoning in Language Models}},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  eprint    = {2203.11171},
+  eprinttype = {arxiv},
+  url       = {https://arxiv.org/abs/2203.11171}
+}
+@online{mn_2002_nbfi_law,
+  author    = {{Монгол Улсын Их Хурал}},
+  title     = {{Банк бус санхүүгийн үйл ажиллагааны тухай хууль}},
+  year      = {2002},
+  note      = {2002 оны 12 дугаар сарын 12; 7.1.8 ба 12.1.3 дахь заалт},
+  url       = {https://legalinfo.mn/mn/detail/103},
+  urldate   = {2026-10-16}
+}

@@ -1,0 +1,786 @@
+# =====================================================================
+# Semantic model — t2s схемийн мэдлэгийн давхарга (зааврын 2-р хэсэг, B1 туршилт)
+# ---------------------------------------------------------------------
+# Хүснэгт/багана бүрд: монгол (mn) ба англи (en) тайлбар, синоним (кирилл; латин галигийг
+# normalizer автоматаар үүсгэнэ), enum утгын монгол нэр (values), хувийн мэдээлэл (pii).
+# Identifier-ууд англиар үлдэнэ (зааврын 4-р хэсэг: "Схемийг англиар үлдээж, монгол тайлбар,
+# синоним нэм"). Жишээ утга (examples)-ыг index-build DB-ээс автоматаар нэмнэ (pii биш баганад).
+# Багана: {mn, en, syn: [...], values: {КОД: монгол нэр}, pii: true, fk: хүснэгт.багана}
+# =====================================================================
+version: 1
+schema: t2s
+dialect: postgresql
+notes_mn:
+  - "Өгөгдлийн 'өнөөдөр' (системийн ажлын өдөр) = t2s.business_date() = 2026-06-30. CURRENT_DATE-ийг ч ашиглаж болно."
+  - "Мөнгөн дүн тухайн мөрийн валютаар (currency_code). Олон валютыг нэгтгэхдээ *_mnt баганыг ашиглана; *_mnt багангүй хүснэгтэд (loan_payments, collection_cases, collaterals ...) t2s.fx_to_mnt(currency_code, огноо) функцээр (тухайн өдөр эсвэл түүнээс өмнөх сүүлийн ханш) хөрвүүлнэ."
+  - "Огноо бүхий асуулт (сар, улирал, жил) date_trunc эсвэл EXTRACT ашиглана."
+
+tables:
+  # ------------------------------------------------------------------ байгууллага
+  branches:
+    mn: "Салбар: төв оффис, салбар, тооцооны төв, дижитал салбар"
+    en: "Branches of the NBFI (head office, branches, sub-branches, digital branch)"
+    syn: [салбар, салбарууд, нэгж, тооцооны төв, branch]
+    pk: branch_id
+    columns:
+      branch_id: {mn: "Салбарын дотоод ID", en: "Branch id"}
+      branch_code: {mn: "Салбарын код (UB01, DR01 ...)", en: "Branch code", syn: [салбарын код]}
+      branch_name: {mn: "Салбарын нэр", en: "Branch name", syn: [салбарын нэр]}
+      branch_type: {mn: "Салбарын төрөл", en: "Branch type",
+                    values: {HEAD_OFFICE: Төв оффис, BRANCH: Салбар, SUB_BRANCH: Тооцооны төв, DIGITAL: Дижитал салбар}}
+      parent_branch_id: {mn: "Харьяалагдах дээд салбар", en: "Parent branch id", fk: branches.branch_id}
+      province: {mn: "Аймаг/хот", en: "Province or city", syn: [аймаг, хот, байршил]}
+      district: {mn: "Сум/дүүрэг", en: "District or soum", syn: [дүүрэг, сум]}
+      opened_date: {mn: "Нээгдсэн огноо", en: "Opening date", syn: [нээгдсэн]}
+      closed_date: {mn: "Хаагдсан огноо (идэвхтэй бол NULL)", en: "Closing date"}
+      is_active: {mn: "Идэвхтэй ажиллаж байгаа эсэх", en: "Is active"}
+
+  employees:
+    mn: "Ажилтан: зээлийн мэргэжилтэн, салбарын менежер, кассчин, эргэн төлөлтийн ажилтан гэх мэт"
+    en: "Employees (credit officers, branch managers, tellers, collectors, ...)"
+    syn: [ажилтан, ажилчид, зээлийн мэргэжилтэн, мэргэжилтэн, менежер, кассчин, employee, officer]
+    pk: employee_id
+    columns:
+      employee_id: {mn: "Ажилтны дотоод ID", en: "Employee id"}
+      employee_no: {mn: "Ажилтны дугаар (E0001)", en: "Employee number"}
+      first_name: {mn: "Нэр", en: "First name", syn: [нэр]}
+      last_name: {mn: "Овог (эцгийн нэр)", en: "Last name (patronymic)", syn: [овог]}
+      full_name: {mn: "Овог нэр", en: "Full name", syn: [бүтэн нэр]}
+      branch_id: {mn: "Ажилладаг салбар", en: "Branch id", fk: branches.branch_id}
+      department_code: {mn: "Хэлтсийн код", en: "Department code",
+                        values: {LENDING: Зээлийн газар, RISK: Эрсдэлийн удирдлагын газар, FINANCE: "Санхүү, нягтлан бодох бүртгэл",
+                                 COMPLIANCE: Нийцлийн алба, COLLECTION: Эргэн төлөлтийн алба, IT: Мэдээллийн технологи,
+                                 OPERATIONS: Үйл ажиллагааны газар}}
+      department_name: {mn: "Хэлтсийн нэр", en: "Department name", syn: [хэлтэс, алба]}
+      position_code: {mn: "Албан тушаалын код", en: "Position code",
+                      values: {CEO: Гүйцэтгэх захирал, BRANCH_MANAGER: Салбарын менежер, CREDIT_OFFICER: Зээлийн мэргэжилтэн,
+                               RISK_ANALYST: Эрсдэлийн шинжээч, ACCOUNTANT: Нягтлан бодогч, TELLER: Кассч,
+                               COLLECTOR: Эргэн төлөлтийн ажилтан, COMPLIANCE_OFF: Нийцлийн ажилтан}}
+      position_name: {mn: "Албан тушаал", en: "Position name", syn: [албан тушаал]}
+      manager_id: {mn: "Шууд удирдлага (ажилтны ID)", en: "Manager employee id", fk: employees.employee_id}
+      hire_date: {mn: "Ажилд орсон огноо", en: "Hire date", syn: [ажилд орсон]}
+      termination_date: {mn: "Ажлаас гарсан огноо", en: "Termination date", syn: [ажлаас гарсан]}
+      employment_status: {mn: "Ажлын төлөв", en: "Employment status",
+                          values: {ACTIVE: Ажиллаж байгаа, ON_LEAVE: Чөлөөтэй, SUSPENDED: Түдгэлзүүлсэн, TERMINATED: Ажлаас гарсан}}
+
+  # ------------------------------------------------------------------ харилцагч
+  customers:
+    mn: "Харилцагч (хувь хүн ба байгууллага). Регистр, утас, хаяг, дансны дугаар энд БАЙХГҮЙ"
+    en: "Customers (individuals and organizations); no register number, phone or address details"
+    syn: [харилцагч, харилцагчид, үйлчлүүлэгч, зээлдэгч, хэрэглэгч, customer, client]
+    pk: customer_id
+    columns:
+      customer_id: {mn: "Харилцагчийн дотоод ID", en: "Customer id"}
+      customer_number: {mn: "Харилцагчийн дугаар (C00000123)", en: "Customer number", syn: [харилцагчийн дугаар]}
+      customer_name: {mn: "Харилцагчийн нэр (хувь хүн: овог нэр, байгууллага: нэр)", en: "Customer display name",
+                      syn: [нэр], pii: true}
+      party_type: {mn: "Хувь хүн эсвэл байгууллага", en: "Party type",
+                   values: {INDIVIDUAL: Хувь хүн, ORGANIZATION: Байгууллага (хуулийн этгээд)}}
+      customer_type_code: {mn: "Харилцагчийн төрөл", en: "Customer type code",
+                           values: {IND_SALARY: Цалинтай хувь хүн, IND_BUSINESS: Бизнес эрхлэгч хувь хүн,
+                                    IND_PENSION: Тэтгэвэр авагч, ORG_SME: Жижиг дунд аж ахуйн нэгж (ЖДҮ),
+                                    ORG_CORP: Томоохон байгууллага, ORG_NGO: Төрийн бус байгууллага}}
+      customer_type_name: {mn: "Харилцагчийн төрлийн нэр", en: "Customer type name"}
+      status_code: {mn: "Харилцагчийн төлөв", en: "Customer status code",
+                    values: {PROSPECT: Боломжит харилцагч, ACTIVE: Идэвхтэй, INACTIVE: Идэвхгүй, SUSPENDED: Түдгэлзүүлсэн,
+                             BLACKLIST: Хар жагсаалт, CLOSED: Хаагдсан}}
+      status_name: {mn: "Харилцагчийн төлөвийн нэр", en: "Customer status name"}
+      segment_code: {mn: "Сегмент (орлогын түвшин)", en: "Segment code",
+                     values: {MASS: Энгийн, AFFLUENT: Дунд, PREMIUM: Дээд, VIP: VIP, SME: ЖДҮ, CORPORATE: Корпорэйт}}
+      segment_name: {mn: "Сегментийн нэр", en: "Segment name", syn: [сегмент, ангилал]}
+      branch_id: {mn: "Харьяалагдах салбар", en: "Home branch id", fk: branches.branch_id}
+      relationship_manager_id: {mn: "Хариуцсан зээлийн мэргэжилтэн", en: "Relationship manager employee id",
+                                fk: employees.employee_id, syn: [хариуцсан ажилтан]}
+      kyc_status: {mn: "Харилцагчийг таних (KYC) төлөв", en: "KYC status",
+                   values: {NOT_STARTED: Эхлээгүй, IN_PROGRESS: Шалгагдаж байгаа, VERIFIED: Баталгаажсан,
+                            REJECTED: Татгалзсан, EXPIRED: Хугацаа дууссан}}
+      aml_status: {mn: "Мөнгө угаалтын (AML) шалгалтын төлөв", en: "AML screening status",
+                   values: {NOT_SCREENED: Шалгаагүй, CLEAR: Цэвэр, MATCH_PENDING: Тааралт шалгагдаж байгаа, BLOCKED: Хаагдсан}}
+      risk_level: {mn: "Харилцагчийн эрсдэлийн түвшин (AML)", en: "Customer risk level",
+                   values: {LOW: Бага, MEDIUM: Дунд, HIGH: Өндөр, CRITICAL: Маш өндөр}}
+      is_pep: {mn: "Улс төрд нөлөө бүхий этгээд (PEP) эсэх", en: "Is politically exposed person"}
+      is_blacklisted: {mn: "Хар жагсаалтад орсон эсэх", en: "Is blacklisted"}
+      is_resident: {mn: "Резидент эсэх", en: "Is resident"}
+      country_code: {mn: "Улсын код (MN, CN, RU, KR ...)", en: "Country code"}
+      onboarded_date: {mn: "Харилцагч болсон огноо", en: "Onboarding date", syn: [бүртгүүлсэн, харилцагч болсон, шинэ харилцагч]}
+      closed_date: {mn: "Харилцаа хаагдсан огноо", en: "Closing date"}
+      province: {mn: "Үндсэн хаягийн аймаг/хот", en: "Province of primary address", syn: [аймаг, хот]}
+      district: {mn: "Үндсэн хаягийн сум/дүүрэг", en: "District of primary address", syn: [дүүрэг, сум]}
+
+  individuals:
+    mn: "Хувь хүн харилцагчийн нэмэлт мэдээлэл (1:1 customers). Төрсөн огноо биш, нас ба төрсөн он"
+    en: "Individual customer details (1:1 with customers): age, gender, job, income"
+    syn: [хувь хүн, иргэн, хувь хүн харилцагч, individual]
+    pk: customer_id
+    columns:
+      customer_id: {mn: "Харилцагчийн ID", en: "Customer id", fk: customers.customer_id}
+      gender: {mn: "Хүйс", en: "Gender", values: {MALE: Эрэгтэй, FEMALE: Эмэгтэй, OTHER: Бусад}, syn: [хүйс, эрэгтэй, эмэгтэй]}
+      birth_year: {mn: "Төрсөн он", en: "Birth year"}
+      age: {mn: "Нас (ажлын өдрөөр тооцсон)", en: "Age in years as of business date", syn: [нас]}
+      marital_status: {mn: "Гэрлэлтийн байдал", en: "Marital status",
+                       values: {SINGLE: Ганц бие, MARRIED: Гэрлэсэн, DIVORCED: Салсан, WIDOWED: Бэлэвсэн}}
+      dependants_count: {mn: "Асрамжийн хүний тоо", en: "Number of dependants"}
+      education_level: {mn: "Боловсрол", en: "Education level"}
+      occupation: {mn: "Мэргэжил/ажил", en: "Occupation", syn: [мэргэжил, ажил]}
+      employer_name: {mn: "Ажил олгогч байгууллага", en: "Employer name", syn: [ажлын газар]}
+      employment_type: {mn: "Хөдөлмөр эрхлэлтийн төрөл", en: "Employment type",
+                        values: {EMPLOYED: Цалинтай ажилтан, SELF_EMPLOYED: Хувиараа хөдөлмөр эрхлэгч,
+                                 BUSINESS_OWNER: Бизнес эрхлэгч, RETIRED: Тэтгэвэрт, STUDENT: Оюутан, UNEMPLOYED: Ажилгүй}}
+      monthly_income: {mn: "Сарын орлого (₮)", en: "Monthly income", syn: [орлого, цалин, сарын орлого]}
+      income_currency: {mn: "Орлогын валют", en: "Income currency"}
+
+  organizations:
+    mn: "Байгууллага харилцагчийн нэмэлт мэдээлэл (1:1 customers)"
+    en: "Organization customer details (1:1 with customers)"
+    syn: [байгууллага, компани, аж ахуйн нэгж, ААН, хуулийн этгээд, organization, company]
+    pk: customer_id
+    columns:
+      customer_id: {mn: "Харилцагчийн ID", en: "Customer id", fk: customers.customer_id}
+      org_name: {mn: "Байгууллагын нэр", en: "Legal name", syn: [компанийн нэр]}
+      legal_form: {mn: "Хуулийн этгээдийн хэлбэр", en: "Legal form",
+                   values: {LLC: ХХК, JSC: ХК, PARTNERSHIP: ХЗХ, SOLE_PROPRIETOR: Хувиараа, NGO: ТББ, STATE: Төрийн, COOPERATIVE: Хоршоо}}
+      industry_code: {mn: "Үйл ажиллагааны салбарын код (ISIC: A01, F41, G47 ...)", en: "ISIC industry code"}
+      industry_sector: {mn: "Үйл ажиллагааны салбар (монгол нэр)", en: "Industry sector name",
+                        syn: [үйл ажиллагааны чиглэл, салбар (бизнес)]}
+      establishment_date: {mn: "Үүсгэн байгуулагдсан огноо", en: "Establishment date"}
+      employee_count: {mn: "Ажилчдын тоо", en: "Number of employees"}
+      annual_revenue: {mn: "Жилийн борлуулалтын орлого (₮)", en: "Annual revenue", syn: [борлуулалт, жилийн орлого]}
+      revenue_currency: {mn: "Орлогын валют", en: "Revenue currency"}
+
+  # ------------------------------------------------------------------ бүтээгдэхүүн
+  products:
+    mn: "Бүтээгдэхүүн: зээл, хадгаламж, харилцах данс ба одоо мөрдөж буй хүү, хязгаар"
+    en: "Products (loans, deposits, current accounts) with current rate and limits"
+    syn: [бүтээгдэхүүн, зээлийн бүтээгдэхүүн, хадгаламжийн бүтээгдэхүүн, product]
+    pk: product_id
+    columns:
+      product_id: {mn: "Бүтээгдэхүүний ID", en: "Product id"}
+      product_code: {mn: "Бүтээгдэхүүний код", en: "Product code"}
+      product_name: {mn: "Бүтээгдэхүүний нэр", en: "Product name", syn: [бүтээгдэхүүний нэр]}
+      product_type_code: {mn: "Бүтээгдэхүүний төрөл", en: "Product type code",
+                          values: {CONSUMER_LOAN: Хэрэглээний зээл, SALARY_LOAN: Цалингийн зээл, BUSINESS_LOAN: Бизнесийн зээл,
+                                   MORTGAGE: Орон сууцны зээл, AUTO_LOAN: Автомашины зээл, PLEDGE_LOAN: Барьцаат хурдан зээл,
+                                   AGRI_LOAN: Хөдөө аж ахуйн зээл, TERM_DEPOSIT: Хугацаатай хадгаламж,
+                                   DEMAND_DEPOSIT: Хугацаагүй хадгаламж, CURRENT_ACC: Харилцах данс}}
+      product_type_name: {mn: "Бүтээгдэхүүний төрлийн нэр", en: "Product type name"}
+      category: {mn: "Ангилал", en: "Category", values: {LOAN: Зээл, DEPOSIT: Хадгаламж, CURRENT_ACCOUNT: Харилцах данс}}
+      currency_code: {mn: "Валют", en: "Currency"}
+      amortization_type: {mn: "Эргэн төлөлтийн арга", en: "Amortization type",
+                          values: {ANNUITY: Тэнцүү төлөлт (аннуитет), EQUAL_PRINCIPAL: Үндсэн төлбөр тэнцүү,
+                                   BULLET: Хугацааны эцэст нэг дор, INTEREST_ONLY: Зөвхөн хүү}}
+      requires_collateral: {mn: "Барьцаа шаарддаг эсэх", en: "Requires collateral"}
+      requires_guarantor: {mn: "Батлан даагч шаарддаг эсэх", en: "Requires guarantor"}
+      min_credit_score: {mn: "Шаардлагатай доод скорингийн оноо", en: "Minimum credit score"}
+      max_dti_ratio: {mn: "Өр/орлогын харьцааны (DTI) дээд хязгаар, %", en: "Max DTI ratio, %"}
+      max_ltv_ratio: {mn: "Зээл/барьцааны харьцааны (LTV) дээд хязгаар, %", en: "Max LTV ratio, %"}
+      launch_date: {mn: "Нэвтрүүлсэн огноо", en: "Launch date"}
+      discontinue_date: {mn: "Зогсоосон огноо", en: "Discontinue date"}
+      status: {mn: "Бүтээгдэхүүний төлөв", en: "Product status",
+               values: {DRAFT: Ноорог, ACTIVE: Идэвхтэй, SUSPENDED: Түр зогссон, DISCONTINUED: Зогсоосон}}
+      annual_rate: {mn: "Жилийн хүү, % (одоо мөрдөж буй)", en: "Current annual interest rate, %", syn: [хүү, хүүгийн хувь]}
+      min_amount: {mn: "Доод дүн", en: "Minimum amount"}
+      max_amount: {mn: "Дээд дүн", en: "Maximum amount"}
+      min_term_months: {mn: "Доод хугацаа, сар", en: "Minimum term, months"}
+      max_term_months: {mn: "Дээд хугацаа, сар", en: "Maximum term, months"}
+
+  # ------------------------------------------------------------------ зээлийн хүсэлт
+  loan_applications:
+    mn: "Зээлийн хүсэлт, судалгаа ба шийдвэр. Батлагдаж гэрээ байгуулсан хүсэлтээс зээл (loans) үүснэ"
+    en: "Loan applications and decisions; contracted applications become loans"
+    syn: [зээлийн хүсэлт, хүсэлт, өргөдөл, зээлийн өргөдөл, application]
+    pk: application_id
+    columns:
+      application_id: {mn: "Хүсэлтийн ID", en: "Application id"}
+      application_no: {mn: "Хүсэлтийн дугаар (LA-2025-000123)", en: "Application number"}
+      customer_id: {mn: "Хүсэлт гаргагч харилцагч", en: "Customer id", fk: customers.customer_id}
+      product_id: {mn: "Хүссэн бүтээгдэхүүн", en: "Product id", fk: products.product_id}
+      branch_id: {mn: "Хүлээн авсан салбар", en: "Branch id", fk: branches.branch_id}
+      loan_officer_id: {mn: "Хариуцсан зээлийн мэргэжилтэн", en: "Loan officer employee id", fk: employees.employee_id}
+      status_code: {mn: "Хүсэлтийн төлөв", en: "Application status code",
+                    values: {DRAFT: Ноорог, SUBMITTED: Илгээгдсэн, UNDER_REVIEW: Судалгаанд, PENDING_DOCS: Баримт хүлээгдэж буй,
+                             APPROVED: Батлагдсан, REJECTED: Татгалзсан, WITHDRAWN: Буцаан татсан, EXPIRED: Хугацаа дууссан,
+                             CONTRACTED: Гэрээ байгуулсан}}
+      status_name: {mn: "Хүсэлтийн төлөвийн нэр", en: "Application status name"}
+      channel: {mn: "Хүсэлт ирсэн суваг", en: "Application channel",
+                values: {BRANCH: Салбар, MOBILE: Мобайл апп, WEB: Вэб, AGENT: Агент, CALL_CENTER: Дуудлагын төв, PARTNER: Хамтрагч}}
+      requested_amount: {mn: "Хүссэн дүн", en: "Requested amount", syn: [хүссэн дүн]}
+      requested_term_months: {mn: "Хүссэн хугацаа, сар", en: "Requested term, months"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      purpose_category: {mn: "Зээлийн зориулалт", en: "Loan purpose category",
+                         values: {CONSUMER: Хэрэглээ, BUSINESS: Бизнес, MORTGAGE: Орон сууц, AUTO: Автомашин, EDUCATION: Боловсрол,
+                                  MEDICAL: Эмчилгээ, AGRICULTURE: Хөдөө аж ахуй, REFINANCE: Дахин санхүүжилт, OTHER: Бусад}}
+      declared_income: {mn: "Мэдүүлсэн сарын орлого", en: "Declared monthly income"}
+      dti_ratio: {mn: "Өр/орлогын харьцаа (DTI), %", en: "Debt-to-income ratio, %", syn: [DTI, өр орлогын харьцаа]}
+      approved_amount: {mn: "Батлагдсан дүн", en: "Approved amount"}
+      approved_term_months: {mn: "Батлагдсан хугацаа, сар", en: "Approved term, months"}
+      approved_rate: {mn: "Батлагдсан жилийн хүү, %", en: "Approved annual rate, %"}
+      credit_score: {mn: "Хүсэлтийн скорингийн оноо (0–1000)", en: "Application credit score", syn: [скоринг, оноо]}
+      decision_level: {mn: "Шийдвэр гаргасан түвшин", en: "Decision level",
+                       values: {AUTO: Автомат, OFFICER: Зээлийн мэргэжилтэн, BRANCH_MANAGER: Салбарын менежер,
+                                CREDIT_COMMITTEE: Зээлийн хороо, BOARD: ТУЗ}}
+      submitted_date: {mn: "Хүсэлт илгээсэн огноо", en: "Submission date", syn: [хүсэлт гаргасан]}
+      decided_date: {mn: "Шийдвэр гарсан огноо", en: "Decision date"}
+      rejection_reason: {mn: "Татгалзсан шалтгаан", en: "Rejection reason", syn: [татгалзсан шалтгаан]}
+
+  # ------------------------------------------------------------------ зээл
+  loans:
+    mn: "Зээл: гэрээний нөхцөл, үлдэгдэл, хугацаа хэтрэлт (DPD), активын ангилал. Нэг мөр = нэг зээл"
+    en: "Loans: terms, balances, days past due, asset classification (one row per loan)"
+    syn: [зээл, зээлүүд, зээлийн багц, багц, портфель, loan, loans, portfolio]
+    pk: loan_id
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id"}
+      loan_number: {mn: "Зээлийн дугаар (LN-2025-000123)", en: "Loan number", syn: [зээлийн дугаар]}
+      application_id: {mn: "Үндэслэсэн хүсэлт", en: "Application id", fk: loan_applications.application_id}
+      customer_id: {mn: "Зээлдэгч харилцагч", en: "Borrower customer id", fk: customers.customer_id, syn: [зээлдэгч]}
+      product_id: {mn: "Бүтээгдэхүүн", en: "Product id", fk: products.product_id}
+      branch_id: {mn: "Зээл олгосон салбар", en: "Branch id", fk: branches.branch_id}
+      loan_officer_id: {mn: "Хариуцсан зээлийн мэргэжилтэн", en: "Loan officer employee id", fk: employees.employee_id}
+      status_code: {mn: "Зээлийн төлөв", en: "Loan status code",
+                    values: {PENDING_DISBURSEMENT: Олголт хүлээж буй, ACTIVE: Идэвхтэй (хэвийн), OVERDUE: Хугацаа хэтэрсэн,
+                             RESTRUCTURED: Бүтэц өөрчилсөн, LEGAL: Хууль зүйн шатанд, WRITTEN_OFF: Данснаас хассан,
+                             CLOSED: Хаагдсан (бүрэн төлөгдсөн), CANCELLED: Цуцлагдсан}}
+      status_name: {mn: "Зээлийн төлөвийн нэр", en: "Loan status name"}
+      is_active_portfolio: {mn: "Идэвхтэй зээлийн багцад тооцогдох эсэх (ACTIVE, OVERDUE, RESTRUCTURED, LEGAL)",
+                            en: "Counts in the active loan portfolio", syn: [идэвхтэй багц, идэвхтэй зээл]}
+      currency_code: {mn: "Зээлийн валют (MNT, USD)", en: "Loan currency", syn: [валют, төгрөг, доллар]}
+      principal_amount: {mn: "Зээлийн үндсэн дүн (гэрээний)", en: "Principal amount", syn: [зээлийн дүн, олгосон дүн]}
+      interest_rate: {mn: "Жилийн хүү, %", en: "Annual interest rate, %", syn: [хүү, хүүгийн хувь]}
+      penalty_rate: {mn: "Нэмэгдүүлсэн хүү (торгуулийн хүү), жилийн %", en: "Penalty rate, % per year"}
+      effective_rate: {mn: "Үр ашигт хүү (шимтгэл багтсан), %", en: "Effective interest rate, %"}
+      term_months: {mn: "Зээлийн хугацаа, сар", en: "Term, months", syn: [хугацаа]}
+      amortization_type: {mn: "Эргэн төлөлтийн арга", en: "Amortization type",
+                          values: {ANNUITY: Тэнцүү төлөлт, EQUAL_PRINCIPAL: Үндсэн төлбөр тэнцүү, BULLET: Хугацааны эцэст нэг дор,
+                                   INTEREST_ONLY: Зөвхөн хүү}}
+      contract_date: {mn: "Гэрээ байгуулсан огноо", en: "Contract date"}
+      disbursement_date: {mn: "Олгосон огноо", en: "Disbursement date", syn: [олгосон огноо, олголт]}
+      first_payment_date: {mn: "Эхний төлөлтийн огноо", en: "First payment date"}
+      maturity_date: {mn: "Зээл дуусах (эцсийн төлөлтийн) огноо", en: "Maturity date", syn: [дуусах хугацаа, эцсийн хугацаа]}
+      closed_date: {mn: "Хаагдсан огноо", en: "Closing date"}
+      disbursed_amount: {mn: "Олгосон дүн", en: "Disbursed amount"}
+      principal_outstanding: {mn: "Үндсэн зээлийн үлдэгдэл", en: "Outstanding principal", syn: [үндсэн үлдэгдэл, зээлийн үлдэгдэл]}
+      interest_outstanding: {mn: "Хуваарийн хүүгийн төлөгдөөгүй үлдэгдэл (ирээдүйн хуваарийн хүү орно)",
+                             en: "Unpaid scheduled interest (includes future installments)"}
+      penalty_outstanding: {mn: "Торгуулийн үлдэгдэл", en: "Outstanding penalty"}
+      fee_outstanding: {mn: "Шимтгэлийн үлдэгдэл", en: "Outstanding fees"}
+      total_outstanding: {mn: "Нийт үлдэгдэл = үндсэн + хүү + торгууль + шимтгэл", en: "Total outstanding",
+                          syn: [нийт үлдэгдэл, нийт өр]}
+      principal_paid: {mn: "Төлөгдсөн үндсэн төлбөр", en: "Principal repaid"}
+      interest_paid: {mn: "Төлөгдсөн хүү", en: "Interest paid", syn: [хүүгийн орлого (төлөгдсөн)]}
+      penalty_paid: {mn: "Төлөгдсөн торгууль", en: "Penalty paid"}
+      fee_paid: {mn: "Төлөгдсөн шимтгэл", en: "Fees paid"}
+      written_off_amount: {mn: "Данснаас хассан дүн", en: "Written-off amount"}
+      overdue_principal: {mn: "Хугацаа хэтэрсэн үндсэн төлбөр", en: "Overdue principal", syn: [хэтэрсэн дүн]}
+      overdue_interest: {mn: "Хугацаа хэтэрсэн хүү", en: "Overdue interest"}
+      days_past_due: {mn: "Хугацаа хэтэрсэн хоног (DPD), ажлын өдрөөр", en: "Days past due",
+                      syn: [DPD, хэтэрсэн хоног, хоцролт, хугацаа хэтрэлт]}
+      max_days_past_due: {mn: "Зээлийн хугацаанд хүрсэн хамгийн их DPD", en: "Maximum days past due ever"}
+      dpd_bucket: {mn: "DPD-ийн бүлэг", en: "DPD bucket",
+                   values: {CURRENT: Хэвийн (0), DPD_1_30: 1–30 хоног, DPD_31_60: 31–60 хоног, DPD_61_90: 61–90 хоног,
+                            DPD_91_180: 91–180 хоног, DPD_180_PLUS: 180-аас дээш}}
+      classification_code: {mn: "Активын ангилал (зохицуулагчийн журмаар)", en: "Asset classification",
+                            values: {NORMAL: "Хэвийн (0–14 хоног)", WATCH: "Хяналтад (15–30)", SUBSTANDARD: "Чанар муудсан (31–90)",
+                                     DOUBTFUL: "Эргэлзээтэй (91–180)", LOSS: "Муу (181+)"},
+                            syn: [ангилал, активын ангилал, зээлийн ангилал]}
+      classification_name: {mn: "Активын ангиллын монгол нэр", en: "Classification name (Mongolian)"}
+      provision_rate: {mn: "Эрсдэлийн сангийн хувь (ангиллаар), %", en: "Provision rate, %"}
+      is_npl: {mn: "Чанаргүй зээл (NPL: эргэлзээтэй ба муу ангилал) эсэх", en: "Is non-performing loan",
+               syn: [чанаргүй зээл, NPL]}
+      is_restructured: {mn: "Бүтэц өөрчилсөн эсэх", en: "Is restructured"}
+      restructure_count: {mn: "Бүтэц өөрчилсөн тоо", en: "Number of restructures"}
+      last_payment_date: {mn: "Сүүлийн төлөлтийн огноо", en: "Last payment date", syn: [сүүлд төлсөн]}
+      fx_rate_to_mnt: {mn: "Ажлын өдрийн ханш (MNT зээлд 1)", en: "FX rate to MNT at business date"}
+      principal_amount_mnt: {mn: "Үндсэн дүн төгрөгөөр", en: "Principal amount in MNT"}
+      principal_outstanding_mnt: {mn: "Үндсэн үлдэгдэл төгрөгөөр", en: "Outstanding principal in MNT"}
+      total_outstanding_mnt: {mn: "Нийт үлдэгдэл төгрөгөөр (олон валютыг нэгтгэхэд)", en: "Total outstanding in MNT"}
+
+  loan_schedule:
+    mn: "Зээлийн эргэн төлөлтийн хуваарь (одоогийн хувилбар): төлөх ба төлөгдсөн дүн мөр бүрээр"
+    en: "Current repayment schedule installments with due and paid amounts"
+    syn: [хуваарь, эргэн төлөлтийн хуваарь, төлбөрийн хуваарь, график, schedule, installment]
+    pk: [loan_id, installment_no]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      installment_no: {mn: "Төлөлтийн дугаар (хэд дэх сар)", en: "Installment number"}
+      due_date: {mn: "Төлөх огноо", en: "Due date", syn: [төлөх огноо, төлөлтийн өдөр]}
+      principal_due: {mn: "Төлөх үндсэн төлбөр", en: "Principal due"}
+      interest_due: {mn: "Төлөх хүү", en: "Interest due"}
+      total_due: {mn: "Төлөх нийт дүн", en: "Total due"}
+      principal_paid: {mn: "Төлсөн үндсэн төлбөр", en: "Principal paid"}
+      interest_paid: {mn: "Төлсөн хүү", en: "Interest paid"}
+      penalty_charged: {mn: "Тооцсон торгууль", en: "Penalty charged"}
+      penalty_paid: {mn: "Төлсөн торгууль", en: "Penalty paid"}
+      status: {mn: "Хуваарийн мөрийн төлөв", en: "Installment status",
+               values: {PENDING: Хугацаа болоогүй, PARTIALLY_PAID: Хэсэгчлэн төлсөн, PAID: Төлөгдсөн, OVERDUE: Хугацаа хэтэрсэн,
+                        WAIVED: Чөлөөлсөн, RESTRUCTURED: Бүтэц өөрчлөгдсөн}}
+      paid_date: {mn: "Бүрэн төлөгдсөн огноо", en: "Date fully paid"}
+      days_past_due: {mn: "Хоцорсон хоног (төлөгдөөгүй бол өнөөдрийг хүртэл)", en: "Days past due for this installment"}
+      schedule_version: {mn: "Хуваарийн хувилбар (бүтэц өөрчлөгдвөл 2)", en: "Schedule version"}
+
+  loan_payments:
+    mn: "Зээлийн эргэн төлөлт (төлбөр) ба бүрэлдэхүүнээр хуваарилсан дүн"
+    en: "Loan repayments and their allocation to principal, interest, penalty, fee"
+    syn: [төлбөр, төлөлт, эргэн төлөлт, зээлийн төлбөр, payment, repayment]
+    pk: payment_id
+    columns:
+      payment_id: {mn: "Төлбөрийн ID", en: "Payment id"}
+      payment_no: {mn: "Төлбөрийн дугаар (LP-2025-00000123)", en: "Payment number"}
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      customer_id: {mn: "Төлсөн харилцагч", en: "Customer id", fk: customers.customer_id}
+      branch_id: {mn: "Салбар", en: "Branch id", fk: branches.branch_id}
+      currency_code: {mn: "Валют", en: "Currency"}
+      amount: {mn: "Төлсөн дүн", en: "Payment amount", syn: [төлсөн дүн]}
+      payment_date: {mn: "Төлсөн огноо", en: "Payment date", syn: [төлсөн огноо]}
+      payment_method: {mn: "Төлбөрийн хэрэгсэл", en: "Payment method",
+                       values: {CASH: Бэлэн мөнгө, BANK_TRANSFER: Банкны шилжүүлэг, CARD: Карт, WALLET: Цахим хэтэвч (QPay г.м.),
+                                AUTO_DEBIT: Автомат суутгал, SALARY_DEDUCTION: Цалингаас суутгал, OFFSET: Суутгал/хаалт}}
+      payment_type: {mn: "Төлбөрийн төрөл", en: "Payment type",
+                     values: {REGULAR: Хуваарийн дагуу, EARLY_PARTIAL: Хугацаанаас өмнө хэсэгчлэн, EARLY_FULL: Хугацаанаас өмнө бүрэн хаасан,
+                              OVERDUE: Хугацаа хэтэрсэн төлөлт, SETTLEMENT: Тохиролцоо, RECOVERY: Хассан зээлийн нөхөн төлөлт}}
+      allocated_principal: {mn: "Үндсэн төлбөрт хуваарилсан", en: "Allocated to principal"}
+      allocated_interest: {mn: "Хүүнд хуваарилсан", en: "Allocated to interest"}
+      allocated_penalty: {mn: "Торгуульд хуваарилсан", en: "Allocated to penalty"}
+      allocated_fee: {mn: "Шимтгэлд хуваарилсан", en: "Allocated to fees"}
+      unallocated_amount: {mn: "Хуваарилагдаагүй (илүү төлөлт)", en: "Unallocated (overpayment)"}
+      status: {mn: "Төлбөрийн төлөв", en: "Payment status",
+               values: {PENDING: Хүлээгдэж буй, POSTED: Бүртгэгдсэн (амжилттай), REVERSED: Буцаагдсан, FAILED: Амжилтгүй}}
+
+  loan_dpd_history:
+    mn: "Зээлийн хугацаа хэтрэлтийн сарын эцсийн агшин (идэвхтэй зээл бүрээр). PAR-ийн чиг хандлага, ангиллын шилжилтэд"
+    en: "Month-end snapshot of loan delinquency (per active loan) for PAR trends and roll rates"
+    syn: [сарын эцсийн агшин, хугацаа хэтрэлтийн түүх, PAR түүх, snapshot]
+    pk: [loan_id, snapshot_date]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      snapshot_date: {mn: "Агшны огноо (сарын сүүлийн өдөр)", en: "Snapshot date (month end)", syn: [сарын эцэс]}
+      days_past_due: {mn: "Тухайн өдрийн DPD", en: "Days past due at snapshot"}
+      dpd_bucket: {mn: "DPD-ийн бүлэг", en: "DPD bucket",
+                   values: {CURRENT: Хэвийн, DPD_1_30: 1–30, DPD_31_60: 31–60, DPD_61_90: 61–90, DPD_91_180: 91–180, DPD_180_PLUS: 180+}}
+      overdue_principal: {mn: "Хугацаа хэтэрсэн үндсэн төлбөр", en: "Overdue principal"}
+      overdue_interest: {mn: "Хугацаа хэтэрсэн хүү", en: "Overdue interest"}
+      overdue_penalty: {mn: "Торгуулийн үлдэгдэл", en: "Penalty outstanding"}
+      total_outstanding: {mn: "Тухайн өдрийн нийт үлдэгдэл", en: "Total outstanding at snapshot"}
+      classification_code: {mn: "Тухайн өдрийн активын ангилал", en: "Classification at snapshot",
+                            values: {NORMAL: Хэвийн, WATCH: Хяналтад, SUBSTANDARD: Чанар муудсан, DOUBTFUL: Эргэлзээтэй, LOSS: Муу}}
+
+  loan_charges:
+    mn: "Зээлийн шимтгэл (олголтын, хугацаанаас өмнө төлөх) ба хугацаа хэтрүүлсний торгууль"
+    en: "Loan fees and late-payment penalties"
+    syn: [шимтгэл, торгууль, алданги, хураамж, fee, penalty]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      charge_type: {mn: "Төрөл", en: "Charge type", values: {FEE: Шимтгэл, PENALTY: Торгууль}}
+      charge_code: {mn: "Шимтгэл/торгуулийн код", en: "Charge code",
+                    values: {DISBURSEMENT_FEE: Зээл олголтын шимтгэл, EARLY_REPAY_FEE: Хугацаанаас өмнө төлөх шимтгэл,
+                             RESTRUCTURE_FEE: Бүтцийн өөрчлөлтийн шимтгэл, LATE_PAYMENT: Хугацаа хэтрүүлсний торгууль}}
+      charge_name: {mn: "Нэр", en: "Charge name"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      amount: {mn: "Тооцсон дүн", en: "Charged amount"}
+      charged_date: {mn: "Тооцсон огноо", en: "Charged date"}
+      paid_amount: {mn: "Төлөгдсөн дүн", en: "Paid amount"}
+      waived_amount: {mn: "Чөлөөлсөн дүн", en: "Waived amount"}
+      status: {mn: "Төлөв", en: "Status",
+               values: {CHARGED: Тооцсон (төлөгдөөгүй), PARTIALLY_PAID: Хэсэгчлэн төлсөн, PAID: Төлөгдсөн, WAIVED: Чөлөөлсөн,
+                        REVERSED: Буцаасан}}
+      days_overdue: {mn: "Торгуулийн хоног (торгуульд л)", en: "Days overdue (penalties only)"}
+
+  loan_restructures:
+    mn: "Зээлийн бүтцийн өөрчлөлт: хугацаа сунгах, хүү бууруулах, төлбөрийн чөлөө"
+    en: "Loan restructurings"
+    syn: [бүтцийн өөрчлөлт, хугацаа сунгалт, restructure]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      restructure_no: {mn: "Хэд дэх өөрчлөлт", en: "Restructure number"}
+      restructure_type: {mn: "Өөрчлөлтийн төрөл", en: "Restructure type",
+                         values: {TERM_EXTENSION: Хугацаа сунгасан, RATE_REDUCTION: Хүү бууруулсан, PAYMENT_HOLIDAY: Төлбөрийн чөлөө,
+                                  PRINCIPAL_HAIRCUT: Үндсэн өр хасалт, CAPITALIZATION: Хүүг үндсэн өрт нэмсэн,
+                                  REFINANCE: Дахин санхүүжилт, CONSOLIDATION: Нэгтгэл}}
+      reason: {mn: "Шалтгаан", en: "Reason"}
+      old_principal: {mn: "Өмнөх үндсэн үлдэгдэл", en: "Principal before"}
+      new_principal: {mn: "Шинэ үндсэн үлдэгдэл", en: "Principal after"}
+      old_rate: {mn: "Өмнөх хүү, %", en: "Rate before, %"}
+      new_rate: {mn: "Шинэ хүү, %", en: "Rate after, %"}
+      old_term_months: {mn: "Өмнөх үлдсэн хугацаа, сар", en: "Remaining term before, months"}
+      new_term_months: {mn: "Шинэ хугацаа, сар", en: "New term, months"}
+      old_maturity_date: {mn: "Өмнөх дуусах огноо", en: "Maturity before"}
+      new_maturity_date: {mn: "Шинэ дуусах огноо", en: "Maturity after"}
+      effective_date: {mn: "Хүчин төгөлдөр болсон огноо", en: "Effective date"}
+      status: {mn: "Төлөв", en: "Status",
+               values: {PENDING: Хүлээгдэж буй, APPROVED: Батлагдсан, EXECUTED: Хэрэгжсэн, REJECTED: Татгалзсан, CANCELLED: Цуцалсан}}
+
+  loan_writeoffs:
+    mn: "Данснаас хассан зээл (балансын гадуур хяналтад үлдэнэ)"
+    en: "Loan write-offs"
+    syn: [данснаас хассан, хасалт, write-off]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      writeoff_date: {mn: "Хассан огноо", en: "Write-off date"}
+      principal_amount: {mn: "Хассан үндсэн өр", en: "Principal written off"}
+      interest_amount: {mn: "Хассан хүү", en: "Interest written off"}
+      penalty_amount: {mn: "Хассан торгууль", en: "Penalty written off"}
+      fee_amount: {mn: "Хассан шимтгэл", en: "Fee written off"}
+      total_amount: {mn: "Нийт хассан дүн", en: "Total written off"}
+      writeoff_type: {mn: "Хасалтын төрөл", en: "Write-off type", values: {FULL: Бүтэн, PARTIAL: Хэсэгчилсэн, INTEREST_ONLY: Зөвхөн хүү}}
+      recovered_amount: {mn: "Хассаны дараа нөхөн төлөгдсөн дүн", en: "Recovered after write-off", syn: [нөхөн төлөлт]}
+
+  # ------------------------------------------------------------------ барьцаа, батлан даагч
+  collaterals:
+    mn: "Барьцаа хөрөнгө ба үнэлгээ (улсын бүртгэлийн дугаар, байршил ОРОХГҮЙ)"
+    en: "Collateral assets and valuations"
+    syn: [барьцаа, барьцаа хөрөнгө, ипотек, collateral]
+    pk: collateral_id
+    columns:
+      collateral_id: {mn: "Барьцааны ID", en: "Collateral id"}
+      collateral_number: {mn: "Барьцааны дугаар (CL-2025-000123)", en: "Collateral number"}
+      collateral_type_code: {mn: "Барьцааны төрөл", en: "Collateral type",
+                             values: {APARTMENT: Орон сууц, HOUSE: Хашаа байшин, LAND: Газар, VEHICLE_NEW: Автомашин (шинэ),
+                                      VEHICLE_USED: Автомашин (хуучин), EQUIPMENT: Тоног төхөөрөмж, GOLD: "Алт, үнэт эдлэл",
+                                      DEPOSIT_PLG: Хадгаламж барьцаа, LIVESTOCK: Мал сүрэг}}
+      collateral_type_name: {mn: "Барьцааны төрлийн нэр", en: "Collateral type name"}
+      collateral_category: {mn: "Барьцааны ангилал", en: "Collateral category",
+                            values: {REAL_ESTATE: Үл хөдлөх хөрөнгө, VEHICLE: Тээврийн хэрэгсэл, EQUIPMENT: Тоног төхөөрөмж,
+                                     DEPOSIT: Хадгаламж, LIVESTOCK: Мал, OTHER: Бусад (алт г.м.)},
+                            syn: [үл хөдлөх хөрөнгө, тээврийн хэрэгсэл]}
+      owner_customer_id: {mn: "Өмчлөгч харилцагч", en: "Owner customer id", fk: customers.customer_id}
+      branch_id: {mn: "Бүртгэсэн салбар", en: "Branch id", fk: branches.branch_id}
+      market_value: {mn: "Зах зээлийн үнэлгээ", en: "Market value", syn: [үнэлгээ, зах зээлийн үнэ]}
+      forced_sale_value: {mn: "Албадан борлуулах үнэ", en: "Forced sale value"}
+      accepted_value: {mn: "Хүлээн зөвшөөрөх үнэлгээ (haircut-ийн дараа)", en: "Accepted value after haircut"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      valuation_date: {mn: "Үнэлсэн огноо", en: "Valuation date"}
+      next_valuation_date: {mn: "Дараагийн үнэлгээний огноо", en: "Next valuation date", syn: [дахин үнэлэх]}
+      is_insured: {mn: "Даатгалтай эсэх", en: "Is insured", syn: [даатгал]}
+      encumbrance_status: {mn: "Барьцааны байдал", en: "Encumbrance status",
+                           values: {FREE: Чөлөөтэй, PLEDGED: Барьцаалагдсан, PARTIALLY_PLEDGED: Хэсэгчлэн барьцаалагдсан,
+                                    SEIZED: Хураагдсан, SOLD: Борлуулсан, RELEASED: Чөлөөлсөн}}
+      status: {mn: "Төлөв", en: "Status",
+               values: {DRAFT: Ноорог, ACTIVE: Идэвхтэй, RELEASED: Чөлөөлсөн, LIQUIDATED: Борлуулж барагдуулсан, WRITTEN_OFF: Хассан}}
+
+  loan_collaterals:
+    mn: "Зээл ба барьцааны холбоос: хуваарилсан дүн, LTV"
+    en: "Loan-collateral links with allocated amount and LTV"
+    syn: [зээлийн барьцаа, LTV]
+    pk: [loan_id, collateral_id]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      collateral_id: {mn: "Барьцааны ID", en: "Collateral id", fk: collaterals.collateral_id}
+      currency_code: {mn: "Валют", en: "Currency"}
+      allocated_amount: {mn: "Энэ зээлд хуваарилсан барьцааны дүн", en: "Allocated collateral amount"}
+      ltv_ratio: {mn: "Зээл/барьцааны харьцаа (LTV), %", en: "Loan-to-value ratio, %", syn: [LTV]}
+      pledge_date: {mn: "Барьцаалсан огноо", en: "Pledge date"}
+      release_date: {mn: "Чөлөөлсөн огноо", en: "Release date"}
+      status: {mn: "Төлөв", en: "Status",
+               values: {PENDING: Хүлээгдэж буй, ACTIVE: Идэвхтэй, RELEASED: Чөлөөлсөн, LIQUIDATED: Борлуулсан}}
+
+  loan_guarantors:
+    mn: "Зээлийн батлан даагч (нэр, регистр, утас ОРОХГҮЙ)"
+    en: "Loan guarantors (no names or identifiers)"
+    syn: [батлан даагч, батлан даалт, guarantor]
+    pk: [loan_id, guarantor_id]
+    columns:
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      guarantor_id: {mn: "Батлан даагчийн ID", en: "Guarantor id"}
+      guarantor_type: {mn: "Батлан даагчийн төрөл", en: "Guarantor type",
+                       values: {PERSONAL: Хувь хүн, CORPORATE: Байгууллага, GOVERNMENT: Төр, FUND: Сан, BANK: Банк}}
+      is_existing_customer: {mn: "Батлан даагч манай харилцагч эсэх", en: "Guarantor is our customer"}
+      guarantor_customer_id: {mn: "Батлан даагч харилцагчийн ID (харилцагч бол)", en: "Guarantor customer id",
+                              fk: customers.customer_id}
+      currency_code: {mn: "Валют", en: "Currency"}
+      guarantee_amount: {mn: "Батлан даасан дүн", en: "Guarantee amount"}
+      guarantee_pct: {mn: "Батлан даасан хувь", en: "Guarantee percent"}
+      liability_type: {mn: "Хариуцлагын төрөл", en: "Liability type",
+                       values: {JOINT: Хамтран, SEVERAL: Хувь тэнцүүлэн, JOINT_AND_SEVERAL: Хамтран ба тус тусдаа, LIMITED: Хязгаарлагдмал}}
+      valid_from: {mn: "Хүчинтэй эхлэх", en: "Valid from"}
+      valid_to: {mn: "Хүчинтэй дуусах", en: "Valid to"}
+      called_date: {mn: "Батлан даалтыг нэхэмжилсэн огноо", en: "Guarantee called date"}
+      called_amount: {mn: "Нэхэмжилсэн дүн", en: "Called amount"}
+      recovered_amount: {mn: "Батлан даагчаас төлүүлсэн дүн", en: "Recovered from guarantor"}
+      status: {mn: "Төлөв", en: "Status",
+               values: {PENDING: Хүлээгдэж буй, ACTIVE: Идэвхтэй, RELEASED: Чөлөөлсөн, CALLED: Нэхэмжилсэн, SETTLED: Барагдсан}}
+
+  # ------------------------------------------------------------------ данс, гүйлгээ, хадгаламж
+  accounts:
+    mn: "Харилцагчийн данс: харилцах ба хадгаламжийн данс (дансны дугаар, нэр ОРОХГҮЙ)"
+    en: "Customer accounts (current and savings); no account numbers"
+    syn: [данс, харилцах данс, хадгаламжийн данс, account]
+    pk: account_id
+    columns:
+      account_id: {mn: "Дансны ID", en: "Account id"}
+      customer_id: {mn: "Данс эзэмшигч харилцагч", en: "Customer id", fk: customers.customer_id}
+      branch_id: {mn: "Данс нээсэн салбар", en: "Branch id", fk: branches.branch_id}
+      product_id: {mn: "Дансны бүтээгдэхүүн", en: "Product id", fk: products.product_id}
+      account_type_code: {mn: "Дансны төрөл", en: "Account type", values: {CURRENT: Харилцах данс, SAVINGS: Хадгаламжийн данс}}
+      account_type_name: {mn: "Дансны төрлийн нэр", en: "Account type name"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      current_balance: {mn: "Одоогийн үлдэгдэл", en: "Current balance", syn: [дансны үлдэгдэл, үлдэгдэл]}
+      available_balance: {mn: "Боломжит үлдэгдэл (блоклосон дүнг хассан)", en: "Available balance"}
+      hold_amount: {mn: "Блоклосон дүн", en: "Hold amount", syn: [блок, барьцаалсан дүн]}
+      status: {mn: "Дансны төлөв", en: "Account status",
+               values: {PENDING: Хүлээгдэж буй, ACTIVE: Идэвхтэй, DORMANT: Идэвхгүй (хөдөлгөөнгүй), BLOCKED: Блоклосон,
+                        FROZEN: Хөлдөөсөн, CLOSED: Хаагдсан}}
+      is_dormant: {mn: "Хөдөлгөөнгүй данс эсэх", en: "Is dormant"}
+      opened_date: {mn: "Нээсэн огноо", en: "Opening date"}
+      closed_date: {mn: "Хаасан огноо", en: "Closing date"}
+      last_transaction_date: {mn: "Сүүлийн гүйлгээний огноо", en: "Last transaction date"}
+
+  transactions:
+    mn: "Дансны гүйлгээ (нэг мөр = нэг данс, нэг тал D/C). Харьцагч талын мэдээлэл ОРОХГҮЙ"
+    en: "Account transactions (one leg per row); no counterparty data"
+    syn: [гүйлгээ, гүйлгээнүүд, орлого зарлага, transaction]
+    pk: transaction_id
+    columns:
+      transaction_id: {mn: "Гүйлгээний ID", en: "Transaction id"}
+      transaction_no: {mn: "Гүйлгээний дугаар (TX0000000123)", en: "Transaction number"}
+      account_id: {mn: "Дансны ID", en: "Account id", fk: accounts.account_id}
+      customer_id: {mn: "Харилцагч", en: "Customer id", fk: customers.customer_id}
+      branch_id: {mn: "Салбар", en: "Branch id", fk: branches.branch_id}
+      transaction_type_code: {mn: "Гүйлгээний төрөл", en: "Transaction type",
+                              values: {CASH_DEPOSIT: Бэлэн мөнгө тушаах, CASH_WITHDRAWAL: Бэлэн мөнгө авах,
+                                       TRANSFER_IN: Орлогын шилжүүлэг, TRANSFER_OUT: Зарлагын шилжүүлэг, LOAN_DISB: Зээл олголт,
+                                       LOAN_REPAY: Зээлийн эргэн төлөлт, FEE_CHARGE: Шимтгэл суутгал,
+                                       INTEREST_CREDIT: Хүү тооцох, PENALTY_CHARGE: Торгууль, REVERSAL: Сторно}}
+      transaction_type_name: {mn: "Гүйлгээний төрлийн нэр", en: "Transaction type name"}
+      category: {mn: "Гүйлгээний ангилал", en: "Transaction category",
+                 values: {DEPOSIT: Орлого (бэлэн), WITHDRAWAL: Зарлага (бэлэн), TRANSFER: Шилжүүлэг, LOAN_DISBURSEMENT: Зээл олголт,
+                          LOAN_REPAYMENT: Зээлийн төлөлт, FEE: Шимтгэл, INTEREST: Хүү, PENALTY: Торгууль}}
+      channel_code: {mn: "Гүйлгээний суваг", en: "Channel",
+                     values: {BRANCH: Салбар, MOBILE: Мобайл апп, INTERNET: Интернэт банк, ATM: АТМ, POS: ПОС, API: Партнёрын API,
+                              BATCH: Автомат багц}}
+      channel_name: {mn: "Сувгийн нэр", en: "Channel name"}
+      status_code: {mn: "Гүйлгээний төлөв", en: "Transaction status",
+                    values: {PENDING: Хүлээгдэж буй, PROCESSING: Боловсруулж буй, COMPLETED: Амжилттай, FAILED: Амжилтгүй,
+                             REVERSED: Сторно, CANCELLED: Цуцлагдсан}}
+      direction: {mn: "Чиглэл: C — орлого (кредит), D — зарлага (дебит)", en: "Direction C=credit (in), D=debit (out)",
+                  values: {C: Орлого, D: Зарлага}}
+      amount: {mn: "Гүйлгээний дүн (дансны валютаар)", en: "Amount in account currency"}
+      fee_amount: {mn: "Шимтгэл", en: "Fee"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      amount_mnt: {mn: "Дүн төгрөгөөр", en: "Amount in MNT"}
+      transaction_date: {mn: "Гүйлгээ хийсэн огноо", en: "Transaction date"}
+      value_date: {mn: "Хүчинтэй огноо", en: "Value date"}
+
+  account_balances_monthly:
+    mn: "Дансны сарын эцсийн үлдэгдэл ба сарын орлого/зарлагын нийлбэр"
+    en: "Month-end account balances with monthly debit/credit turnover"
+    syn: [сарын эцсийн үлдэгдэл, дансны хуулга, balance history]
+    pk: [account_id, balance_date]
+    columns:
+      account_id: {mn: "Дансны ID", en: "Account id", fk: accounts.account_id}
+      balance_date: {mn: "Сарын сүүлийн өдөр", en: "Month-end date"}
+      opening_balance: {mn: "Сарын эхний үлдэгдэл", en: "Opening balance"}
+      total_debit: {mn: "Сарын зарлага (дебит)", en: "Monthly debits"}
+      total_credit: {mn: "Сарын орлого (кредит)", en: "Monthly credits"}
+      closing_balance: {mn: "Сарын эцсийн үлдэгдэл", en: "Closing balance"}
+      transaction_count: {mn: "Сарын гүйлгээний тоо", en: "Transaction count"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      closing_balance_mnt: {mn: "Сарын эцсийн үлдэгдэл төгрөгөөр", en: "Closing balance in MNT"}
+
+  deposits:
+    mn: "Хадгаламж: хугацаатай, хугацаагүй, хүүхдийн хадгаламж; хүү, хугацаа, үлдэгдэл"
+    en: "Deposits (term, demand, child) with rate, term and balance"
+    syn: [хадгаламж, хадгаламжууд, депозит, хуримтлал, deposit, savings]
+    pk: deposit_id
+    columns:
+      deposit_id: {mn: "Хадгаламжийн ID", en: "Deposit id"}
+      deposit_number: {mn: "Хадгаламжийн дугаар (DP-2025-000123)", en: "Deposit number"}
+      account_id: {mn: "Хадгаламжийн данс", en: "Account id", fk: accounts.account_id}
+      customer_id: {mn: "Хадгаламж эзэмшигч", en: "Customer id", fk: customers.customer_id}
+      product_id: {mn: "Бүтээгдэхүүн", en: "Product id", fk: products.product_id}
+      branch_id: {mn: "Салбар", en: "Branch id", fk: branches.branch_id}
+      currency_code: {mn: "Валют", en: "Currency"}
+      deposit_type: {mn: "Хадгаламжийн төрөл", en: "Deposit type",
+                     values: {TERM: Хугацаатай, DEMAND: Хугацаагүй, SAVINGS: Хуримтлалын, CHILD: Хүүхдийн, PENSION: Тэтгэврийн,
+                              ESCROW: Эскроу}}
+      principal_amount: {mn: "Анх байршуулсан дүн", en: "Initial principal"}
+      current_balance: {mn: "Одоогийн үлдэгдэл", en: "Current balance", syn: [хадгаламжийн үлдэгдэл]}
+      interest_rate: {mn: "Жилийн хүү, %", en: "Annual interest rate, %", syn: [хүү]}
+      interest_method: {mn: "Хүү бодох арга", en: "Interest method", values: {SIMPLE: Энгийн хүү, COMPOUND: Нийлмэл хүү (хүүг нэмж бодох)}}
+      term_months: {mn: "Хугацаа, сар (хугацаагүйд NULL)", en: "Term, months"}
+      accrued_interest: {mn: "Хуримтлагдсан, олгоогүй хүү", en: "Accrued unpaid interest"}
+      paid_interest: {mn: "Олгосон хүү", en: "Interest paid out"}
+      withholding_tax_paid: {mn: "Суутгасан хүүгийн татвар (10%)", en: "Withholding tax paid"}
+      opened_date: {mn: "Нээсэн огноо", en: "Opening date"}
+      maturity_date: {mn: "Хугацаа дуусах огноо", en: "Maturity date", syn: [хугацаа дуусах]}
+      closed_date: {mn: "Хаасан огноо", en: "Closing date"}
+      auto_renew: {mn: "Автоматаар сунгах эсэх", en: "Auto renew"}
+      renewal_count: {mn: "Сунгасан тоо", en: "Renewal count"}
+      is_pledged: {mn: "Зээлийн барьцаанд тавигдсан эсэх", en: "Is pledged"}
+      status: {mn: "Хадгаламжийн төлөв", en: "Deposit status",
+               values: {PENDING: Хүлээгдэж буй, ACTIVE: Идэвхтэй, MATURED: Хугацаа дууссан (татаагүй), CLOSED: Хаагдсан,
+                        BLOCKED: Блоклосон, EARLY_CLOSED: Хугацаанаас өмнө татсан}}
+      current_balance_mnt: {mn: "Үлдэгдэл төгрөгөөр", en: "Balance in MNT"}
+
+  # ------------------------------------------------------------------ барагдуулалт
+  collection_cases:
+    mn: "Хугацаа хэтэрсэн зээлийн барагдуулалтын кейс (нэг зээлд нэг идэвхтэй кейс)"
+    en: "Collection cases for delinquent loans"
+    syn: [барагдуулалт, кейс, эргэн төлүүлэлт, collection case]
+    pk: case_id
+    columns:
+      case_id: {mn: "Кейсийн ID", en: "Case id"}
+      case_no: {mn: "Кейсийн дугаар (CC-2025-000123)", en: "Case number"}
+      loan_id: {mn: "Зээлийн ID", en: "Loan id", fk: loans.loan_id}
+      customer_id: {mn: "Харилцагч", en: "Customer id", fk: customers.customer_id}
+      branch_id: {mn: "Салбар", en: "Branch id", fk: branches.branch_id}
+      stage_code: {mn: "Барагдуулалтын шат", en: "Collection stage",
+                   values: {REMINDER: "Сануулга (1–7 хоног)", SOFT_CALL: "Утсаар холбогдох (8–30)", FIELD_VISIT: "Биечлэн уулзах (31–60)",
+                            FORMAL: "Албан шаардлага (61–90)", PRE_LEGAL: "Хууль зүйн өмнөх (91–180)", LEGAL: "Шүүхийн шат (181+)"}}
+      stage_name: {mn: "Шатны нэр", en: "Stage name"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      opened_date: {mn: "Кейс нээсэн огноо", en: "Opened date"}
+      dpd_at_open: {mn: "Нээх үеийн DPD", en: "DPD at opening"}
+      current_dpd: {mn: "Одоогийн DPD (хаагдсан бол 0)", en: "Current DPD"}
+      outstanding_at_open: {mn: "Нээх үеийн нийт үлдэгдэл", en: "Outstanding at opening"}
+      current_outstanding: {mn: "Одоогийн үлдэгдэл", en: "Current outstanding"}
+      overdue_amount: {mn: "Хугацаа хэтэрсэн дүн", en: "Overdue amount"}
+      collected_amount: {mn: "Кейсийн хугацаанд цуглуулсан дүн", en: "Collected amount", syn: [цуглуулсан дүн]}
+      assigned_to: {mn: "Хариуцсан ажилтан", en: "Assigned collector employee id", fk: employees.employee_id}
+      agency_code: {mn: "Гэрээт барагдуулагч байгууллага (NULL = дотоод баг)", en: "Collection agency code (NULL = in-house team)",
+                    values: {AGENCY_A: Барагдуулалтын А компани, AGENCY_B: Барагдуулалтын Б компани}}
+      agency_name: {mn: "Гэрээт байгууллагын нэр", en: "Agency name"}
+      priority: {mn: "Ач холбогдол", en: "Priority", values: {LOW: Бага, MEDIUM: Дунд, HIGH: Өндөр, URGENT: Яаралтай}}
+      status: {mn: "Кейсийн төлөв", en: "Case status",
+               values: {OPEN: Нээлттэй, IN_PROGRESS: Ажиллаж байгаа, PROMISE_TO_PAY: Төлөх амлалттай, LEGAL: Хууль зүйн шатанд,
+                        RESTRUCTURED: Бүтэц өөрчилсөн, RESOLVED: Барагдсан, WRITTEN_OFF: Данснаас хассан, CLOSED: Хаагдсан}}
+      closed_date: {mn: "Хаасан огноо", en: "Closed date"}
+      close_reason: {mn: "Хаасан шалтгаан", en: "Close reason"}
+
+  collection_actions:
+    mn: "Барагдуулалтын үйлдэл: СМС, дуудлага, айлчлал, албан бичиг, шүүхэд нэхэмжлэл"
+    en: "Collection actions (SMS, calls, visits, letters, court filings)"
+    syn: [барагдуулалтын үйлдэл, дуудлага, айлчлал, сануулга, action]
+    pk: action_id
+    columns:
+      action_id: {mn: "Үйлдлийн ID", en: "Action id"}
+      case_id: {mn: "Кейсийн ID", en: "Case id", fk: collection_cases.case_id}
+      action_code: {mn: "Үйлдлийн төрөл", en: "Action type",
+                    values: {SMS_REMINDER: СМС сануулга, AUTO_CALL: Автомат дуудлага, MANUAL_CALL: Ажилтны дуудлага,
+                             EMAIL_NOTICE: Имэйл сануулга, LETTER: Албан бичиг, FIELD_VISIT: Айлчлал,
+                             LEGAL_NOTICE: Хууль зүйн шаардлага, COURT_FILING: Шүүхэд нэхэмжлэл}}
+      action_name: {mn: "Үйлдлийн нэр", en: "Action name"}
+      channel: {mn: "Суваг", en: "Channel",
+                values: {SMS: СМС, CALL: Дуудлага, EMAIL: Имэйл, LETTER: Бичиг, FIELD_VISIT: Айлчлал, LEGAL_NOTICE: Хууль зүйн мэдэгдэл,
+                         COURT: Шүүх}}
+      action_date: {mn: "Үйлдэл хийсэн огноо", en: "Action date"}
+      performed_by: {mn: "Гүйцэтгэсэн ажилтан", en: "Performed by employee id", fk: employees.employee_id}
+      agency_code: {mn: "Гэрээт байгууллага (NULL = дотоод баг)", en: "Agency code (NULL = in-house)"}
+      contact_result: {mn: "Холбогдсон үр дүн", en: "Contact result",
+                       values: {CONTACTED: Холбогдсон, NO_ANSWER: Утсаа аваагүй, WRONG_NUMBER: Буруу дугаар, REFUSED: Татгалзсан,
+                                PROMISE_OBTAINED: Төлөх амлалт авсан, DISPUTE: Маргаантай, UNREACHABLE: Холбогдох боломжгүй,
+                                DECEASED: Нас барсан}}
+      cost_amount: {mn: "Үйлдлийн зардал", en: "Action cost"}
+
+  collection_promises:
+    mn: "Төлөх амлалт (PTP) ба биелэлт"
+    en: "Promises to pay and their fulfilment"
+    syn: [амлалт, төлөх амлалт, PTP, promise to pay]
+    pk: promise_id
+    columns:
+      promise_id: {mn: "Амлалтын ID", en: "Promise id"}
+      case_id: {mn: "Кейсийн ID", en: "Case id", fk: collection_cases.case_id}
+      currency_code: {mn: "Валют", en: "Currency"}
+      promised_amount: {mn: "Амласан дүн", en: "Promised amount"}
+      promised_date: {mn: "Төлнө гэж амласан огноо", en: "Promised date"}
+      paid_amount: {mn: "Амлалтын дагуу төлсөн дүн", en: "Paid amount"}
+      paid_date: {mn: "Төлсөн огноо", en: "Paid date"}
+      status: {mn: "Амлалтын төлөв", en: "Promise status",
+               values: {PENDING: Хүлээгдэж буй, KEPT: Биелсэн, PARTIALLY_KEPT: Хэсэгчлэн биелсэн, BROKEN: Биелээгүй, CANCELLED: Цуцалсан}}
+
+  # ------------------------------------------------------------------ эрсдэл, нийцэл
+  credit_scores:
+    mn: "Зээлийн скорингийн оноо (хүсэлт бүрд), эрсдэлийн зэрэглэл, дефолтын магадлал"
+    en: "Credit scores per application with risk grade and PD"
+    syn: [скоринг, скорингийн оноо, зээлийн оноо, эрсдэлийн зэрэглэл, credit score]
+    pk: score_id
+    columns:
+      score_id: {mn: "Онооны ID", en: "Score id"}
+      customer_id: {mn: "Харилцагч", en: "Customer id", fk: customers.customer_id}
+      application_id: {mn: "Хүсэлт", en: "Application id", fk: loan_applications.application_id}
+      model_code: {mn: "Скорингийн модель", en: "Scoring model",
+                   values: {APP_SCORE_IND: Хувь хүний хүсэлтийн оноо, APP_SCORE_SME: ЖДҮ-ийн хүсэлтийн оноо,
+                            BEH_SCORE_IND: Хувь хүний зан төлвийн оноо}}
+      model_name: {mn: "Моделийн нэр", en: "Model name"}
+      score: {mn: "Оноо (0–1000, их байх тусам эрсдэл бага)", en: "Score 0-1000 (higher = lower risk)", syn: [оноо]}
+      risk_grade_code: {mn: "Эрсдэлийн зэрэглэл", en: "Risk grade",
+                        values: {AAA: Маш бага эрсдэлтэй, AA: Бага эрсдэлтэй, A: Хэвийн, BBB: Дунд зэрэг, BB: Өндөр,
+                                 B: Маш өндөр, C: Хүлээн зөвшөөрөхгүй}}
+      risk_grade_name: {mn: "Зэрэглэлийн нэр", en: "Risk grade name"}
+      pd_estimate: {mn: "Дефолтын магадлал (0–1)", en: "Probability of default (0-1)", syn: [PD]}
+      decision_hint: {mn: "Скорингийн зөвлөмж", en: "Decision hint",
+                      values: {AUTO_APPROVE: Автоматаар батлах, MANUAL_REVIEW: Гараар шалгах, AUTO_REJECT: Автоматаар татгалзах}}
+      score_type: {mn: "Онооны төрөл", en: "Score type", values: {APPLICATION: Хүсэлтийн, BEHAVIORAL: Зан төлвийн, BUREAU: Зээлийн мэдээллийн сан}}
+      scored_date: {mn: "Тооцсон огноо", en: "Scored date"}
+
+  aml_alerts:
+    mn: "Сэжигтэй гүйлгээний (мөнгө угаах эсрэг, AML) сэрэмжлүүлэг ба СЭГТ-д мэдээлсэн эсэх"
+    en: "AML alerts and suspicious transaction reports"
+    syn: [AML сэрэмжлүүлэг, сэжигтэй гүйлгээ, мөнгө угаах, alert]
+    pk: alert_id
+    columns:
+      alert_id: {mn: "Сэрэмжлүүлгийн ID", en: "Alert id"}
+      alert_no: {mn: "Сэрэмжлүүлгийн дугаар", en: "Alert number"}
+      rule_code: {mn: "Дүрэм", en: "Rule code",
+                  values: {CASH_THRESHOLD: Бэлэн мөнгөний босго давсан, STRUCTURING: Босго тойрсон хуваасан гүйлгээ,
+                           VELOCITY_DAILY: Өдрийн гүйлгээний тоо хэвийн бус, HIGH_RISK_GEO: Өндөр эрсдэлт улс руу шилжүүлэг,
+                           WATCHLIST_HIT: Хяналтын жагсаалттай тааралт}}
+      rule_name: {mn: "Дүрмийн нэр", en: "Rule name"}
+      customer_id: {mn: "Харилцагч", en: "Customer id", fk: customers.customer_id}
+      alert_amount: {mn: "Сэрэмжлүүлгийн дүн", en: "Alert amount"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      severity: {mn: "Ноцтой байдал", en: "Severity", values: {LOW: Бага, MEDIUM: Дунд, HIGH: Өндөр, CRITICAL: Маш ноцтой}}
+      status: {mn: "Төлөв", en: "Status",
+               values: {OPEN: Нээлттэй, UNDER_REVIEW: Шалгагдаж байгаа, ESCALATED: Дээш шилжүүлсэн,
+                        CLOSED_FALSE_POSITIVE: Хаасан (хуурамч дохио), CLOSED_REPORTED: Хаасан (СЭГТ-д мэдээлсэн)}}
+      detected_date: {mn: "Илэрсэн огноо", en: "Detected date"}
+      closed_date: {mn: "Хаасан огноо", en: "Closed date"}
+      str_reported: {mn: "Санхүүгийн мэдээллийн албанд (СЭГТ) мэдээлсэн эсэх", en: "Suspicious transaction reported"}
+
+  # ------------------------------------------------------------------ нягтлан, ханш
+  gl_entries:
+    mn: "Ерөнхий дэвтрийн бичилт (журналын мөр бүр). Орлого, зардал, балансын дансны хөдөлгөөн"
+    en: "General ledger journal lines (income, expense, balance sheet movements)"
+    syn: [ерөнхий дэвтэр, журнал, бичилт, нягтлан, ашиг алдагдал, орлого, зардал, GL]
+    pk: [entry_no, line_no]
+    columns:
+      entry_no: {mn: "Журналын бичилтийн дугаар (JE-2025-00000123)", en: "Journal entry number"}
+      line_no: {mn: "Мөрийн дугаар", en: "Line number"}
+      posting_date: {mn: "Бичилтийн огноо", en: "Posting date"}
+      period_code: {mn: "Тайлант үе (2025-01)", en: "Accounting period (YYYY-MM)", syn: [тайлант үе]}
+      fiscal_year: {mn: "Санхүүгийн жил", en: "Fiscal year"}
+      branch_id: {mn: "Салбар", en: "Branch id", fk: branches.branch_id}
+      journal_code: {mn: "Журнал", en: "Journal code",
+                     values: {GJ: Ерөнхий журнал, LOAN_J: Зээлийн журнал, DEP_J: Хадгаламжийн журнал, CASH_J: Кассын журнал,
+                              ACCR_J: Хуримтлалын журнал, FEE_J: Шимтгэлийн журнал, FX_J: Ханшийн журнал, ADJ_J: Залруулгын журнал}}
+      journal_name: {mn: "Журналын нэр", en: "Journal name"}
+      account_code: {mn: "Дансны код (дансны төлөвлөгөө)", en: "GL account code",
+                     values: {"1110": Касс, "1120": Банкин дахь харилцах, "1210": Хэвийн зээл, "1230": Чанаргүй зээл (NPL),
+                              "1290": Эрсдэлийн сан, "1300": Хуримтлагдсан хүүгийн авлага, "1310": Торгуулийн авлага,
+                              "1320": Шимтгэлийн авлага, "2110": Хугацаатай хадгаламж, "2120": Харилцах данс,
+                              "2200": Төлбөл зохих хүү, "2300": Татварын өр, "2400": Түдгэлзүүлсэн данс,
+                              "3100": Хувь нийлүүлсэн хөрөнгө, "4100": Хүүгийн орлого, "4200": Шимтгэлийн орлого,
+                              "4300": Торгуулийн орлого, "5100": Хүүгийн зардал, "5200": Эрсдэлийн сангийн зардал,
+                              "5400": Үйл ажиллагааны зардал}}
+      account_name_mn: {mn: "Дансны нэр", en: "GL account name (Mongolian)"}
+      account_type: {mn: "Дансны төрөл", en: "Account type",
+                     values: {ASSET: Актив, LIABILITY: Өр төлбөр, EQUITY: Өөрийн хөрөнгө, INCOME: Орлого, EXPENSE: Зардал,
+                              OFF_BALANCE: Балансын гадуур}}
+      dr_cr: {mn: "Дебит (D) эсвэл кредит (C)", en: "Debit or credit", values: {D: Дебит, C: Кредит}}
+      amount: {mn: "Дүн (мөрийн валютаар)", en: "Amount in line currency"}
+      currency_code: {mn: "Валют", en: "Currency"}
+      amount_mnt: {mn: "Дүн төгрөгөөр", en: "Amount in MNT"}
+      source_system: {mn: "Эх систем", en: "Source system",
+                      values: {CORE: Үндсэн, LOAN: Зээл, DEPOSIT: Хадгаламж, TELLER: Касс, BATCH: Автомат, MANUAL: Гараар}}
+      entry_status: {mn: "Бичилтийн төлөв (зөвхөн POSTED)", en: "Entry status", values: {POSTED: Батлагдсан}}
+
+  exchange_rates:
+    mn: "Монголбанкны валютын ханш (1 нэгж валют = хэдэн төгрөг), ажлын өдөр бүр"
+    en: "Central bank FX rates to MNT per business day"
+    syn: [ханш, валютын ханш, долларын ханш, exchange rate]
+    pk: [currency_code, rate_date]
+    columns:
+      currency_code: {mn: "Валют (USD, EUR, CNY, KRW, JPY)", en: "Currency code",
+                      values: {USD: Ам.доллар, EUR: Евро, CNY: Юань, KRW: Вон, JPY: Иен}}
+      rate_date: {mn: "Ханшийн огноо", en: "Rate date"}
+      buy_rate: {mn: "Авах ханш", en: "Buy rate"}
+      sell_rate: {mn: "Зарах ханш", en: "Sell rate"}
+      mid_rate: {mn: "Дундаж (албан) ханш", en: "Mid (official) rate", syn: [албан ханш]}

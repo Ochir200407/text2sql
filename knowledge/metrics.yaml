@@ -1,0 +1,177 @@
+# =====================================================================
+# Semantic layer (F8): гол KPI-г нэг удаа тодорхойлж, монгол синонимтой болгоно.
+# LLM асуултыг {metric, dimensions, filters, time, order, limit} JSON болгоход compiler (pipeline/router.py)
+# SQL-ийг тогтмол дүрмээр үүсгэнэ; тохирох metric байхгүй асуулт чөлөөт SQL үүсгэлт рүү очно.
+# {a} — үндсэн хүснэгтийн alias; {t} — хугацааны багана. Бүх SQL t2s view дээр.
+# =====================================================================
+version: 1
+
+dimensions:
+  branch:        {mn: "салбар", label: "b.branch_name", join: "JOIN t2s.branches b ON b.branch_id = {a}.branch_id", value_column: branch_name}
+  province:      {mn: "салбарын аймаг/хот", label: "b.province", join: "JOIN t2s.branches b ON b.branch_id = {a}.branch_id", value_column: province}
+  product:       {mn: "бүтээгдэхүүн", label: "p.product_name", join: "JOIN t2s.products p ON p.product_id = {a}.product_id", value_column: product_name}
+  product_type:  {mn: "бүтээгдэхүүний төрөл", label: "p.product_type_name", join: "JOIN t2s.products p ON p.product_id = {a}.product_id", value_column: product_type_name}
+  segment:       {mn: "харилцагчийн сегмент", label: "c.segment_name", join: "JOIN t2s.customers c ON c.customer_id = {a}.customer_id", value_column: segment_name}
+  customer_type: {mn: "харилцагчийн төрөл", label: "c.customer_type_name", join: "JOIN t2s.customers c ON c.customer_id = {a}.customer_id", value_column: customer_type_name}
+  currency:      {mn: "валют", label: "{a}.currency_code", value_column: currency_code}
+  classification: {mn: "активын ангилал", label: "{a}.classification_name", value_column: classification_name}
+  dpd_bucket:    {mn: "хугацаа хэтрэлтийн бүлэг", label: "{a}.dpd_bucket", value_column: dpd_bucket}
+  officer:       {mn: "зээлийн ажилтан", label: "e.full_name", join: "JOIN t2s.employees e ON e.employee_id = {a}.loan_officer_id", value_column: full_name}
+  channel:       {mn: "суваг", label: "{a}.channel", value_column: channel}
+  month:         {mn: "сар", label: "date_trunc('month', {t})::date", time: true}
+  quarter:       {mn: "улирал", label: "EXTRACT(YEAR FROM {t})::int || '-Q' || EXTRACT(QUARTER FROM {t})::int", time: true}
+  year:          {mn: "жил", label: "EXTRACT(YEAR FROM {t})::int", time: true}
+
+metrics:
+  # ---- зээлийн багц (агшин: өнөөдрийн байдлаар)
+  active_loan_count:
+    mn: [идэвхтэй зээлийн тоо, зээлийн тоо, идэвхтэй зээл хэд]
+    base: loans
+    expr: "COUNT(*)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification, dpd_bucket, officer]
+  portfolio_outstanding:
+    mn: [зээлийн багцын үлдэгдэл, зээлийн үлдэгдэл, үндсэн үлдэгдэл, багцын хэмжээ, portfolio]
+    base: loans
+    expr: "SUM({a}.principal_outstanding_mnt)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification, dpd_bucket, officer]
+  total_outstanding:
+    mn: [нийт үлдэгдэл, нийт өр]
+    base: loans
+    expr: "SUM({a}.total_outstanding_mnt)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification, officer]
+  overdue_loan_count:
+    mn: [хугацаа хэтэрсэн зээлийн тоо, хэтэрсэн зээл хэд]
+    base: loans
+    expr: "COUNT(*)"
+    where: "{a}.is_active_portfolio AND {a}.days_past_due > 0"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification, dpd_bucket, officer]
+  overdue_outstanding:
+    mn: [хугацаа хэтэрсэн зээлийн үлдэгдэл, хэтэрсэн зээлийн үлдэгдэл]
+    base: loans
+    expr: "SUM({a}.principal_outstanding_mnt)"
+    where: "{a}.is_active_portfolio AND {a}.days_past_due > 0"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification, dpd_bucket, officer]
+  par30:
+    mn: [PAR30, эрсдэлтэй багц 30, 30-аас дээш хоног хэтэрсэн багцын хувь]
+    base: loans
+    expr: "ROUND(100.0 * COALESCE(SUM({a}.principal_outstanding_mnt) FILTER (WHERE {a}.days_past_due > 30), 0) / NULLIF(SUM({a}.principal_outstanding_mnt), 0), 2)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, officer]
+  par90:
+    mn: [PAR90, 90-ээс дээш хоног хэтэрсэн багцын хувь]
+    base: loans
+    expr: "ROUND(100.0 * COALESCE(SUM({a}.principal_outstanding_mnt) FILTER (WHERE {a}.days_past_due > 90), 0) / NULLIF(SUM({a}.principal_outstanding_mnt), 0), 2)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, officer]
+  npl_ratio:
+    mn: [чанаргүй зээлийн хувь, NPL-ийн хувь, NPL ratio]
+    base: loans
+    expr: "ROUND(100.0 * COALESCE(SUM({a}.principal_outstanding_mnt) FILTER (WHERE {a}.is_npl), 0) / NULLIF(SUM({a}.principal_outstanding_mnt), 0), 2)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, officer]
+  npl_count:
+    mn: [чанаргүй зээлийн тоо, NPL хэд]
+    base: loans
+    expr: "COUNT(*)"
+    where: "{a}.is_active_portfolio AND {a}.is_npl"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification, officer]
+  weighted_rate:
+    mn: [жигнэсэн дундаж хүү, үлдэгдлээр жигнэсэн хүү]
+    base: loans
+    expr: "ROUND(SUM({a}.interest_rate * {a}.principal_outstanding_mnt) / NULLIF(SUM({a}.principal_outstanding_mnt), 0), 2)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency]
+  provision_amount:
+    mn: [эрсдэлийн сан, сангийн хэмжээ, provision]
+    base: loans
+    expr: "ROUND(SUM({a}.principal_outstanding_mnt * {a}.provision_rate / 100.0), 2)"
+    where: "{a}.is_active_portfolio"
+    kind: snapshot
+    dims: [branch, province, product, product_type, segment, customer_type, currency, classification]
+
+  # ---- урсгал (хугацаанд)
+  disbursement_amount:
+    mn: [олгосон зээлийн дүн, зээл олголтын дүн, олголт]
+    base: loans
+    expr: "SUM({a}.principal_amount_mnt)"
+    where: "{a}.disbursement_date IS NOT NULL"
+    time: disbursement_date
+    kind: flow
+    dims: [branch, province, product, product_type, segment, customer_type, currency, officer, month, quarter, year]
+  disbursement_count:
+    mn: [олгосон зээлийн тоо, шинээр олгосон зээл хэд]
+    base: loans
+    expr: "COUNT(*)"
+    where: "{a}.disbursement_date IS NOT NULL"
+    time: disbursement_date
+    kind: flow
+    dims: [branch, province, product, product_type, segment, customer_type, currency, officer, month, quarter, year]
+  repayment_amount:
+    mn: [эргэн төлөлтийн дүн, төлөгдсөн дүн, цуглуулсан төлбөр]
+    base: loan_payments
+    expr: "ROUND(SUM({a}.amount * t2s.fx_to_mnt({a}.currency_code, {a}.payment_date)), 2)"
+    where: "{a}.status = 'POSTED'"
+    time: payment_date
+    kind: flow
+    dims: [branch, province, currency, month, quarter, year]
+  new_customers:
+    mn: [шинэ харилцагч, шинээр бүртгүүлсэн харилцагчийн тоо]
+    base: customers
+    expr: "COUNT(*)"
+    where: "TRUE"
+    time: onboarded_date
+    kind: flow
+    dims: [branch, province, segment, month, quarter, year]
+  application_count:
+    mn: [зээлийн хүсэлтийн тоо, ирүүлсэн хүсэлт]
+    base: loan_applications
+    expr: "COUNT(*)"
+    where: "TRUE"
+    time: submitted_date
+    kind: flow
+    dims: [branch, province, product, product_type, channel, month, quarter, year]
+  approval_rate:
+    mn: [зөвшөөрлийн хувь, батлагдсан хувь, approval rate]
+    base: loan_applications
+    expr: "ROUND(100.0 * COUNT(*) FILTER (WHERE {a}.status_code IN ('APPROVED','CONTRACTED','EXPIRED')) / NULLIF(COUNT(*) FILTER (WHERE {a}.status_code IN ('APPROVED','CONTRACTED','EXPIRED','REJECTED')), 0), 2)"
+    where: "TRUE"
+    time: submitted_date
+    kind: flow
+    dims: [branch, province, product, product_type, channel, month, quarter, year]
+  interest_income_gl:
+    mn: [хүүгийн орлого (ерөнхий дэвтэр), нягтлангийн хүүгийн орлого]
+    base: gl_entries
+    expr: "SUM({a}.amount_mnt)"
+    where: "{a}.account_code = '4100' AND {a}.dr_cr = 'C'"
+    time: posting_date
+    kind: flow
+    dims: [branch, province, currency, month, quarter, year]
+
+  # ---- хадгаламж
+  deposit_balance:
+    mn: [хадгаламжийн үлдэгдэл, нийт хадгаламж, депозит]
+    base: deposits
+    expr: "SUM({a}.current_balance_mnt)"
+    where: "{a}.status = 'ACTIVE'"
+    kind: snapshot
+    dims: [branch, province, product, segment, customer_type, currency]
+  deposit_count:
+    mn: [идэвхтэй хадгаламжийн тоо]
+    base: deposits
+    expr: "COUNT(*)"
+    where: "{a}.status = 'ACTIVE'"
+    kind: snapshot
+    dims: [branch, province, product, segment, customer_type, currency]

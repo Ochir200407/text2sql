@@ -1,0 +1,115 @@
+# =====================================================================
+# Сургалтын жор (C, D, F4, F6, F10) — docs/TRAINING.md. Сургалтыг A100 80 GB дээр (GRPO-д заавал), тестийг L4 дээр.
+# Өгөгдлийн урсгал:  fetch → translate (BIRDTurk) → synth (C3) → dedup → sample (C1) → cot (C2) → build → sft/grpo
+# Бүх өгөгдөл data/train/ дотор; adapter-ууд adapters/<нэр>/ (vLLM: --enable-lora --lora-modules c1=adapters/c1 ...).
+# Төлөвлөгөө: "Rejection sampling 5k асуулт × 8", "SFT 10k жишээ × 2 epoch", "GRPO 2k асуулт × 8 rollout".
+# =====================================================================
+data:
+  dir: data/train
+  sources:
+    bird_train: {url: "https://bird-bench.oss-cn-beijing.aliyuncs.com/train.zip", engine: sqlite, license: CC-BY-SA-4.0}
+    spider_train: {hf: "xlangai/spider", engine: sqlite, license: CC-BY-SA-4.0,
+                   databases_url: "https://drive.google.com/uc?export=download&id=1403EGqzIDoHMdQF4c9Bkyl7dZLZ5Wt6J"}
+  n_questions: 5000            # rejection sampling-ийн асуулт (монгол орчуулсан BIRD/Spider train)
+  latin_share: 0.3             # сургалтын асуултын 30%-ийг галигаар (хоёр хэв маяг)
+  dedup_threshold: 0.8         # dev/test-тэй тэмдэгтийн n-gram cosine (embedding байвал 0.9)
+  synth_per_template: 6        # C3: өөрийн DB-ийн загвар бүрээс үүсгэх синтетик асуулт
+  synth_max: 3000
+
+sampling:                      # C1
+  n: 8
+  temperature: 0.8
+  top_p: 0.95
+  max_tokens: 3072
+  workers: 32
+cot:                           # C2: шийдэгдээгүй асуултад gold SQL-ээр чиглүүлсэн reasoning
+  temperature: 0.7
+  attempts: 2
+  drop_phrases: ["given sql", "provided sql", "reference sql", "the hint", "өгөгдсөн sql", "gold"]
+
+sft_defaults:
+  lora_r: 32
+  lora_alpha: 64
+  lora_dropout: 0.05
+  target_modules: all-linear
+  learning_rate: 2.0e-4
+  epochs: 2
+  max_length: 8192              # RAG-гүй prompt (A-шилдэг) — ~4–5k токен; RAG-тай жорд доор 16384
+  per_device_batch_size: 2
+  gradient_accumulation: 8
+  warmup_ratio: 0.03
+  save_steps: 200               # checkpoint (тасарвал үргэлжлүүлнэ; Modal/сервер)
+  lr_scheduler: cosine
+  bf16: true
+  gradient_checkpointing: true
+  # T4 (Kaggle) — D3: bf16 алга тул fp16; QLoRA (nf4, double quant, compute fp16); lm_head-ийг зөвхөн completion-ий
+  # байрлалд бодох (бүтэн logits 8k токенд ~5 GB fp32 — 16 GB-д багтахгүй). Бусад жор (A100) хөндөгдөхгүй.
+  fp16: false
+  quantize_4bit: false
+  completion_logits_only: false
+  optim: null                   # null = Trainer-ийн анхдагч AdamW; санах ой дутвал жишээ нь paged_adamw_8bit
+  logging_steps: 10
+
+grpo_defaults:
+  learning_rate: 1.0e-6
+  beta: 0.001
+  num_generations: 8
+  temperature: 0.8
+  max_prompt_length: 15000      # B5 prompt (~13.5k токен) багтана (D4); урт prompt-ыг хасаж бүртгэнэ
+  max_completion_length: 3072
+  per_device_batch_size: 8
+  gradient_accumulation: 4
+  epochs: 1
+  n_questions: 2000            # "заримдаа шийддэг" (8-аас 1–7 нь зөв) асуултууд
+  reward: {correct: 1.0, executable: 0.1, error: 0.0}
+  vllm_mode: colocate
+  vllm_gpu_memory_utilization: 0.35
+  save_steps: 50                # checkpoint (тасарвал үргэлжлүүлнэ)
+
+recipes:
+  c1: {kind: sft, data: [rejection], prompt: plain, desc: "Rejection sampling SFT (A-шилдэг prompt)"}
+  c2: {kind: sft, data: [rejection, cot], prompt: plain, desc: "C1 + gold-guided CoT"}
+  c3: {kind: sft, data: [rejection, cot, synth, human], prompt: plain, desc: "C2 + өөрийн DB синтетик + хүний жишээ"}
+  c4_en30: {kind: sft, data: [rejection, cot, synth, human], english_share: 0.30, prompt: plain}
+  c4_en50: {kind: sft, data: [rejection, cot, synth, human], english_share: 0.50, prompt: plain}
+  c5_r64: {kind: sft, data: [rejection, cot, synth, human], prompt: plain, lora_r: 64, lora_alpha: 128}
+  c6: {kind: grpo, init: best_sft, prompt: plain, desc: "C-шилдэг SFT + GRPO (1/0.1/0)"}
+  c7: {kind: grpo, init: best_sft, prompt: plain, english_replay: 0.25, desc: "C6 + англи replay"}
+  d2: {kind: sft, data: best_sft, prompt: rag, max_length: 16384, per_device_batch_size: 1, gradient_accumulation: 16,
+       desc: "C-шилдэг жорын өгөгдлийг B5-ийн RAG-тай prompt-оор сургах"}
+  # D3 (Kaggle 2×T4, QLoRA): D2 нь B5-ын ~20k токены prompt-оор сургагдаж max_length 16384-т өөрийн DB-ийн 344 мөр
+  # БҮГД хасагдсан (зөвхөн BIRD сурсан). D3 = өөрийн DB-ийн бүх гаргалт (human + synth, plain + cot — c3-тай ижил) +
+  # BIRD-ийн 600 (детерминист, select_bird_samples), prompt = H4s (schema linking, англи асуулт, өөрийн family-гүй
+  # few-shot; жишээний сан build/index_plus = 160 + 195, dev-гүй). BIRD-ийн prompt нь sampling үеийнх (DB Kaggle-д алга).
+  # drop_truncated: max_tokens-д тасарсан (</answer>-гүй) гаргалтыг хасна (plain гаргалтын ~19%; урт мөр бүгд ийм байсан).
+  # max_length 9216: H4s (холбогдсон хүснэгтийн бүх багана) prompt-оор өөрийн DB-ийн хамгийн урт мөр 8301 токен (8192-т 1
+  # мөр хасагдана) — дээд хязгаар л (санах ой бодит хамгийн урт мөрөөр); bird_max_tokens 8192 = BIRD-ийн сонголт хэвээр.
+  # Үнэлгээ: experiments.yaml D3s (H4s + adapter d3), I3s3. docs/IMPROVE_80_PLAN.md «D3».
+  d3: {kind: sft, data: [rejection, cot, synth, human], prompt: h4s, bird_limit: 600, bird_prompt: stored,
+       bird_max_tokens: 8192, drop_truncated: true, index_dir: build/index_plus, max_length: 9216, lora_r: 32,
+       lora_alpha: 64, epochs: 2,
+       per_device_batch_size: 1, gradient_accumulation: 8, learning_rate: 2.0e-4,
+       quantize_4bit: true, fp16: true, bf16: false, gradient_checkpointing: true, completion_logits_only: true,
+       logging_steps: 1, desc: "H4s-ийн богино prompt-оор өөрийн DB + BIRD 600 (QLoRA, T4 fp16)"}
+  d4: {kind: grpo, init: d2, prompt: rag, desc: "D2 + GRPO (RAG-тай prompt)"}
+  # MT (docs/MT_INVARIANT_PLAN.md §5.5): scripts/mt/train_mt.py --backend causal — өгөгдлийг өөрөө угсарна (build хэрэггүй).
+  # MADLAD (seq2seq) нь train_mt.py-ийн өөрийн тохиргоотой (Seq2SeqTrainer, QLoRA, fp32 тооцоолол).
+  # batch 1 + GA 16: completion_logits_only нь зөвхөн batch 1-д хэсэгчилсэн CE (vocab ~248k; batch 4-т бүтэн logits → T4 OOM)
+  mt_q9b: {kind: sft, data: mt, lora_r: 32, lora_alpha: 64, learning_rate: 1.0e-4, epochs: 2, max_length: 768,
+           per_device_batch_size: 1, gradient_accumulation: 16, quantize_4bit: true, fp16: true, bf16: false,
+           gradient_checkpointing: true, completion_logits_only: true, save_steps: 50, logging_steps: 5,
+           desc: "Qwen3.5-9B QLoRA орчуулагч (mn/латин/холимог→en, en→mn; санхүүгийн хэллэг)"}
+  # T2S «тогтмол мэдлэг» (§6): scripts/t2s_inv/build_sft.py → {prompt, completion}; суурь Arctic (D2/D3-гүй)
+  t2s_inv1: {kind: sft, data: t2s_inv, lora_r: 32, lora_alpha: 64, learning_rate: 1.0e-4, epochs: 2, max_length: 6144,
+             per_device_batch_size: 1, gradient_accumulation: 16, quantize_4bit: true, fp16: true, bf16: false,
+             gradient_checkpointing: true, completion_logits_only: true, save_steps: 20, logging_steps: 1,
+             desc: "Arctic QLoRA: схем-хувилбар (S2) + тодорхойлолт дагах (S3) + татгалзал (S4) + өөрийн DB"}
+  f4: {kind: grpo, init: best_sft, prompt: plain, script_invariant_bonus: 0.2, variants: [mn, latin, en],
+       desc: "C6 + бичгээс үл хамаарах reward (3 хувилбар ижил үр дүн → нэмэлт оноо)"}
+  f6: {kind: sft, data: best_sft, prompt: plain, pivot: true,
+       desc: "C-ийн жор + 'Restated: ...' англи pivot мөр"}
+  f10: {kind: sft, data: [rejection, cot, synth, human], prompt: rag, search_values_tool: true, models: [sqrl-9b],
+        max_length: 16384, per_device_batch_size: 1, gradient_accumulation: 16,
+        desc: "sqrl + search_values tool-той траектор (D-ийн жор)"}
+
+best_sft: c3                   # C бүлгийн шилдэг (C6, C7, F4-ийн эхлэл) — dev-ийн дүнгээр солино

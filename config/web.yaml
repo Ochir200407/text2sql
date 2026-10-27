@@ -1,0 +1,3 @@
+# Вэб (T2S_CONFIG=config/web.yaml): хариултыг хэрэглэгчид харуулна, LLM нь SSH tunnel-ээр (Vast GPU) localhost:8000.
+service: {mode: pilot, run_id: WEB, model: arctic-r1-7b}
+llm: {base_url: "http://localhost:8000/v1", model: arctic-r1-7b, family: omnisql}

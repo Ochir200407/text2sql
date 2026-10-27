@@ -1,0 +1,14 @@
+# GPU сервер дээр (Linux, CUDA 12.x). requirements.txt-ийн дээр нэмж суулгана.
+# vLLM-ийн хувилбарыг зориуд түгжээгүй: Qwen3.5 (Qwen3_5ForConditionalGeneration) ба
+# Gemma 4-ийг дэмждэг хамгийн сүүлийн хувилбар хэрэгтэй. Асуудал гарвал docs/SERVER.md-г үз.
+vllm
+transformers>=4.56
+sentence-transformers>=3.0
+torch
+# Fine-tune (SFT/LoRA, GRPO)
+peft>=0.12
+trl>=0.20   # GRPOConfig.vllm_mode/generation_batch_size, SFTConfig.completion_only_loss
+datasets>=2.20
+huggingface_hub>=0.24
+accelerate>=0.33
+bitsandbytes>=0.45   # D3: QLoRA (nf4) — Kaggle T4 (16 GB) дээр 7B-ийн SFT

@@ -1,0 +1,19 @@
+# Үүсгэгддэг / том файлууд (серверт дахин үүсгэнэ)
+.venv/
+__pycache__/
+*.pyc
+build/
+results/
+data/
+adapters/
+.pytest_cache/
+.ruff_cache/
+*.log
+
+# Нийтэд гаргахгүй / үүсгэгддэг
+diplom ajluud/
+.claude/
+report/out/
+report_diplom/out/
+~$*
+*.docx

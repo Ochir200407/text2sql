@@ -1,0 +1,107 @@
+# =====================================================================
+# mn-text2sql — үндсэн тохиргоо
+# Орчны хувьсагчаар дарж бичнэ (docs/SERVER.md):
+#   T2S_ADMIN_DSN, T2S_BOT_DSN, T2S_LLM_BASE_URL, T2S_LLM_MODEL, T2S_CONFIG
+# =====================================================================
+
+project:
+  # Өгөгдлийн "өнөөдөр" (системийн ажлын өдөр). Үнэлгээний үед CURRENT_DATE/now()
+  # энэ огноо руу дахин бичигдэнэ — оноо огноо, сервер хамаарахгүй давтагдана.
+  as_of_date: "2026-06-30"
+  seed: 42
+  timezone: "Asia/Ulaanbaatar"
+
+db:
+  # Админ холболт: схем ачаалах, өгөгдөл үүсгэх (superuser эсвэл DB owner)
+  admin_dsn: "postgresql://postgres@localhost:5432/postgres"
+  name: "nbfi"
+  # Bot-ийн холболт: зөвхөн t2s view дээр SELECT, read-only, timeout-тэй (db_t2s/110_roles.sql)
+  bot_role: "t2s_bot"
+  bot_password: "t2s_bot_local_only"
+  # Bot холболтын DSN-ийг admin_dsn-ээс автоматаар бүрдүүлнэ (хэрэглэгч/нууц үгийг сольж)
+  bot_dsn: null
+  statement_timeout_ms: 20000
+  # EXPLAIN-ийн нийт өртгийн дээд хэмжээ (үүнээс их бол татгалзана)
+  max_explain_cost: 50000000
+  # Test-suite accuracy-д ашиглах синтетик хуулбар DB-үүд
+  testsuite:
+    count: 8
+    prefix: "nbfi_ts"
+    scale: 0.25
+
+data:
+  scale: 1.0          # 1.0 ≈ 3000 харилцагч, ~3900 зээл, ~120k гүйлгээ
+  history_start: "2024-01-01"
+
+knowledge:
+  semantic_model: "knowledge/semantic_model.yaml"
+  glossary: "knowledge/glossary.yaml"
+  examples: "knowledge/examples.jsonl"
+  metrics: "knowledge/metrics.yaml"     # F8 semantic layer (KPI)
+  index_dir: "build/index"
+  # Утгын индекст оруулахгүй (хувийн мэдээлэл) багана — semantic_model дахь pii: true-тэй хамт
+  value_index_max_distinct: 400
+
+retrieval:
+  embedding_model: "BAAI/bge-m3"
+  embedding_device: "auto"       # auto | cpu | cuda
+  embedding_batch_size: 32
+  schema_token_budget: 6000
+  top_tables: 6
+  max_columns_per_table: 14
+  fk_neighbors: true
+  value_candidates_per_keyword: 10
+  value_top_total: 16
+  hybrid_alpha: 0.5              # BM25 ба embedding-ийн жин
+
+llm:
+  base_url: "http://localhost:8000/v1"
+  api_key: "EMPTY"
+  model: "sqrl-9b"               # vLLM --served-model-name
+  family: "sqrl"                 # generic | omnisql | xiyan | sqrl (config/models.yaml)
+  temperature: 0.0
+  top_p: 1.0
+  max_tokens: 2048
+  timeout_s: 180
+  extra_body: {}
+
+pipeline:
+  # Туршилтын урсгалын тохиргоо config/experiments.yaml-д (RunOptions); энд зөвхөн нийтлэг/production утга.
+  intent_check: true             # service: хувийн мэдээлэл/бичих хүсэлтээс татгалзах, хоёрдмол үгэнд тодруулах
+  max_result_rows: 1000          # үр дүнгийн preview; гүйцэтгэгчийн дээд хязгаар = 100 ×
+
+security:
+  forbid_functions: ["pg_sleep", "pg_sleep_for", "pg_sleep_until", "dblink", "dblink_exec",
+                     "lo_import", "lo_export", "lo_get", "lo_put", "lo_from_bytea", "lo_unlink",
+                     "pg_read_file", "pg_read_binary_file", "pg_ls_dir", "pg_stat_file",
+                     "pg_terminate_backend", "pg_cancel_backend", "pg_reload_conf", "pg_rotate_logfile",
+                     "set_config", "current_setting", "query_to_xml", "query_to_json",
+                     "pg_advisory_lock", "pg_advisory_xact_lock", "pg_try_advisory_lock",
+                     "txid_current", "pg_current_xact_id", "pg_notify", "copy"]
+  allowed_schemas: ["t2s"]
+  enforce_limit: 1000            # хариултын горимд LIMIT хүчлэх (үнэлгээнд хэрэглэхгүй)
+  audit_log: "build/audit/audit.jsonl"
+  audit_encrypt_key_env: "T2S_AUDIT_KEY"
+  audit_retention_days: 90
+
+eval:
+  dev_file: "evalset/dev.jsonl"
+  test_file: "evalset/test.jsonl"
+  results_dir: "results"
+  penalty_c: [1, 5, 10]          # TrustSQL найдвартай байдлын оноо: буруу хариулт −c
+  float_tolerance: 0.01          # мөнгөн дүнгийн харьцуулалтын абсолют хүлцэл
+  relative_tolerance: 1.0e-6
+  testsuite: true
+  workers: 8                     # зэрэг асуулт (vLLM batch-ийг ашиглана)
+  latency_budget_p95_ms: 30000   # хүлээн авах дүрэм: p95 хугацааны төсөв (L4 дээр, нэг асуулт)
+  max_consecutive_llm_failures: 5  # vLLM тасалдвал run-ийг зогсооно (алдааг хариулт болгон хадгалахгүй)
+
+service:
+  mode: "shadow"                 # shadow (хариулт хэрэглэгчид харагдахгүй, зөвхөн audit) | pilot | live
+  run_id: "E1"                   # production тохиргоо (config/experiments.yaml) — туршилтын дүнгээр сонгоно
+  model: null                    # null бол llm.model
+
+bird:                            # F1: BIRD-ийн монгол хувилбар (CC BY-SA 4.0)
+  data_dir: "data/bird"
+  subset: 500                    # BIRD dev-ээс хүндрэлээр давхаргалсан дэд олонлог
+  seed: 42

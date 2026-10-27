@@ -1,0 +1,12 @@
+\begin{table}[H]\centering\small
+\caption{Үнэлгээний асуултын сан (eval set) --- хуваалт ба ангилал}\label{tab:evalset}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrrr}\toprule
+Хуваалт & Нийт & Хариулах & Хариулах & Хоёрдмол & Хүндрэл & Холимог & Загварын \\
+ & & боломжтой & боломжгүй & & хялбар/дунд/хүнд & хувилбар & гэр бүл \\\midrule
+dev & 300 & 224 & 38 & 38 & 57/121/46 & 56 & 271 \\
+test & 200 & 151 & 24 & 25 & 38/82/31 & 38 & 177 \\
+\bottomrule\end{tabular}
+\end{adjustbox}
+\par\smallskip\footnotesize Домэйн (dev / test): applications (37 / 25), collection (38 / 25), cross (36 / 25), customers (38 / 25), deposits (38 / 25), gl\_trends (36 / 24), loans (39 / 26), payments (38 / 25). Жишээний сан (few-shot): 160 асуулт. Ойролцоо давхардал (dev--test, жишээ--eval): 0.
+\end{table}

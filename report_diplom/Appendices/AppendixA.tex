@@ -1,0 +1,46 @@
+% =============================================================================
+% Хавсралт А: Ажиллуулах тушаалууд
+% =============================================================================
+
+\chapter{Ажиллуулах тушаалууд}
+\label{app:commands}
+
+\textbf{Орчин бэлтгэх ба өгөгдлийн сан.}
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
+pip install -e .
+export T2S_ADMIN_DSN=postgresql://postgres@localhost:55432/postgres
+t2s db-build            # схем + синтетик өгөгдөл (648 205 мөр), t2s view
+t2s testsuite-build     # 8 test-suite хуулбар
+t2s knowledge-check     # мэдлэгийн сан <-> DB-ийн нийцэл
+t2s index-build         # BM25 + BGE-M3 индекс
+t2s check-gold --split all
+\end{lstlisting}
+
+\textbf{Үнэлгээ.}
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
+t2s eval --run A7,B5 --split dev          # туршилтын ID-аар
+t2s eval --run E2 --split test            # шилдэг тохиргоог test дээр нэг удаа
+t2s eval --run B5 --oracle                # дамжлагыг gold SQL-ээр шалгах
+t2s reselect --from E2 --to E4 --split dev   # GPU-гүй дахин сонголт (E4)
+t2s derive-abstain --from E2 --to E3c --threshold 0.5 --action clarify
+t2s compare --a <H4.jsonl> --b <E2.jsonl>     # McNemar
+t2s report && t2s report-latex
+\end{lstlisting}
+
+\textbf{Орчуулга, аюулгүй байдал, үйлчилгээ.}
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
+t2s translate --split dev --t2            # орчуулгын кэш (T2)
+t2s security-test                         # 28 SQL халдлага, 56 prompt injection, RLS
+t2s serve                                 # FastAPI (shadow / pilot / live)
+t2s flow-ui --demo --port 8090            # Text2SQL Studio, загваргүй демо
+\end{lstlisting}
+
+\textbf{Kaggle үе шат} (\tsql{config/kaggle\_overrides.env}-ээр сонгоно):
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
+STAGE=e2test    bash scripts/server/run_plan_l4.sh   # E2 test
+STAGE=istage    bash scripts/server/run_plan_l4.sh   # I3, I3t dev/test
+STAGE=train_d3  bash scripts/server/run_plan_l4.sh   # D3 QLoRA (checkpoint-оос үргэлжилнэ)
+STAGE=mt        bash scripts/server/run_plan_l4.sh   # MT M0 bake-off + MADLAD QLoRA
+STAGE=t2s_inv   bash scripts/server/run_plan_l4.sh   # S1-S4 өгөгдөл, сургалт, T-2/T-4
+STAGE=web       bash scripts/server/run_plan_l4.sh   # Studio + загвар + tunnel
+\end{lstlisting}

@@ -1,0 +1,20 @@
+# =====================================================================
+# Орчуулгын нэр томьёоны толь (T2; pipeline/translate_terms.py) — ЗӨВХӨН орчуулагчийн заавар.
+# semantic_model/glossary-д байхгүй эсвэл хэлбэр нь асуултын хэллэгтэй таардаггүй, орчуулагч алддаг хэллэгүүд.
+# Эх сурвалж: dev-ийн орчуулгын шинжилгээ (2026-10-20; docs/WORKLOG.md 6.13). Test set-ийг уншиж нэмээгүй.
+# SQL загварын prompt, retrieval-д нөлөөлөхгүй (тэдгээр semantic_model-ийг хэвээр хэрэглэнэ).
+# =====================================================================
+version: 1
+terms:
+  - mn: хариуцсан мэргэжилтэн
+    aliases: [хариуцсан зээлийн мэргэжилтэн, хариуцсан ажилтан, хариуцагч мэргэжилтэн]
+    en: "assigned relationship manager (the employee responsible for the customer/loan)"
+  - mn: ажлаас гарсан мэргэжилтэн
+    aliases: [ажлаас гарсан ажилтан, ажлаас гарсан зээлийн мэргэжилтэн]
+    en: "terminated employee (employment_status = TERMINATED)"
+  - mn: санхүүгийн мэдээллийн алба
+    aliases: [сэгт]
+    en: "Financial Intelligence Unit (FIU)"
+  - mn: ноцтой байдлын түвшин
+    aliases: [ноцтой байдал]
+    en: "severity level"

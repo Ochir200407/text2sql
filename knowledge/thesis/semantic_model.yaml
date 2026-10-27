@@ -1,0 +1,884 @@
+# ҮҮСГЭСЭН ФАЙЛ (t2s thesis-import) — text2sql-thesis/schema/tables/*.yaml + resources/glossary.yaml
+version: 1
+schema: t2s
+dialect: postgresql
+notes_mn:
+- Өгөгдлийн 'өнөөдөр' = t2s.business_date() = 2025-12-31 (өгөгдөл 2023-01-01 … 2025-12-31). CURRENT_DATE-ийг ч ашиглаж болно.
+- Мөнгөн дүн бүгд төгрөгөөр (MNT).
+tables:
+  categories:
+    mn: Барааны ангиллын мод
+    en: Product category tree
+    syn:
+    - ангилал
+    pk:
+    - category_id
+    columns:
+      category_id:
+        mn: Ангиллын дугаар
+        en: Unique category identifier
+      category_name:
+        mn: Ангиллын нэр
+        en: Category name
+      parent_category_id:
+        mn: Эцэг ангилал (дээд түвшинд NULL)
+        en: Parent category (self reference, NULL for top level)
+        fk: categories.category_id
+      description:
+        mn: Ангиллын тайлбар
+        en: Category description
+  customers:
+    mn: Бүртгэлтэй худалдан авагчид
+    en: Registered retail customers
+    syn:
+    - харилцагч
+    - худалдан авагч
+    pk:
+    - customer_id
+    columns:
+      customer_id:
+        mn: Худалдан авагчийн дугаар
+        en: Unique customer identifier
+      first_name:
+        mn: Нэр
+        en: Given name
+      last_name:
+        mn: Овог
+        en: Family name
+      email:
+        mn: Имэйл хаяг
+        en: Contact email address
+        syn:
+        - имэйл
+        pii: true
+      phone:
+        mn: Утасны дугаар
+        en: Contact phone number
+        syn:
+        - утас
+        pii: true
+      gender:
+        mn: Хүйс
+        en: Gender
+        syn:
+        - хүйс
+        values:
+          Эрэгтэй: male
+          Эмэгтэй: female
+      birth_date:
+        mn: Төрсөн огноо
+        en: Date of birth
+        syn:
+        - төрсөн огноо
+      segment:
+        mn: Үнэнч байдлын сегмент
+        en: Loyalty segment (regular, silver, gold, platinum)
+        syn:
+        - сегмент
+        values:
+          Энгийн: standard
+          Мөнгөн: silver
+          Алтан: gold
+          Платинум: platinum
+      city:
+        mn: Оршин суугаа хот
+        en: City of residence
+        syn:
+        - хот
+        values:
+          Улаанбаатар: Ulaanbaatar
+          Дархан: Darkhan
+          Эрдэнэт: Erdenet
+          Чойбалсан: Choibalsan
+          Мөрөн: Murun
+          Ховд: Khovd
+      registered_date:
+        mn: Бүртгүүлсэн огноо
+        en: Date the customer registered
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  promotions:
+    mn: Урамшуулал, хөнгөлөлтийн кампанит ажлууд
+    en: Marketing promotions and discount campaigns
+    syn:
+    - урамшуулал
+    - хөнгөлөлтийн кампанит ажил
+    pk:
+    - promotion_id
+    columns:
+      promotion_id:
+        mn: Урамшууллын дугаар
+        en: Unique promotion identifier
+      promotion_name:
+        mn: Урамшууллын нэр
+        en: Promotion name
+      promo_type:
+        mn: Урамшууллын төрөл
+        en: Promotion type (percent, fixed amount, buy one get one, free shipping)
+        values:
+          Хувь: percent
+          Тогтмол дүн: fixed amount
+          Нэг авбал нэг үнэгүй: buy one get one
+          Хүргэлт үнэгүй: free shipping
+      discount_value:
+        mn: Хувь эсвэл тогтмол дүн (төрлөөс хамаарна)
+        en: Percent or fixed MNT depending on type
+      start_date:
+        mn: Эхлэх огноо
+        en: Start date
+      end_date:
+        mn: Дуусах огноо
+        en: End date
+      is_active:
+        mn: Идэвхтэй эсэх
+        en: Promotion is active
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  stores:
+    mn: Жижиглэн худалдааны дэлгүүрүүд
+    en: Physical retail stores
+    syn:
+    - дэлгүүр
+    pk:
+    - store_id
+    columns:
+      store_id:
+        mn: Дэлгүүрийн дугаар
+        en: Unique store identifier
+      store_name:
+        mn: Дэлгүүрийн нэр
+        en: Store name
+      city:
+        mn: Хот
+        en: City
+        values:
+          Улаанбаатар: Улаанбаатар
+          Дархан: Дархан
+          Эрдэнэт: Эрдэнэт
+          Чойбалсан: Чойбалсан
+          Мөрөн: Мөрөн
+          Ховд: Ховд
+      region:
+        mn: Борлуулалтын бүс
+        en: Sales region (central, khangai, east, west, gobi)
+        syn:
+        - бүс
+        values:
+          Төв: central
+          Хангай: Khangai
+          Зүүн: east
+          Баруун: west
+          Говь: Gobi
+      store_type:
+        mn: Дэлгүүрийн төрөл
+        en: Store format
+        values:
+          Дэлгүүр: Дэлгүүр
+          Супермаркет: supermarket
+          Агуулах дэлгүүр: warehouse store
+      opened_date:
+        mn: Нээгдсэн огноо
+        en: Opening date
+      is_active:
+        mn: Үйл ажиллагаа явуулж буй эсэх
+        en: Store is operating
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  suppliers:
+    mn: Бараа нийлүүлэгчид
+    en: Product suppliers and vendors
+    syn:
+    - нийлүүлэгч
+    pk:
+    - supplier_id
+    columns:
+      supplier_id:
+        mn: Нийлүүлэгчийн дугаар
+        en: Unique supplier identifier
+      supplier_name:
+        mn: Нийлүүлэгч компанийн нэр
+        en: Supplier company name
+      country:
+        mn: Улс
+        en: Country of origin
+        syn:
+        - улс
+        values:
+          Монгол: Mongolia/Mongolian
+          Хятад: China/Chinese
+          Орос: Russia/Russian
+          Солонгос: Korea/Korean
+          Япон: Japan/Japanese
+          Герман: Germany/German
+      contact_email:
+        mn: Холбоо барих имэйл
+        en: Contact email
+        pii: true
+      phone:
+        mn: Утас
+        en: Contact phone
+        pii: true
+      rating:
+        mn: Нийлүүлэгчийн үнэлгээ 0-5
+        en: Supplier quality rating 0-5
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  warehouses:
+    mn: Түгээлтийн агуулахууд
+    en: Distribution warehouses
+    syn:
+    - агуулах
+    pk:
+    - warehouse_id
+    columns:
+      warehouse_id:
+        mn: Агуулахын дугаар
+        en: Unique warehouse identifier
+      warehouse_name:
+        mn: Агуулахын нэр
+        en: Warehouse name
+      city:
+        mn: Хот
+        en: City
+        values:
+          Улаанбаатар: Улаанбаатар
+          Дархан: Дархан
+          Эрдэнэт: Эрдэнэт
+          Чойбалсан: Чойбалсан
+          Мөрөн: Мөрөн
+          Ховд: Ховд
+      capacity:
+        mn: Багтаамж (тавиурын тоо)
+        en: Capacity in pallet slots
+      is_active:
+        mn: Үйл ажиллагаа явуулж буй эсэх
+        en: Warehouse is operating
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  customer_addresses:
+    mn: Худалдан авагчийн хүргэлтийн болон төлбөрийн хаягууд
+    en: Delivery and billing addresses of customers
+    syn:
+    - хаяг
+    pk:
+    - address_id
+    columns:
+      address_id:
+        mn: Хаягийн дугаар
+        en: Unique address identifier
+      customer_id:
+        mn: Худалдан авагчийн дугаар
+        en: Owner customer
+        fk: customers.customer_id
+      address_type:
+        mn: Хаягийн төрөл
+        en: Address type (home, work, other)
+        values:
+          Гэр: home
+          Ажил: work
+          Бусад: other
+      city:
+        mn: Хот
+        en: City
+        values:
+          Улаанбаатар: Улаанбаатар
+          Дархан: Дархан
+          Эрдэнэт: Эрдэнэт
+          Чойбалсан: Чойбалсан
+          Мөрөн: Мөрөн
+          Ховд: Ховд
+      district:
+        mn: Дүүрэг
+        en: District within the city
+        syn:
+        - дүүрэг
+      street:
+        mn: Гудамж, байр
+        en: Street and building
+        pii: true
+      postal_code:
+        mn: Шуудангийн код
+        en: Postal code
+      is_default:
+        mn: Үндсэн хаяг эсэх
+        en: Whether this is the default address
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  employees:
+    mn: Дэлгүүр болон агуулахын ажилтнууд
+    en: Store and warehouse employees
+    syn:
+    - ажилтан
+    - ажилчид
+    pk:
+    - employee_id
+    columns:
+      employee_id:
+        mn: Ажилтны дугаар
+        en: Unique employee identifier
+      store_id:
+        mn: Ажилладаг дэлгүүр
+        en: Store where the employee works
+        fk: stores.store_id
+      manager_id:
+        mn: Шууд удирдлага (өөрөө өөр рүүгээ холбоос)
+        en: Direct manager (self reference)
+        syn:
+        - менежер
+        - удирдлага
+        fk: employees.employee_id
+      first_name:
+        mn: Нэр
+        en: Given name
+      last_name:
+        mn: Овог
+        en: Family name
+      job_title:
+        mn: Албан тушаал
+        en: Job title (salesperson, manager, storekeeper, cashier, driver)
+        syn:
+        - албан тушаал
+        values:
+          Худалдагч: salesperson/sales person/seller
+          Менежер: manager
+          Нярав: storekeeper
+          Кассчин: cashier
+          Жолооч: driver
+      hire_date:
+        mn: Ажилд орсон огноо
+        en: Hire date
+      salary:
+        mn: Сарын цалин (төгрөг)
+        en: Monthly salary in MNT
+        syn:
+        - цалин
+      is_active:
+        mn: Идэвхтэй ажилтан эсэх
+        en: Currently employed
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  products:
+    mn: Каталог дахь бараанууд
+    en: Products in the catalog
+    syn:
+    - бараа
+    - бүтээгдэхүүн
+    pk:
+    - product_id
+    columns:
+      product_id:
+        mn: Барааны дугаар
+        en: Unique product identifier
+      product_name:
+        mn: Барааны нэр
+        en: Product name
+      category_id:
+        mn: Ангилал
+        en: Category
+        fk: categories.category_id
+      supplier_id:
+        mn: Үндсэн нийлүүлэгч
+        en: Main supplier
+        fk: suppliers.supplier_id
+      brand:
+        mn: Брэнд
+        en: Brand name
+        syn:
+        - брэнд
+      list_price:
+        mn: Жагсаалтын үнэ (төгрөг)
+        en: Retail list price in MNT
+        syn:
+        - үнэ
+      cost_price:
+        mn: Өртөг (төгрөг)
+        en: Purchase cost in MNT
+        syn:
+        - өртөг
+      weight_kg:
+        mn: Жин (кг)
+        en: Weight in kilograms
+        syn:
+        - жин
+      is_active:
+        mn: Идэвхтэй бараа эсэх
+        en: Product is currently sold
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  orders:
+    mn: Худалдан авагчийн захиалга
+    en: Customer purchase orders
+    syn:
+    - захиалга
+    pk:
+    - order_id
+    columns:
+      order_id:
+        mn: Захиалгын дугаар
+        en: Unique order identifier
+      customer_id:
+        mn: Худалдан авагчийн дугаар
+        en: Ordering customer
+        fk: customers.customer_id
+      store_id:
+        mn: Захиалга авсан дэлгүүр
+        en: Store that took the order
+        fk: stores.store_id
+      employee_id:
+        mn: Худалдагч ажилтан (онлайн захиалгад NULL)
+        en: Salesperson (NULL for online orders)
+        fk: employees.employee_id
+      promotion_id:
+        mn: Хэрэглэсэн урамшуулал
+        en: Applied promotion
+        fk: promotions.promotion_id
+      order_date:
+        mn: Захиалгын огноо
+        en: Order date
+        syn:
+        - огноо
+      status:
+        mn: Захиалгын төлөв
+        en: Order status (new, paid, delivered, cancelled, returned)
+        syn:
+        - төлөв
+        values:
+          Шинэ: new
+          Төлөгдсөн: paid
+          Хүргэгдсэн: delivered
+          Цуцлагдсан: cancelled
+          Буцаагдсан: returned
+      channel:
+        mn: Борлуулалтын суваг
+        en: Sales channel (in-store, online, phone)
+        syn:
+        - суваг
+        values:
+          Дэлгүүр: store
+          Онлайн: online
+          Утас: phone
+      total_amount:
+        mn: Хөнгөлөлтийн дараах нийт дүн (төгрөг)
+        en: Order total after discount in MNT
+        syn:
+        - нийт дүн
+      discount_amount:
+        mn: Нийт хөнгөлөлт (төгрөг)
+        en: Total discount applied in MNT
+        syn:
+        - хөнгөлөлт
+      note:
+        mn: Худалдан авагчийн тэмдэглэл
+        en: Customer note
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  product_variants:
+    mn: Барааны худалдаалагдах хувилбарууд (хэмжээ, өнгө, SKU)
+    en: Sellable variants of a product (size, color, SKU)
+    syn:
+    - хувилбар
+    pk:
+    - variant_id
+    columns:
+      variant_id:
+        mn: Хувилбарын дугаар
+        en: Unique variant identifier
+      product_id:
+        mn: Харьяалагдах бараа
+        en: Parent product
+        fk: products.product_id
+      sku:
+        mn: SKU код
+        en: Stock keeping unit code
+      variant_size:
+        mn: Хэмжээ
+        en: Size
+        syn:
+        - хэмжээ
+        values:
+          S: S
+          M: M
+          L: L
+          XL: XL
+          Нэг хэмжээ: one size
+      variant_color:
+        mn: Өнгө
+        en: Color
+        syn:
+        - өнгө
+        values:
+          Хар: black
+          Цагаан: white
+          Улаан: red
+          Хөх: blue
+          Ногоон: green
+          Шар: yellow
+      price_adjust:
+        mn: Жагсаалтын үнээс нэмэгдэх/хасагдах дүн
+        en: Price adjustment relative to product list price
+      barcode:
+        mn: Зураасан код
+        en: EAN barcode
+  promotion_products:
+    mn: Урамшуулалд хамрагдсан бараанууд (олон-олон холбоос)
+    en: Products included in a promotion (many-to-many)
+    syn: []
+    pk:
+    - promotion_product_id
+    columns:
+      promotion_product_id:
+        mn: Холбоосын дугаар
+        en: Unique link identifier
+      promotion_id:
+        mn: Урамшуулал
+        en: Promotion
+        fk: promotions.promotion_id
+      product_id:
+        mn: Бараа
+        en: Product
+        fk: products.product_id
+      added_date:
+        mn: Урамшуулалд нэмсэн огноо
+        en: Date the product was added to the promotion
+  reviews:
+    mn: Худалдан авагчийн барааны үнэлгээ, сэтгэгдэл
+    en: Customer product reviews and ratings
+    syn:
+    - сэтгэгдэл
+    pk:
+    - review_id
+    columns:
+      review_id:
+        mn: Сэтгэгдлийн дугаар
+        en: Unique review identifier
+      product_id:
+        mn: Үнэлсэн бараа
+        en: Reviewed product
+        fk: products.product_id
+      customer_id:
+        mn: Үнэлгээ өгсөн худалдан авагч
+        en: Reviewing customer
+        fk: customers.customer_id
+      rating:
+        mn: Одны үнэлгээ 1-5
+        en: Star rating 1-5
+        syn:
+        - үнэлгээ
+      review_title:
+        mn: Гарчиг
+        en: Short title
+      review_text:
+        mn: Сэтгэгдлийн текст
+        en: Free text comment
+      review_date:
+        mn: Сэтгэгдэл бичсэн огноо
+        en: Review date
+      is_verified:
+        mn: Баталгаажсан худалдан авалт эсэх
+        en: Reviewer purchased the product
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  inventory:
+    mn: Агуулах тус бүр дэх хувилбар бүрийн одоогийн үлдэгдэл
+    en: Current stock level of each variant in each warehouse
+    syn:
+    - нөөц
+    - үлдэгдэл
+    pk:
+    - inventory_id
+    columns:
+      inventory_id:
+        mn: Үлдэгдлийн бичлэгийн дугаар
+        en: Unique inventory row identifier
+      variant_id:
+        mn: Барааны хувилбар
+        en: Product variant
+        fk: product_variants.variant_id
+      warehouse_id:
+        mn: Агуулах
+        en: Warehouse
+        fk: warehouses.warehouse_id
+      quantity:
+        mn: Бэлэн үлдэгдэл
+        en: Quantity on hand
+      reserved_qty:
+        mn: Захиалгад нөөцлөгдсөн тоо
+        en: Quantity reserved for open orders
+      reorder_level:
+        mn: Дахин захиалах босго
+        en: Reorder threshold
+      last_counted_at:
+        mn: Сүүлд тоолсон цаг
+        en: Last physical count time
+      updated_at:
+        mn: Сүүлд шинэчилсэн цаг
+        en: Last update time
+  order_items:
+    mn: Захиалгын мөр (бараа тус бүр)
+    en: Line items of an order
+    syn:
+    - захиалгын мөр
+    pk:
+    - order_item_id
+    columns:
+      order_item_id:
+        mn: Захиалгын мөрийн дугаар
+        en: Unique line item identifier
+      order_id:
+        mn: Харьяалагдах захиалга
+        en: Parent order
+        fk: orders.order_id
+      variant_id:
+        mn: Зарагдсан барааны хувилбар
+        en: Product variant sold
+        fk: product_variants.variant_id
+      quantity:
+        mn: Тоо ширхэг
+        en: Quantity sold
+        syn:
+        - тоо ширхэг
+      unit price:
+        mn: Борлуулалтын үеийн нэгж үнэ (төгрөг) — баганын нэр зайтай
+        en: Unit price at time of sale in MNT (column name contains a space)
+        syn:
+        - нэгж үнэ
+      discount_pct:
+        mn: Мөрийн хөнгөлөлтийн хувь
+        en: Line discount percent
+      line_total:
+        mn: Мөрийн нийт дүн
+        en: quantity * unit price * (1 - discount_pct/100)
+  payments:
+    mn: Захиалгын төлбөрүүд
+    en: Payments received for orders
+    syn:
+    - төлбөр
+    pk:
+    - payment_id
+    columns:
+      payment_id:
+        mn: Төлбөрийн дугаар
+        en: Unique payment identifier
+      order_id:
+        mn: Төлсөн захиалга
+        en: Paid order
+        fk: orders.order_id
+      payment_date:
+        mn: Төлбөрийн огноо цаг
+        en: Payment timestamp
+      amount:
+        mn: Төлсөн дүн (төгрөг)
+        en: Paid amount in MNT
+      payment_method:
+        mn: Төлбөрийн хэлбэр
+        en: Payment method (cash, card, QPay, SocialPay, bank transfer)
+        syn:
+        - төлбөрийн хэлбэр
+        values:
+          Бэлэн: cash
+          Карт: card
+          QPay: QPay
+          SocialPay: SocialPay
+          Шилжүүлэг: transfer
+      status:
+        mn: Төлбөрийн төлөв
+        en: Payment status (pending, successful, failed, refunded)
+        values:
+          Хүлээгдэж буй: pending
+          Амжилттай: successful
+          Амжилтгүй: failed
+          Буцаагдсан: Буцаагдсан
+      transaction_ref:
+        mn: Гүйлгээний лавлах дугаар
+        en: External transaction reference
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  returns:
+    mn: Худалдан авагчийн барааны буцаалт
+    en: Product returns requested by customers
+    syn:
+    - буцаалт
+    pk:
+    - return_id
+    columns:
+      return_id:
+        mn: Буцаалтын дугаар
+        en: Unique return identifier
+      order_id:
+        mn: Анхны захиалга
+        en: Original order
+        fk: orders.order_id
+      customer_id:
+        mn: Буцаасан худалдан авагч
+        en: Returning customer
+        fk: customers.customer_id
+      return_date:
+        mn: Буцаалтын хүсэлтийн огноо
+        en: Return request date
+      return_reason:
+        mn: Буцаалтын шалтгаан
+        en: Return reason (defective, wrong item, wrong size, unsatisfied, other)
+        syn:
+        - шалтгаан
+        values:
+          Гэмтэлтэй: defective
+          Буруу бараа: wrong item
+          Хэмжээ таараагүй: wrong size
+          Сэтгэл ханамжгүй: unsatisfied
+          Бусад: Бусад
+      status:
+        mn: Буцаалтын төлөв
+        en: Return status (pending, approved, rejected, refunded)
+        values:
+          Хүлээгдэж буй: Хүлээгдэж буй
+          Зөвшөөрсөн: approved
+          Татгалзсан: rejected
+          Буцаан олгосон: refunded
+      refund_amount:
+        mn: Буцаан олгосон дүн (олгоогүй бол NULL)
+        en: Refunded amount in MNT (NULL until refunded)
+      processed_by:
+        mn: Шийдвэрлэсэн ажилтан
+        en: Employee who processed the return
+        fk: employees.employee_id
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  shipments:
+    mn: Захиалгыг худалдан авагчид хүргэх хүргэлтүүд
+    en: Shipments delivering orders to customers
+    syn:
+    - хүргэлт
+    pk:
+    - shipment_id
+    columns:
+      shipment_id:
+        mn: Хүргэлтийн дугаар
+        en: Unique shipment identifier
+      order_id:
+        mn: Хүргэж буй захиалга
+        en: Shipped order
+        fk: orders.order_id
+      warehouse_id:
+        mn: Илгээсэн агуулах
+        en: Dispatching warehouse
+        fk: warehouses.warehouse_id
+      carrier:
+        mn: Тээвэрлэгч
+        en: Carrier company
+        syn:
+        - тээвэрлэгч
+        values:
+          Монгол шуудан: mongol post
+          Cargo Express: Cargo Express
+          UB Delivery: UB Delivery
+          Өөрөө авах: pickup
+      status:
+        mn: Хүргэлтийн төлөв
+        en: Shipment status (preparing, in transit, delivered, returned)
+        values:
+          Бэлтгэж буй: preparing/being prepared/prepared
+          Замд яваа: in transit/in-transit/shipping
+          Хүргэгдсэн: Хүргэгдсэн
+          Буцаасан: returned
+      shipped_date:
+        mn: Илгээсэн огноо
+        en: Dispatch date
+      delivered_date:
+        mn: Хүргэсэн огноо
+        en: Delivery date
+      tracking_no:
+        mn: Хянах дугаар
+        en: Carrier tracking number
+      shipping_cost:
+        mn: Хүргэлтийн зардал (төгрөг)
+        en: Shipping cost in MNT
+      created_at:
+        mn: Бичлэг үүссэн цаг
+        en: Row creation timestamp
+  stock_movements:
+    mn: Барааны орлого, зарлага, шилжүүлэг, тохируулгын хөдөлгөөн бүр
+    en: Every inbound, outbound, transfer and adjustment stock movement
+    syn:
+    - барааны хөдөлгөөн
+    pk:
+    - movement_id
+    columns:
+      movement_id:
+        mn: Хөдөлгөөний дугаар
+        en: Unique movement identifier
+      variant_id:
+        mn: Хөдөлсөн барааны хувилбар
+        en: Product variant moved
+        fk: product_variants.variant_id
+      warehouse_id:
+        mn: Агуулах
+        en: Warehouse
+        fk: warehouses.warehouse_id
+      movement_type:
+        mn: Хөдөлгөөний төрөл
+        en: Movement type (inbound, outbound, transfer, adjustment, return)
+        values:
+          Орлого: inbound
+          Зарлага: outbound
+          Шилжүүлэг: Шилжүүлэг
+          Тохируулга: adjustment
+          Буцаалт: return
+      quantity:
+        mn: Тоо хэмжээ (орлого эерэг, зарлага сөрөг)
+        en: Quantity (positive inbound, negative outbound)
+      movement_date:
+        mn: Хөдөлгөөний огноо цаг
+        en: Movement timestamp
+      reference_no:
+        mn: Лавлах баримтын дугаар
+        en: Reference document number
+      employee_id:
+        mn: Бүртгэсэн ажилтан
+        en: Employee who recorded the movement
+        fk: employees.employee_id
+      note:
+        mn: Тэмдэглэл
+        en: Free text note
+  return_items:
+    mn: Буцаалтын мөр (бараа тус бүр)
+    en: Line items of a return
+    syn: []
+    pk:
+    - return_item_id
+    columns:
+      return_item_id:
+        mn: Буцаалтын мөрийн дугаар
+        en: Unique return line identifier
+      return_id:
+        mn: Харьяалагдах буцаалт
+        en: Parent return
+        fk: returns.return_id
+      order_item_id:
+        mn: Анхны захиалгын мөр
+        en: Original order line
+        fk: order_items.order_item_id
+      quantity:
+        mn: Буцаасан тоо
+        en: Quantity returned
+      item_condition:
+        mn: Буцаасан барааны байдал
+        en: Condition of returned item (new, opened, damaged)
+        values:
+          Шинэ: Шинэ
+          Нээгдсэн: opened
+          Гэмтэлтэй: Гэмтэлтэй
+      refund_line:
+        mn: Мөрийн буцаан олголт (төгрөг)
+        en: Refund for this line in MNT

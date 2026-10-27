@@ -1,0 +1,5 @@
+# Thesis-ийн SQLite gold-ийг sqlglot автоматаар зөв хөрвүүлж чадаагүй кейсийн гар засвар (PostgreSQL).
+# thesis-import нь эдгээрийг ч хоёр DB дээрх үр дүнгээр баталгаажуулна.
+q147: >-
+  SELECT CAST(EXTRACT(DOW FROM order_date) AS INT)::text AS weekday, COUNT(*) AS n
+  FROM t2s.orders GROUP BY weekday ORDER BY weekday

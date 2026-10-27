@@ -1,0 +1,558 @@
+# =====================================================================
+# Бизнесийн нэр томьёо ба метрик (зааврын 2-р хэсэг: "Бизнес нэр томьёо, метрик" индекс; B3 туршилт)
+# ---------------------------------------------------------------------
+# term: үндсэн нэр (кирилл); aliases: бусад хэлбэр (кирилл, англи, орос үг); латин галигийг
+# normalizer автоматаар үүсгэнэ. sql: каноник тодорхойлолт (t2s view дээр). related: холбоотой
+# нэр томьёо (хайлтад хамт дагаж ирнэ). ambiguous: олон утгатай бол alternatives-ыг жагсаана —
+# eval set-ийн хоёрдмол асуултууд эдгээрийг ашиглана.
+# definition_en: definition_mn-ийн англи хувилбар (англи prompt-д), шаардлагатай бол тооцох дүрэмтэй.
+# Огноо: өгөгдлийн "өнөөдөр" = 2026-06-30 (CURRENT_DATE нь энэ огноо руу дахин бичигдэнэ).
+# =====================================================================
+version: 1
+terms:
+  - id: active_portfolio
+    term: идэвхтэй зээлийн багц
+    aliases: [зээлийн багц, идэвхтэй зээл, идэвхтэй зээлүүд, портфель, зээлийн портфель, loan portfolio, active loans, багц]
+    en: Active loan portfolio
+    definition_mn: "Төлөв нь ACTIVE, OVERDUE, RESTRUCTURED, LEGAL (is_active_portfolio = TRUE) зээлүүд. Хаагдсан, хассан, олголт хүлээж буй зээл орохгүй."
+    definition_en: "Loans with status ACTIVE, OVERDUE, RESTRUCTURED or LEGAL (is_active_portfolio = TRUE). Closed, written-off and pending-disbursement loans are excluded. Rule: portfolio snapshot KPIs (outstanding, PAR, NPL, provision, weighted rate, overdue loans) always filter WHERE is_active_portfolio, not status_code = 'ACTIVE'."
+    sql: "FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    related: [portfolio_outstanding, overdue_loan]
+    ambiguous:
+      triggers: [идэвхтэй зээл]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [багц, төлөвтэй, «идэвхтэй»]
+      note_mn: "'Идэвхтэй зээл' гэдгийг зөвхөн status_code = 'ACTIVE' (хугацаа хэтрээгүй) гэж ойлгох хүн бий."
+      alternatives:
+        - {label_mn: "Идэвхтэй багц (ACTIVE, OVERDUE, RESTRUCTURED, LEGAL)", sql: "WHERE is_active_portfolio"}
+        - {label_mn: "Зөвхөн 'Идэвхтэй' төлөвтэй (хэвийн) зээл", sql: "WHERE status_code = 'ACTIVE'"}
+
+  - id: portfolio_outstanding
+    term: зээлийн багцын үлдэгдэл
+    aliases: [багцын хэмжээ, зээлийн үлдэгдэл, нийт зээлийн үлдэгдэл, портфелийн хэмжээ, gross loan portfolio, outstanding]
+    en: Loan portfolio outstanding (principal)
+    definition_mn: "Идэвхтэй багцын үндсэн зээлийн үлдэгдлийн нийлбэр. Валют холилдсон тул төгрөгөөр (principal_outstanding_mnt)."
+    definition_en: "Sum of the outstanding principal of the active portfolio. Currencies are mixed (MNT and USD), so sum in MNT: SUM(principal_outstanding_mnt) WHERE is_active_portfolio, not SUM(principal_outstanding) across currencies."
+    sql: "SELECT SUM(principal_outstanding_mnt) FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    related: [active_portfolio, total_outstanding]
+    ambiguous:
+      triggers: [зээлийн үлдэгдэл, багцын үлдэгдэл, багцын хэмжээ]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [үндсэн, нийт үлдэгдэл, хүү, торгууль]
+      note_mn: "Үлдэгдэл гэдэгт үндсэн зээл үү, эсвэл хүү, торгууль багтсан нийт үлдэгдэл үү."
+      alternatives:
+        - {label_mn: "Үндсэн зээлийн үлдэгдэл", sql: "SUM(principal_outstanding_mnt)"}
+        - {label_mn: "Нийт үлдэгдэл (үндсэн + хүү + торгууль + шимтгэл)", sql: "SUM(total_outstanding_mnt)"}
+
+  - id: total_outstanding
+    term: нийт үлдэгдэл
+    aliases: [нийт өр, төлөх нийт дүн, total outstanding]
+    en: Total outstanding (principal + scheduled interest + penalty + fee)
+    definition_mn: "total_outstanding = үндсэн + хуваарийн төлөгдөөгүй хүү (ирээдүйн хуваарийн хүү орно) + торгууль + шимтгэл."
+    definition_en: "total_outstanding = principal + unpaid scheduled interest (includes interest of future installments) + penalty + fee. Sum in MNT with SUM(total_outstanding_mnt); for portfolio totals filter WHERE is_active_portfolio (WRITTEN_OFF loans still carry a balance)."
+    sql: "SUM(total_outstanding_mnt)"
+    tables: [loans]
+    related: [portfolio_outstanding]
+
+  - id: overdue_loan
+    term: хугацаа хэтэрсэн зээл
+    aliases: [хоцорсон зээл, хугацаа хэтэрсэн, хэтэрсэн зээл, overdue, delinquent loan, просрочка, хугацаа хоцорсон]
+    en: Overdue (delinquent) loan
+    definition_mn: "Идэвхтэй багцад байгаа, хугацаа хэтэрсэн хоног (days_past_due) > 0 зээл. LEGAL төлөвтэй зээл ч хэтэрсэн байдаг."
+    definition_en: "Loan in the active portfolio with days past due > 0: WHERE is_active_portfolio AND days_past_due > 0. LEGAL-status loans are overdue too, so status_code = 'OVERDUE' alone is not the canonical definition."
+    sql: "FROM t2s.loans WHERE is_active_portfolio AND days_past_due > 0"
+    tables: [loans]
+    related: [dpd, par30, npl]
+    ambiguous:
+      triggers: [хугацаа хэтэрсэн зээл, хоцорсон зээл, хэтэрсэн зээл]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [хоног, '(1+', төлөвтэй, dpd, 30, 90]
+      note_mn: "Зарим хүн зөвхөн status_code = 'OVERDUE' төлөвийг, зарим нь 30-аас дээш хоногийг хэлдэг."
+      alternatives:
+        - {label_mn: "DPD > 0 (идэвхтэй багцад)", sql: "WHERE is_active_portfolio AND days_past_due > 0"}
+        - {label_mn: "'Хугацаа хэтэрсэн' төлөвтэй", sql: "WHERE status_code = 'OVERDUE'"}
+        - {label_mn: "30-аас дээш хоног хэтэрсэн (PAR30)", sql: "WHERE is_active_portfolio AND days_past_due > 30"}
+
+  - id: dpd
+    term: хугацаа хэтэрсэн хоног
+    aliases: [DPD, days past due, хоцорсон хоног, хэтэрсэн хоног, хэдэн хоног хэтэрсэн]
+    en: Days past due
+    definition_mn: "Хамгийн эртний төлөгдөөгүй хуваарийн төлөх огнооноос хойш өнгөрсөн хоног (loans.days_past_due)."
+    definition_en: "Days elapsed since the due date of the oldest unpaid installment (loans.days_past_due). Per installment: loan_schedule.days_past_due; at month-ends: loan_dpd_history.days_past_due."
+    sql: "days_past_due"
+    tables: [loans, loan_dpd_history, loan_schedule]
+    related: [dpd_bucket, overdue_loan]
+
+  - id: dpd_bucket
+    term: хугацаа хэтрэлтийн бүлэг
+    aliases: [DPD бүлэг, хоцролтын бүлэг, bucket, aging bucket]
+    en: DPD bucket
+    definition_mn: "CURRENT (0), DPD_1_30, DPD_31_60, DPD_61_90, DPD_91_180, DPD_180_PLUS."
+    definition_en: "dpd_bucket values: CURRENT (0 days), DPD_1_30, DPD_31_60, DPD_61_90, DPD_91_180, DPD_180_PLUS (over 180 days)."
+    sql: "dpd_bucket"
+    tables: [loans, loan_dpd_history]
+    related: [dpd]
+
+  - id: par30
+    term: PAR30
+    aliases: [PAR 30, эрсдэлтэй багц 30, 30-аас дээш хоног хэтэрсэн багцын хувь, portfolio at risk 30]
+    en: Portfolio at risk > 30 days (%)
+    definition_mn: "30-аас дээш хоног хэтэрсэн зээлийн үндсэн үлдэгдэл / идэвхтэй багцын үндсэн үлдэгдэл × 100 (тийм зээлгүй бүлэгт 0)."
+    definition_en: "PAR30 = SUM(principal_outstanding_mnt) of loans with days_past_due > 30 / SUM(principal_outstanding_mnt) of the active portfolio × 100 (0 for groups without such loans). By principal, not by loan count; both sums WHERE is_active_portfolio."
+    sql: "SELECT ROUND(100.0 * COALESCE(SUM(principal_outstanding_mnt) FILTER (WHERE days_past_due > 30), 0) / NULLIF(SUM(principal_outstanding_mnt), 0), 2) FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    related: [par90, npl_ratio, overdue_loan]
+
+  - id: par90
+    term: PAR90
+    aliases: [PAR 90, 90-ээс дээш хоног хэтэрсэн багцын хувь, portfolio at risk 90]
+    en: Portfolio at risk > 90 days (%)
+    definition_mn: "90-ээс дээш хоног хэтэрсэн зээлийн үндсэн үлдэгдэл / идэвхтэй багцын үндсэн үлдэгдэл × 100."
+    definition_en: "PAR90 = SUM(principal_outstanding_mnt) of loans with days_past_due > 90 / SUM(principal_outstanding_mnt) of the active portfolio × 100. By principal, not by loan count; both sums WHERE is_active_portfolio."
+    sql: "SELECT ROUND(100.0 * COALESCE(SUM(principal_outstanding_mnt) FILTER (WHERE days_past_due > 90), 0) / NULLIF(SUM(principal_outstanding_mnt), 0), 2) FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    related: [par30, npl_ratio]
+
+  - id: npl
+    term: чанаргүй зээл
+    aliases: [NPL, non-performing loan, муу зээл, найдваргүй зээл, чанаргүй]
+    en: Non-performing loan
+    definition_mn: "Активын ангилал нь Эргэлзээтэй (91–180 хоног) эсвэл Муу (181+) зээл: is_npl = TRUE."
+    definition_en: "Loan classified Doubtful (91–180 days) or Loss (181+ days): is_npl = TRUE. Combine with is_active_portfolio (WRITTEN_OFF loans also have is_npl = TRUE)."
+    sql: "FROM t2s.loans WHERE is_active_portfolio AND is_npl"
+    tables: [loans]
+    related: [npl_ratio, classification]
+
+  - id: npl_ratio
+    term: чанаргүй зээлийн хувь
+    aliases: [NPL ratio, NPL-ийн хувь, чанаргүй зээлийн харьцаа]
+    en: NPL ratio (%)
+    definition_mn: "Чанаргүй зээлийн үндсэн үлдэгдэл / идэвхтэй багцын үндсэн үлдэгдэл × 100."
+    definition_en: "NPL ratio = SUM(principal_outstanding_mnt) of NPL loans (is_npl) / SUM(principal_outstanding_mnt) of the active portfolio × 100, by principal, not by count; both sums WHERE is_active_portfolio."
+    sql: "SELECT ROUND(100.0 * COALESCE(SUM(principal_outstanding_mnt) FILTER (WHERE is_npl), 0) / NULLIF(SUM(principal_outstanding_mnt), 0), 2) FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    related: [npl, par90]
+
+  - id: classification
+    term: активын ангилал
+    aliases: [зээлийн ангилал, ангилал, хэвийн, хяналтад, чанар муудсан, эргэлзээтэй, муу, classification]
+    en: Asset classification
+    definition_mn: "NORMAL Хэвийн (0–14), WATCH Хяналтад (15–30), SUBSTANDARD Чанар муудсан (31–90), DOUBTFUL Эргэлзээтэй (91–180), LOSS Муу (181+)."
+    definition_en: "Asset classification (classification_code, by days past due): NORMAL Normal (0–14), WATCH Watch (15–30), SUBSTANDARD Substandard (31–90), DOUBTFUL Doubtful (91–180), LOSS Loss (181+). loans.classification_name holds the Mongolian name."
+    sql: "classification_code"
+    tables: [loans, loan_dpd_history]
+    related: [provision, npl]
+    ambiguous:
+      triggers: [хэвийн зээл]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [ангилал, dpd, хоног, төлөв]
+      note_mn: "'Хэвийн зээл' гэдэг нь ангилал NORMAL, хугацаа хэтрээгүй (DPD = 0), эсвэл 'Идэвхтэй' төлөв гэж ойлгогдож болно."
+      alternatives:
+        - {label_mn: "Ангилал Хэвийн (NORMAL)", sql: "WHERE classification_code = 'NORMAL'"}
+        - {label_mn: "Хугацаа хэтрээгүй (DPD = 0)", sql: "WHERE days_past_due = 0"}
+
+  - id: provision
+    term: эрсдэлийн сан
+    aliases: [эрсдэлийн сангийн шаардлага, шаардлагатай эрсдэлийн сан, provision, loan loss provision, нөөц сан]
+    en: Required loan loss provision
+    definition_mn: "Үндсэн үлдэгдэл × ангиллын эрсдэлийн сангийн хувь (provision_rate) / 100, идэвхтэй багцад."
+    definition_en: "Required provision = outstanding principal × the classification's provision rate (provision_rate, %) / 100, over the active portfolio: SUM(principal_outstanding_mnt * provision_rate / 100) WHERE is_active_portfolio."
+    sql: "SELECT SUM(principal_outstanding_mnt * provision_rate / 100) FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    related: [classification, gl_provision_expense]
+
+  - id: disbursement
+    term: зээл олголт
+    aliases: [олгосон зээл, олголт, шинээр олгосон зээл, шинэ зээл, disbursement, зээл гаргасан]
+    en: Loan disbursement
+    definition_mn: "disbursement_date нь тухайн хугацаанд байгаа зээлүүд; дүн нь principal_amount (төгрөгөөр principal_amount_mnt)."
+    definition_en: "Loans whose disbursement_date falls in the period; the amount is principal_amount (in MNT: principal_amount_mnt, use it when summing across currencies)."
+    sql: "SELECT COUNT(*), SUM(principal_amount_mnt) FROM t2s.loans WHERE disbursement_date BETWEEN :from AND :to"
+    tables: [loans]
+    related: [repayment]
+
+  - id: repayment
+    term: эргэн төлөлт
+    aliases: [зээлийн төлөлт, төлбөр, цуглуулсан төлбөр, орсон төлбөр, collections, repayment]
+    en: Loan repayments collected
+    definition_mn: "loan_payments.status = 'POSTED' төлбөрийн дүн (amount), payment_date-ээр. Анхаар: amount нь зээлийн валютаар (USD төлбөр бий, *_mnt багана байхгүй) — төгрөгөөр нийлбэрлэхдээ amount * t2s.fx_to_mnt(currency_code, payment_date) эсвэл зөвхөн currency_code = 'MNT'."
+    definition_en: "Amount of payments with loan_payments.status = 'POSTED', dated by payment_date. Note: amount is in the loan currency (USD payments exist; there is no *_mnt column) — for an MNT total use SUM(amount * t2s.fx_to_mnt(currency_code, payment_date)), or restrict to currency_code = 'MNT'."
+    sql: "SELECT SUM(amount) FROM t2s.loan_payments WHERE status = 'POSTED' AND payment_date BETWEEN :from AND :to"
+    tables: [loan_payments]
+    related: [interest_received, disbursement]
+
+  - id: interest_received
+    term: хүлээн авсан хүү
+    aliases: [төлөгдсөн хүү, хүүгийн төлөлт, interest collected]
+    en: Interest collected (cash basis)
+    definition_mn: "Төлбөрөөс хүүнд хуваарилсан дүн: SUM(allocated_interest), status = 'POSTED'."
+    definition_en: "Payment amounts allocated to interest (cash basis): SUM(allocated_interest) WHERE status = 'POSTED'. allocated_interest is in the payment currency; across currencies multiply by t2s.fx_to_mnt(currency_code, payment_date)."
+    sql: "SELECT SUM(allocated_interest) FROM t2s.loan_payments WHERE status = 'POSTED'"
+    tables: [loan_payments]
+    related: [interest_income]
+
+  - id: interest_income
+    term: хүүгийн орлого
+    aliases: [зээлийн хүүгийн орлого, interest income]
+    en: Interest income (accounting, GL 4100)
+    definition_mn: "Ерөнхий дэвтрийн 4100 'Хүүгийн орлого' дансны кредит гүйлгээ (хуримтлалын суурь), төгрөгөөр."
+    definition_en: "Credit postings to general-ledger account 4100 'Interest income' (accrual basis), in MNT: SUM(amount_mnt) WHERE account_code = '4100' AND dr_cr = 'C'."
+    sql: "SELECT SUM(amount_mnt) FROM t2s.gl_entries WHERE account_code = '4100' AND dr_cr = 'C'"
+    tables: [gl_entries]
+    related: [interest_received, net_interest_income]
+    ambiguous:
+      triggers: [хүүгийн орлого]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [ерөнхий дэвтэр, бүртгэсэн, хүлээн авсан, төлбөр, цэвэр, 4100]
+      note_mn: "Нягтлангийн хуримтлалын орлого (GL 4100) эсвэл бэлнээр хүлээн авсан хүү (төлбөрийн хуваарилалт)."
+      alternatives:
+        - {label_mn: "Нягтлан (GL 4100, хуримтлалын суурь)", sql: "FROM t2s.gl_entries WHERE account_code = '4100' AND dr_cr = 'C'"}
+        - {label_mn: "Хүлээн авсан хүү (бэлэн мөнгөний суурь)", sql: "SUM(allocated_interest) FROM t2s.loan_payments WHERE status = 'POSTED'"}
+
+  - id: fee_income
+    term: шимтгэлийн орлого
+    aliases: [хураамжийн орлого, fee income, commission income]
+    en: Fee income (GL 4200)
+    definition_mn: "GL 4200 дансны кредит дүн."
+    definition_en: "Credit amount of GL account 4200 (fee income): SUM(amount_mnt) WHERE account_code = '4200' AND dr_cr = 'C'."
+    sql: "SELECT SUM(amount_mnt) FROM t2s.gl_entries WHERE account_code = '4200' AND dr_cr = 'C'"
+    tables: [gl_entries, loan_charges]
+    related: [interest_income]
+
+  - id: penalty_income
+    term: торгуулийн орлого
+    aliases: [алдангийн орлого, penalty income]
+    en: Penalty income (GL 4300)
+    definition_mn: "GL 4300 дансны кредит дүн."
+    definition_en: "Credit amount of GL account 4300 (penalty income): SUM(amount_mnt) WHERE account_code = '4300' AND dr_cr = 'C'."
+    sql: "SELECT SUM(amount_mnt) FROM t2s.gl_entries WHERE account_code = '4300' AND dr_cr = 'C'"
+    tables: [gl_entries, loan_charges]
+
+  - id: net_interest_income
+    term: цэвэр хүүгийн орлого
+    aliases: [NII, net interest income, хүүгийн цэвэр орлого]
+    en: Net interest income
+    definition_mn: "Хүүгийн орлого (GL 4100 кредит) − хадгаламжийн хүүгийн зардал (GL 5100 дебит)."
+    definition_en: "Interest income (GL 4100 credit) − deposit interest expense (GL 5100 debit), both in amount_mnt."
+    sql: "SELECT SUM(CASE WHEN account_code = '4100' AND dr_cr = 'C' THEN amount_mnt WHEN account_code = '5100' AND dr_cr = 'D' THEN -amount_mnt ELSE 0 END) FROM t2s.gl_entries"
+    tables: [gl_entries]
+    related: [interest_income, deposit_interest_expense]
+
+  - id: deposit_interest_expense
+    term: хадгаламжийн хүүгийн зардал
+    aliases: [хүүгийн зардал, interest expense]
+    en: Deposit interest expense (GL 5100)
+    definition_mn: "GL 5100 'Хүүгийн зардал' дансны дебит дүн."
+    definition_en: "Debit amount of GL account 5100 'Interest expense': SUM(amount_mnt) WHERE account_code = '5100' AND dr_cr = 'D'."
+    sql: "SELECT SUM(amount_mnt) FROM t2s.gl_entries WHERE account_code = '5100' AND dr_cr = 'D'"
+    tables: [gl_entries]
+
+  - id: gl_provision_expense
+    term: эрсдэлийн сангийн зардал
+    aliases: [provision expense, эрсдэлийн сангийн зарлага]
+    en: Provision expense (GL 5200, net)
+    definition_mn: "GL 5200 дансны дебит − кредит (буцаалт)."
+    definition_en: "Net provision expense = GL account 5200 debits − credits (credits are provision reversals)."
+    sql: "SELECT SUM(CASE WHEN dr_cr = 'D' THEN amount_mnt ELSE -amount_mnt END) FROM t2s.gl_entries WHERE account_code = '5200'"
+    tables: [gl_entries]
+
+  - id: operating_expense
+    term: үйл ажиллагааны зардал
+    aliases: [opex, операцийн зардал, цалин түрээсийн зардал]
+    en: Operating expense (GL 5400)
+    definition_mn: "GL 5400 дансны дебит дүн."
+    definition_en: "Debit amount of GL account 5400 (operating expense): SUM(amount_mnt) WHERE account_code = '5400' AND dr_cr = 'D'."
+    sql: "SELECT SUM(amount_mnt) FROM t2s.gl_entries WHERE account_code = '5400' AND dr_cr = 'D'"
+    tables: [gl_entries]
+
+  - id: new_customer
+    term: шинэ харилцагч
+    aliases: [шинээр бүртгүүлсэн харилцагч, шинэ үйлчлүүлэгч, new customers]
+    en: New customers
+    definition_mn: "onboarded_date нь тухайн хугацаанд байгаа харилцагч."
+    definition_en: "Customers whose onboarded_date falls in the period."
+    sql: "FROM t2s.customers WHERE onboarded_date BETWEEN :from AND :to"
+    tables: [customers]
+
+  - id: active_customer
+    term: идэвхтэй харилцагч
+    aliases: [идэвхтэй үйлчлүүлэгч, active customers]
+    en: Active customer
+    definition_mn: "Харилцагчийн төлөв status_code = 'ACTIVE'."
+    definition_en: "Customers with status status_code = 'ACTIVE'."
+    sql: "FROM t2s.customers WHERE status_code = 'ACTIVE'"
+    tables: [customers]
+    ambiguous:
+      triggers: [идэвхтэй харилцагч]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [төлөв, «идэвхтэй», сүүлийн, гүйлгээ]
+      note_mn: "Идэвхтэй төлөвтэй харилцагч уу, эсвэл идэвхтэй зээлтэй харилцагч уу."
+      alternatives:
+        - {label_mn: "Төлөв нь 'Идэвхтэй'", sql: "WHERE status_code = 'ACTIVE'"}
+        - {label_mn: "Идэвхтэй багцад зээлтэй", sql: "WHERE customer_id IN (SELECT customer_id FROM t2s.loans WHERE is_active_portfolio)"}
+
+  - id: sme
+    term: ЖДҮ
+    aliases: [жижиг дунд үйлдвэр, жижиг дунд бизнес, жижиг дунд аж ахуйн нэгж, SME]
+    en: Small and medium enterprises
+    definition_mn: "Харилцагчийн төрөл customer_type_code = 'ORG_SME'. Анхаар: segment_code = 'SME' (ЖДҮ сегмент) нь ТББ-уудыг (NGO) мөн агуулдаг тул ЖДҮ-г сегментээр биш төрлөөр тодорхойлно."
+    definition_en: "Customer type customer_type_code = 'ORG_SME'. Note: segment_code = 'SME' (the SME segment) also contains NGOs (ORG_NGO), so SMEs are defined by customer type, not by segment."
+    sql: "WHERE customer_type_code = 'ORG_SME'"
+    tables: [customers]
+
+  - id: rural
+    term: орон нутаг
+    aliases: [хөдөө орон нутаг, аймгууд, аймгийн салбарууд, Улаанбаатараас гадна]
+    en: Rural / outside Ulaanbaatar
+    definition_mn: "Салбарын province <> 'Улаанбаатар'."
+    definition_en: "Branch province <> 'Улаанбаатар' (branches outside Ulaanbaatar; the value is stored in Cyrillic)."
+    sql: "JOIN t2s.branches b ON ... WHERE b.province <> 'Улаанбаатар'"
+    tables: [branches]
+
+  - id: approval_rate
+    term: зөвшөөрлийн хувь
+    aliases: [батлах хувь, зээл батлагдсан хувь, approval rate]
+    en: Loan application approval rate (%)
+    definition_mn: "Батлагдсан (APPROVED, CONTRACTED, EXPIRED) / шийдвэр гарсан (дээрх + REJECTED) хүсэлт × 100."
+    definition_en: "Approval rate = approved applications (status_code IN ('APPROVED','CONTRACTED','EXPIRED')) / decided applications (those three + 'REJECTED') × 100. The denominator is decided applications only, not all applications (pending and withdrawn ones are excluded)."
+    sql: "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status_code IN ('APPROVED','CONTRACTED','EXPIRED')) / NULLIF(COUNT(*) FILTER (WHERE status_code IN ('APPROVED','CONTRACTED','EXPIRED','REJECTED')), 0), 2) FROM t2s.loan_applications"
+    tables: [loan_applications]
+    related: [rejection_rate]
+
+  - id: rejection_rate
+    term: татгалзсан хувь
+    aliases: [татгалзалтын хувь, rejection rate]
+    en: Rejection rate (%)
+    definition_mn: "REJECTED / шийдвэр гарсан хүсэлт × 100."
+    definition_en: "Rejection rate = REJECTED applications / decided applications (status_code IN ('APPROVED','CONTRACTED','EXPIRED','REJECTED')) × 100; not divided by all applications."
+    sql: "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status_code = 'REJECTED') / NULLIF(COUNT(*) FILTER (WHERE status_code IN ('APPROVED','CONTRACTED','EXPIRED','REJECTED')), 0), 2) FROM t2s.loan_applications"
+    tables: [loan_applications]
+    related: [approval_rate]
+
+  - id: ptp_kept_rate
+    term: амлалтын биелэлтийн хувь
+    aliases: [PTP биелэлт, амлалт биелсэн хувь, promise kept rate]
+    en: Promise-to-pay kept rate (%)
+    definition_mn: "KEPT / (KEPT + PARTIALLY_KEPT + BROKEN) × 100 (хүлээгдэж буй, цуцалсныг тооцохгүй)."
+    definition_en: "Promise-to-pay kept rate = KEPT / (KEPT + PARTIALLY_KEPT + BROKEN) × 100 on collection_promises.status; pending (PENDING) and cancelled (CANCELLED) promises are not counted."
+    sql: "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'KEPT') / NULLIF(COUNT(*) FILTER (WHERE status IN ('KEPT','PARTIALLY_KEPT','BROKEN')), 0), 2) FROM t2s.collection_promises"
+    tables: [collection_promises]
+
+  - id: collection_recovery_rate
+    term: барагдуулалтын хувь
+    aliases: [цуглуулалтын хувь, recovery rate, буцааж авсан хувь]
+    en: Collection recovery rate (%)
+    definition_mn: "SUM(collected_amount) / SUM(outstanding_at_open) × 100 (барагдуулалтын кейсүүдээр). Анхаар: дүн нь кейсийн валютаар (USD кейс бий) — холимог бүлэгт t2s.fx_to_mnt(currency_code, ...)-ээр хөрвүүлнэ."
+    definition_en: "Recovery rate = SUM(collected_amount) / SUM(outstanding_at_open) × 100 over collection cases (ratio of sums, not an average of per-case ratios). Note: amounts are in the case currency (USD cases exist) — in mixed-currency groups convert both with t2s.fx_to_mnt(currency_code, ...)."
+    sql: "SELECT ROUND(100.0 * SUM(collected_amount) / NULLIF(SUM(outstanding_at_open), 0), 2) FROM t2s.collection_cases"
+    tables: [collection_cases]
+
+  - id: writeoff
+    term: данснаас хассан зээл
+    aliases: [хассан зээл, write-off, хасалт, балансаас хассан]
+    en: Written-off loans
+    definition_mn: "loan_writeoffs-д бичигдсэн зээл (status_code = 'WRITTEN_OFF')."
+    definition_en: "Loans recorded in loan_writeoffs (loans.status_code = 'WRITTEN_OFF'); they are outside the active portfolio."
+    sql: "FROM t2s.loan_writeoffs"
+    tables: [loan_writeoffs, loans]
+
+  - id: restructured
+    term: бүтэц өөрчилсөн зээл
+    aliases: [бүтцийн өөрчлөлт хийсэн, дахин хуваарилсан зээл, restructured loan]
+    en: Restructured loan
+    definition_mn: "loans.is_restructured = TRUE (дэлгэрэнгүй нь loan_restructures)."
+    definition_en: "loans.is_restructured = TRUE (details in loan_restructures). The flag marks every loan ever restructured, whatever its current status; status_code = 'RESTRUCTURED' is only the current status of some of them."
+    sql: "FROM t2s.loans WHERE is_restructured"
+    tables: [loans, loan_restructures]
+
+  - id: closed_loan
+    term: хаагдсан зээл
+    aliases: [төлөгдөж дууссан зээл, бүрэн төлөгдсөн, closed loans]
+    en: Closed (fully repaid) loan
+    definition_mn: "status_code = 'CLOSED', closed_date-тэй."
+    definition_en: "status_code = 'CLOSED', with a closed_date (the closing date)."
+    sql: "FROM t2s.loans WHERE status_code = 'CLOSED'"
+    tables: [loans]
+
+  - id: early_repayment
+    term: хугацаанаас өмнө төлсөн
+    aliases: [урьдчилан төлсөн, хугацаанаас өмнө хаасан, early repayment, prepayment]
+    en: Early repayment
+    definition_mn: "loan_payments.payment_type = 'EARLY_FULL' (эсвэл EARLY_PARTIAL)."
+    definition_en: "loan_payments.payment_type = 'EARLY_FULL' (or EARLY_PARTIAL). EARLY_PARTIAL does not occur in the data; for loans repaid early in full count posted payments: payment_type = 'EARLY_FULL' AND status = 'POSTED'."
+    sql: "FROM t2s.loan_payments WHERE payment_type IN ('EARLY_FULL','EARLY_PARTIAL')"
+    tables: [loan_payments]
+
+  - id: weighted_rate
+    term: жигнэсэн дундаж хүү
+    aliases: [дундаж хүү, хүүгийн дундаж, weighted average rate]
+    en: Weighted average interest rate
+    definition_mn: "SUM(interest_rate × principal_outstanding_mnt) / SUM(principal_outstanding_mnt) (идэвхтэй багц)."
+    definition_en: "SUM(interest_rate × principal_outstanding_mnt) / SUM(principal_outstanding_mnt) over the active portfolio (WHERE is_active_portfolio), i.e. weighted by outstanding principal; a simple average would be AVG(interest_rate)."
+    sql: "SELECT ROUND(SUM(interest_rate * principal_outstanding_mnt) / NULLIF(SUM(principal_outstanding_mnt), 0), 2) FROM t2s.loans WHERE is_active_portfolio"
+    tables: [loans]
+    ambiguous:
+      triggers: [дундаж хүү]          # pipeline/intent_check: тодотголгүй бол тодруулна
+      qualifiers: [жигнэсэн, энгийн дундаж, үлдэгдлээр]
+      note_mn: "'Дундаж хүү' нь энгийн дундаж (AVG) уу, үлдэгдлээр жигнэсэн дундаж уу."
+      alternatives:
+        - {label_mn: "Энгийн дундаж", sql: "AVG(interest_rate)"}
+        - {label_mn: "Үлдэгдлээр жигнэсэн дундаж", sql: "SUM(interest_rate * principal_outstanding_mnt) / SUM(principal_outstanding_mnt)"}
+
+  - id: ltv
+    term: LTV
+    aliases: [зээл барьцааны харьцаа, барьцааны хамрах хувь, loan to value]
+    en: Loan-to-value ratio
+    definition_mn: "loan_collaterals.ltv_ratio (%), зээлийн дүн / барьцааны зах зээлийн үнэ × 100."
+    definition_en: "loan_collaterals.ltv_ratio (%) = loan amount / collateral market value × 100."
+    sql: "ltv_ratio"
+    tables: [loan_collaterals]
+
+  - id: dti
+    term: DTI
+    aliases: [өр орлогын харьцаа, өр/орлого, debt to income]
+    en: Debt-to-income ratio
+    definition_mn: "loan_applications.dti_ratio (%), сарын өрийн төлбөр / сарын орлого × 100."
+    definition_en: "loan_applications.dti_ratio (%) = monthly debt payments / monthly income × 100."
+    sql: "dti_ratio"
+    tables: [loan_applications]
+
+  - id: deposit_balance
+    term: хадгаламжийн үлдэгдэл
+    aliases: [хадгаламжийн хэмжээ, нийт хадгаламж, депозит, deposits]
+    en: Deposit balance
+    definition_mn: "Идэвхтэй (status = 'ACTIVE') хадгаламжийн current_balance_mnt нийлбэр."
+    definition_en: "Sum of current_balance_mnt of active deposits (status = 'ACTIVE'); the MNT column is needed because USD deposits exist."
+    sql: "SELECT SUM(current_balance_mnt) FROM t2s.deposits WHERE status = 'ACTIVE'"
+    tables: [deposits]
+
+  - id: maturing
+    term: хугацаа нь дуусах
+    aliases: [дуусах хугацаатай, хугацаа дуусах гэж буй, maturing]
+    en: Maturing (deposits or loans)
+    definition_mn: "maturity_date нь заасан хугацаанд (жишээ: ирэх 30 хоногт = CURRENT_DATE .. CURRENT_DATE + 30)."
+    definition_en: "maturity_date falls in the given window (e.g. next 30 days = BETWEEN CURRENT_DATE AND CURRENT_DATE + 30)."
+    sql: "WHERE maturity_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30"
+    tables: [deposits, loans]
+
+  - id: dormant_account
+    term: хөдөлгөөнгүй данс
+    aliases: [идэвхгүй данс, dormant account]
+    en: Dormant account
+    definition_mn: "accounts.status = 'DORMANT' (is_dormant)."
+    definition_en: "accounts.status = 'DORMANT' (equivalently is_dormant = TRUE)."
+    sql: "FROM t2s.accounts WHERE status = 'DORMANT'"
+    tables: [accounts]
+
+  - id: loan_officer_portfolio
+    term: зээлийн мэргэжилтний багц
+    aliases: [мэргэжилтний портфель, ажилтны багц, officer portfolio]
+    en: Loan officer portfolio
+    definition_mn: "loans.loan_officer_id-аар бүлэглэсэн идэвхтэй багц; нэрийг employees.full_name-ээс."
+    definition_en: "Active portfolio grouped by loans.loan_officer_id; the officer's name comes from employees.full_name."
+    sql: "FROM t2s.loans l JOIN t2s.employees e ON e.employee_id = l.loan_officer_id WHERE l.is_active_portfolio"
+    tables: [loans, employees]
+
+  - id: business_date
+    term: өнөөдөр
+    aliases: [одоо, өнөөдрийн байдлаар, одоогийн байдлаар, ажлын өдөр, as of today]
+    en: Business date (today) = 2026-06-30
+    definition_mn: "Өгөгдлийн 'өнөөдөр' = 2026-06-30. 'Энэ сар' = 2026-06, 'өнгөрсөн сар' = 2026-05, 'энэ жил' = 2026, 'энэ улирал' = 2026 оны 2-р улирал."
+    definition_en: "The data's 'today' = 2026-06-30 (CURRENT_DATE). 'This month' = 2026-06, 'last month' = 2026-05, 'this year' = 2026 (2026-01-01..2026-06-30), 'last year' = 2025, 'this quarter' = Q2 2026; 'last N days' = date > CURRENT_DATE - N."
+    sql: "CURRENT_DATE  -- = DATE '2026-06-30'"
+    tables: []
+
+  - id: roll_rate
+    term: шилжилтийн хувь
+    aliases: [roll rate, ангиллын шилжилт, муудсан хувь, migration]
+    en: Roll rate between month-end snapshots
+    definition_mn: "Нэг сарын эцэст тодорхой DPD бүлэгт байсан зээлийн хэдэн хувь нь дараагийн сарын эцэст илүү муу бүлэгт шилжсэн (loan_dpd_history-гийн хоёр агшныг loan_id-аар холбоно)."
+    definition_en: "Percentage of loans that were in a given DPD bucket at one month-end and moved to a worse bucket at the next month-end (join two loan_dpd_history snapshots on loan_id)."
+    sql: "FROM t2s.loan_dpd_history a JOIN t2s.loan_dpd_history b ON b.loan_id = a.loan_id AND b.snapshot_date = (date_trunc('month', a.snapshot_date) + interval '2 month - 1 day')::date"
+    tables: [loan_dpd_history]
+
+  - id: vintage
+    term: винтаж
+    aliases: [олголтын үеийн шинжилгээ, когорт, vintage]
+    en: Vintage (cohort by disbursement month)
+    definition_mn: "Зээлийг олгосон сараар бүлэглэж, тухайн бүлгийн дараа үеийн хугацаа хэтрэлтийг харьцуулах."
+    definition_en: "Group loans by disbursement month (date_trunc('month', disbursement_date)) and compare each cohort's later delinquency."
+    sql: "date_trunc('month', disbursement_date)"
+    tables: [loans, loan_dpd_history]
+
+  - id: fx_rate
+    term: валютын ханш
+    aliases: [ханш, долларын ханш, ам.долларын ханш, exchange rate, курс]
+    en: Exchange rate to MNT
+    definition_mn: "exchange_rates.mid_rate (Монголбанкны дундаж ханш) тухайн ажлын өдрөөр."
+    definition_en: "exchange_rates.mid_rate (Bank of Mongolia official mid rate) for the given business day. To convert amounts to MNT use t2s.fx_to_mnt(currency_code, date) (that day's or the latest earlier rate; 1 for MNT)."
+    sql: "SELECT mid_rate FROM t2s.exchange_rates WHERE currency_code = 'USD' AND rate_date = :date"
+    tables: [exchange_rates]
+
+  # ---- Нэмэлт нэр томьёо (2026-10). Шинэ нэр томьёог төгсгөлд нэмнэ: glossary_emb.npy нь дарааллаар
+  # тааруулагддаг тул индексийг (index-build) дахин үүсгэх хүртэл хуучин нэр томьёоны дараалал хадгалагдана.
+  - id: open_collection_case
+    term: хаагдаагүй кейс
+    aliases: [хаагдаагүй барагдуулалтын кейс, нээлттэй кейс, нээлттэй барагдуулалтын кейс, идэвхтэй кейс, хаагдаагүй кейсүүд, open case, open collection cases]
+    en: Open (not yet closed) collection case
+    definition_mn: "Хаагдаагүй (нээлттэй) барагдуулалтын кейс: status NOT IN ('RESOLVED','CLOSED','WRITTEN_OFF'), өөрөөр хэлбэл OPEN, IN_PROGRESS, PROMISE_TO_PAY, LEGAL. Өгөгдөлд closed_date IS NULL-тэй яг ижил (хаагдсан 3 төлөвт л closed_date бий). 'Нээлттэй кейс' гэдэг нь зөвхөн status = 'OPEN' биш."
+    definition_en: "Collection case not yet closed: status NOT IN ('RESOLVED','CLOSED','WRITTEN_OFF'), i.e. OPEN, IN_PROGRESS, PROMISE_TO_PAY or LEGAL. In the data this is exactly equivalent to closed_date IS NULL (only the three closed statuses have a closed_date). An 'open case' means all of these, not only status = 'OPEN' (the newly opened state)."
+    sql: "FROM t2s.collection_cases WHERE status NOT IN ('RESOLVED','CLOSED','WRITTEN_OFF')"
+    tables: [collection_cases]
+    related: [resolved_case, collection_recovery_rate]
+
+  - id: resolved_case
+    term: барагдсан кейс
+    aliases: [барагдсан барагдуулалтын кейс, барагдаж хаагдсан кейс, барагдуулж хаасан кейс, resolved case, resolved collection cases]
+    en: Resolved collection case
+    definition_mn: "Барагдуулалтын кейсийн төлөв status = 'RESOLVED'; барагдсан огноо = closed_date. CLOSED (зээлийн бүтэц өөрчлөгдөж хаагдсан), WRITTEN_OFF төлөвтэй кейс барагдсанд тооцогдохгүй. Барагдсан хувь = RESOLVED / бүх кейс × 100."
+    definition_en: "Collection case with status = 'RESOLVED' (the overdue debt was cleared); the resolution date is closed_date. Cases closed because the loan was restructured ('CLOSED') or written off ('WRITTEN_OFF') are not resolved. Resolved share = COUNT(*) FILTER (WHERE status = 'RESOLVED') / COUNT(*) × 100 of the cases in the group."
+    sql: "FROM t2s.collection_cases WHERE status = 'RESOLVED'"
+    tables: [collection_cases]
+    related: [open_collection_case, collection_recovery_rate]
+
+  - id: overdue_installment
+    term: хугацаа хэтэрсэн хуваарь
+    aliases: [хугацаа хэтэрсэн төлөлт, хэтэрсэн хуваарь, хоцорсон хуваарь, бүрэн төлөгдөөгүй хуваарь, хуваарийн хоцролт, overdue installment, past-due installments]
+    en: Overdue repayment-schedule installment
+    definition_mn: "Төлөх огноо (due_date) нь CURRENT_DATE-ээс өмнө боловч бүрэн төлөгдөөгүй хуваарийн мөр: loan_schedule.status IN ('OVERDUE','PARTIALLY_PAID'). PENDING = хугацаа болоогүй, PAID = төлөгдсөн, RESTRUCTURED = бүтэц өөрчлөлтөөр солигдсон (орохгүй). Төлөгдөөгүй дүн = total_due − principal_paid − interest_paid. Хоцорч орсон төлбөр (loan_payments.payment_type = 'OVERDUE') биш."
+    definition_en: "Schedule installment past its due date (due_date < CURRENT_DATE) and not fully paid: loan_schedule.status IN ('OVERDUE','PARTIALLY_PAID'). PENDING = not yet due, PAID = paid, RESTRUCTURED = superseded by a restructuring (excluded). Unpaid amount = total_due − principal_paid − interest_paid (penalty separately: penalty_charged − penalty_paid). loan_schedule has no currency column: join loans and multiply by l.fx_rate_to_mnt for MNT. Includes installments of WRITTEN_OFF loans; add l.is_active_portfolio to limit to the active portfolio. Not a late payment received (loan_payments.payment_type = 'OVERDUE')."
+    sql: "FROM t2s.loan_schedule WHERE status IN ('OVERDUE','PARTIALLY_PAID') AND due_date < CURRENT_DATE"
+    tables: [loan_schedule, loans]
+    related: [overdue_loan, dpd]
+
+  - id: mnt_denominated
+    term: төгрөгийн зээл/хадгаламж/данс
+    aliases: [төгрөгийн, төгрөгийн зээл, төгрөгийн хадгаламж, төгрөгийн данс, төгрөгийн кейс, төгрөгөөр олгосон, долларын зээл, долларын хадгаламж, ам.долларын, ам.долларын зээл, ам.доллартай, валютын зээл, гадаад валютын, хэдэн төгрөг, төгрөгөөр, MNT, USD, MNT-denominated, USD-denominated]
+    en: MNT-denominated (currency_code = 'MNT') vs. amount expressed in MNT
+    definition_mn: "'Төгрөгийн зээл/хадгаламж/данс/кейс' эсвэл 'төгрөгөөр олгосон/нээсэн' = төгрөгийн валюттай: currency_code = 'MNT'; 'долларын', 'ам.долларын' = currency_code = 'USD'; 'валютын' = currency_code <> 'MNT' (өгөгдөлд MNT, USD л бий). Харин 'хэдэн төгрөг', 'дүнг төгрөгөөр' нь дүнг төгрөгөөр асууна — валютаар шүүхгүй, бүх валютыг нэгтгэнэ: *_mnt багана эсвэл дүн * t2s.fx_to_mnt(currency_code, огноо)."
+    definition_en: "Record currency: 'төгрөгийн зээл/хадгаламж/данс/кейс' or 'төгрөгөөр олгосон/нээсэн' (MNT loan/deposit/account/case) = currency_code = 'MNT'; 'долларын'/'ам.долларын' (USD/dollar) = currency_code = 'USD'; 'валютын' (foreign-currency) = currency_code <> 'MNT' (only MNT and USD occur). But an amount asked in MNT ('хэдэн төгрөг' = how many tögrög, 'дүнг төгрөгөөр' = amount in MNT) is not a filter: sum all currencies via the *_mnt columns (loans, deposits, transactions, gl_entries, account_balances_monthly) or, in views without them (loan_payments, collection_cases, collaterals, accounts ...), amount * t2s.fx_to_mnt(currency_code, date) (transaction date for flows, CURRENT_DATE for current balances)."
+    sql: "WHERE currency_code = 'MNT'  -- only for MNT-denominated records ('төгрөгийн зээл/данс'); 'долларын' = 'USD'. Amounts in MNT ('хэдэн төгрөг', 'дүнг төгрөгөөр'): no currency filter, SUM(*_mnt) or SUM(amount * t2s.fx_to_mnt(currency_code, date))"
+    tables: []
+    related: [fx_rate]
+
+  - id: cost_to_income
+    term: зардал орлогын харьцаа
+    aliases: [зардал/орлогын харьцаа, зардал орлогын хувь, cost-to-income, cost to income ratio, CIR]
+    en: Cost-to-income ratio (%)
+    definition_mn: "Үйл ажиллагааны зардал (GL 5400 дебит) / үйл ажиллагааны орлого × 100; үйл ажиллагааны орлого = 4100 + 4200 + 4300 кредит − 5100 дебит (цэвэр хүү + шимтгэл + торгууль), бүгд amount_mnt. Эрсдэлийн сангийн зардал (5200) тооцохгүй. Хугацааг fiscal_year, period_code эсвэл posting_date-ээр."
+    definition_en: "Cost-to-income = operating expense (GL 5400 debit) / operating income × 100, where operating income = net interest income (4100 credit − 5100 debit) + fee income (4200 credit) + penalty income (4300 credit), all SUM(amount_mnt). Provision expense (5200) is excluded; it is not total expenses / total income. Filter the period by fiscal_year, period_code or posting_date."
+    sql: "SELECT ROUND(100.0 * SUM(amount_mnt) FILTER (WHERE account_code = '5400' AND dr_cr = 'D') / NULLIF(SUM(CASE WHEN account_code IN ('4100','4200','4300') AND dr_cr = 'C' THEN amount_mnt WHEN account_code = '5100' AND dr_cr = 'D' THEN -amount_mnt ELSE 0 END), 0), 2) FROM t2s.gl_entries"
+    tables: [gl_entries]
+    related: [operating_expense, net_interest_income, fee_income, penalty_income]
+
+  - id: net_financial_result
+    term: цэвэр ашиг (алдагдал)
+    aliases: [цэвэр ашиг, цэвэр алдагдал, ашиг алдагдал, ашигтай, алдагдалтай, санхүүгийн үр дүн, net profit, net loss, profit and loss]
+    en: Net financial result (profit or loss)
+    definition_mn: "Ерөнхий дэвтрийн орлого − зардал: INCOME дансны (4100, 4200, 4300) кредит − дебит хасах нь EXPENSE дансны (5100, 5200, 5400) дебит − кредит; товчоор account_type IN ('INCOME','EXPENSE') мөрүүдийн SUM(кредит − дебит), amount_mnt. Эерэг = ашиг, сөрөг = алдагдал; орлогын албан татвар хасаагүй (татварын зардлын данс байхгүй)."
+    definition_en: "Total income − total expense from the general ledger: income = credit − debit of INCOME accounts (4100, 4200, 4300); expense = debit − credit of EXPENSE accounts (5100, 5200 net of reversals, 5400). Equivalently SUM(credit − debit) of amount_mnt over account_type IN ('INCOME','EXPENSE'). Positive = profit, negative = loss; pre-tax (there is no income-tax account). Filter the period by fiscal_year, period_code or posting_date."
+    sql: "SELECT SUM(CASE WHEN dr_cr = 'C' THEN amount_mnt ELSE -amount_mnt END) FROM t2s.gl_entries WHERE account_type IN ('INCOME','EXPENSE')"
+    tables: [gl_entries]
+    related: [cost_to_income, operating_expense, gl_provision_expense, interest_income]
+
+  - id: early_full_repayment
+    term: хугацаанаас өмнө бүрэн хаасан
+    aliases: [бүрэн хаасан, хугацаанаас өмнө бүрэн төлсөн, зээлээ эрт хаасан, урьдчилан бүрэн төлсөн, early full repayment, early payoff, full prepayment]
+    en: Early full repayment (loan paid off before maturity)
+    definition_mn: "Зээлийг хугацаанаас өмнө бүрэн төлж хаасан төлбөр: loan_payments.payment_type = 'EARLY_FULL' AND status = 'POSTED' (зээл бүрт нэг). Ийм зээл status_code = 'CLOSED', closed_date = payment_date. Зээлийн тоо = COUNT(DISTINCT loan_id). EARLY_PARTIAL өгөгдөлд байхгүй."
+    definition_en: "Payment that paid a loan off in full before maturity: loan_payments.payment_type = 'EARLY_FULL' AND status = 'POSTED' (one per loan). Such loans now have status_code = 'CLOSED' with closed_date = payment_date. Count loans with COUNT(DISTINCT loan_id); date by payment_date. Partial prepayments (EARLY_PARTIAL) do not occur in the data."
+    sql: "FROM t2s.loan_payments WHERE payment_type = 'EARLY_FULL' AND status = 'POSTED'"
+    tables: [loan_payments, loans]
+    related: [closed_loan, early_repayment]

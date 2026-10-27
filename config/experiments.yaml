@@ -1,0 +1,171 @@
+# =====================================================================
+# Туршилтын тохиргоо — docs/guide/EXPERIMENT_PLAN.md-ийн ID бүр (A1…F10).
+# Ихэнх run эх тохиргооноосоо (base) нэг зүйлээр ялгаатай ("нэг удаад нэг өөрчлөлт"); B1, B5, E2, G1, F1b, F7 нийлмэл.
+# base: тохиргоог өвлөх ба тайланд (eval report) харьцуулах суурь болно (compare_to-оор өөрчилж болно).
+# Хувьсагч (vars): бүлэг дуусах бүрт шилдгийг энд бичнэ (эсвэл CLI: --var best_a=A7).
+#   best_a      — A1 / A6 / A7-гийн шилдэг (dialect-ийн арга); B, C, F5, F7-ийн суурь
+#   best_config — A–D-ийн шилдэг тохиргоо (E бүлгийн суурь)
+#   best_sft    — C бүлгийн шилдэг SFT run (C6, D1, F6-ийн суурь); best_sft_adapter — түүний LoRA нэр
+# =====================================================================
+vars:
+  best_a: A6
+  best_config: B5
+  best_sft: C3
+  best_sft_adapter: c3
+
+defaults:
+  variant: mn                 # mn | latin | en | mixed
+  translate: false            # A4: англи руу орчуулж (утгыг placeholder-оор хамгаалж) асуух
+  dialect: sqlite_native      # sqlite_native (загварын сургалтын протокол) | postgres_prompt | sqlite_transpile
+  describe: false             # B1: монгол/англи тайлбар, синоним, enum утга
+  knowledge_notes: false      # өнөөдрийн огноо, валютын дүрэм (мэдлэгийн давхаргын нэг хэсэг)
+  values: false               # B2: утгын хайлт (кирилл, галиг түлхүүр)
+  value_mode: basic           # basic | rule (F2) | learned (F3)
+  glossary: false             # B3: бизнес нэр томьёо (evidence)
+  fewshot_k: 0                # B4: DAIL маягаар сонгосон жишээ
+  schema_linking: false       # B10: top-k хүснэгт + FK хөршүүд
+  top_tables: 6
+  agent_max_steps: 5          # sqrl-ийн DB судлах алхам (A5: 0)
+  repair_rounds: 0            # E1: алдааны мессежээр засах (E1 = 2; татгалзалтыг засуулахгүй)
+  repair_on_empty: false
+  candidates: 1               # E2: 8 нэр дэвшигч SQL-ийн санал хураалт
+  sampling: false             # true бол загварын sampling (models.yaml) — seeds-ээр давтана
+  seeds: [0]
+  abstain_threshold: null     # E3: санал нийлэлтийн босго (dev дээр муруй гаргаж сонгоно)
+  pivot: false                # F5: англи нэг өгүүлбэрийн дахин томьёолол
+  intent: false               # F7: жижиг монгол загвар → intent JSON → SQL загвар
+  semantic_router: false      # F8: semantic layer + чиглүүлэгч
+  search_values_tool: false   # F10: sqrl-д search_values tool
+  agent: false                # G: agentic давталт — tool-ийн шалгалт → critic → засвар (pipeline/agent.py)
+  agent_rounds: 2             # G: засварын дээд тоо
+  agent_plan: false           # G3: SQL-ээс өмнө англи төлөвлөгөө (thesis-ийн Planner)
+  agent_critic: true          # G: LLM critic (writer-тай ижил загвар; agent_llm-ээр өөр загвар)
+  agent_literal_check: true   # G: WHERE-ийн текст утга тухайн баганад хадгалагдсан эсэх (DB tool)
+  agent_llm: null             # G: planner/critic-ийн загвар (models.yaml; T2S_AGENT_BASE_URL)
+  adapter: null               # C/D/F: vLLM-д бүртгэсэн LoRA adapter-ийн нэр (--lora-modules)
+  index_dir: null             # F9: өөр жишээний сантай индекс (build/index_f9a г.м.)
+  dataset: nbfi               # nbfi | bird_mn (F1)
+  models: [arctic-r1-7b, sqrl-9b]
+
+runs:
+  # ---------------- A: суурь загвар, шууд (сургалтгүй, RAG-гүй)
+  A1: {desc: "Кирилл асуулт, тайлбаргүй түүхий схем", group: A}
+  A2: {base: A1, variant: en, desc: "A1-ийн англи хувилбар (хэлний зөрүү = A2 − A1)", group: A}
+  A3: {base: A1, variant: latin, desc: "A1-ийн латин галиг хувилбар (галигийн зөрүү = A1 − A3)", group: A}
+  A4: {base: A1, translate: true, desc: "Асуултыг англи руу орчуулах, утгыг placeholder-оор хамгаалах", group: A}
+  A5: {base: A1, agent_max_steps: 0, models: [sqrl-9b], desc: "DB судлах алхамгүй (max_steps = 0)", group: A}
+  A6: {base: A1, dialect: postgres_prompt, desc: "Зорилтот dialect-ийг (PostgreSQL) prompt-д заах", group: A}
+  A7: {base: A1, dialect: sqlite_transpile, desc: "SQLite-аар үүсгээд sqlglot-оор PostgreSQL руу хөрвүүлэх", group: A}
+
+  # ---------------- B: суурь загвар + RAG ба few-shot (A-гийн шилдэг dialect-аар)
+  B1: {base: "${best_a}", describe: true, knowledge_notes: true, desc: "Хүснэгт, баганын монгол/англи тайлбар, синоним (+ өнөөдөр, валютын дүрэм)", group: B}
+  B2: {base: "${best_a}", values: true, desc: "Утгын хайлт (кирилл, галиг түлхүүр), нийт 10–20 утга", group: B}
+  B3: {base: "${best_a}", glossary: true, desc: "Бизнес нэр томьёо (evidence)", group: B}
+  B4: {base: "${best_a}", fewshot_k: 4, desc: "3–5 few-shot жишээ (DAIL маягаар)", group: B}
+  B5: {base: "${best_a}", describe: true, knowledge_notes: true, values: true, glossary: true, fewshot_k: 4, desc: "B1–B4 бүгд (RAG-full)", group: B}
+  B6: {base: B5, describe: false, knowledge_notes: false, desc: "B5 − тайлбар (B1-ийн бүх хэсэг)", group: B}
+  B7: {base: B5, values: false, desc: "B5 − утгын хайлт", group: B}
+  B8: {base: B5, glossary: false, desc: "B5 − нэр томьёо", group: B}
+  B9: {base: B5, fewshot_k: 0, desc: "B5 − few-shot", group: B}
+  B10: {base: B5, schema_linking: true, desc: "B5 + schema linking (top-k хүснэгт)", group: B}
+
+  # ---------------- C: зөвхөн fine-tune (A-гийн шилдэг prompt-оор сургаж, RAG-гүй үнэлнэ) — docs/TRAINING.md
+  C1: {base: "${best_a}", adapter: c1, desc: "Rejection sampling SFT (8 гаргалт, гүйцэтгэл таарсан)", group: C}
+  C2: {base: C1, adapter: c2, desc: "C1 + gold SQL-ээр чиглүүлсэн CoT", group: C}
+  C3: {base: C2, adapter: c3, desc: "C2 + өөрийн DB-ийн синтетик ба жишээний сан (160)", group: C}
+  C4: {base: C3, adapter: c4_en30, desc: "C3-ийн өгөгдөл, англи 30% (C4b: 50%)", group: C}
+  C4b: {base: C3, adapter: c4_en50, desc: "C3-ийн өгөгдөл, англи 50%", group: C}
+  C5: {base: C3, adapter: c5_r64, desc: "C3, LoRA rank 64 (C3 = rank 32)", group: C}
+  C6: {base: "${best_sft}", adapter: c6, desc: "C-ийн шилдэг SFT + GRPO (1 / 0.1 / 0, 8 rollout)", group: C}
+  C7: {base: C6, adapter: c7, desc: "C6 + англи асуултын replay", group: C}
+
+  # ---------------- D: fine-tune + RAG
+  D1: {base: B5, adapter: "${best_sft_adapter}", desc: "C-ийн шилдэг загвар + B5-ийн RAG, few-shot", group: D}
+  D2: {base: D1, adapter: d2, desc: "B5-ийн RAG-тай prompt-оор сургаж RAG-тай ашиглах", group: D}
+  D3: {base: D2, fewshot_k: 0, desc: "D2 − few-shot", group: D}
+  D4: {base: D2, adapter: d4, desc: "D2 + GRPO (RAG-тай prompt)", group: D}
+  # D3 (2026-10-18): богино prompt (schema linking) + өөрийн DB-ийн жишээгээр дахин сургах. Анхаар: «D3» run нь D2 − few-shot;
+  # шинэ adapter-ийн нэр d3 (training.yaml-ийн жор d3), түүний run нь D3s. Сургалтын prompt = H4s (sampling.run_options("h4s")).
+  H4s: {base: H4, schema_linking: true, index_dir: build/index_plus, desc: "H4 + schema linking (зөвхөн холбогдсон хүснэгт, тэдгээрийн бүх багана; тайлбар шилдэг баганад) + жишээний сан build/index_plus (160 + 195, D3-ийн сургалттай ижил) — богино prompt (D3-ийн сургалтын prompt)", group: D}
+  D3s: {base: H4s, adapter: d3, desc: "H4s-ийн prompt-оор (өөрийн DB-ийн жишээ + BIRD-ийн дэд олонлог, QLoRA, T4) сургасан d3 adapter", group: D}
+  I3s3: {base: D3s, index_dir: build/index_plus_dev, desc: "D3s + I3-ийн жишээний сан (шинэ жишээ + dev; dev дээр өөрийн family хасагдана)", group: D}
+  I3s3t: {base: I3s3, translation_cache: qwen3.5-9b.fix, desc: "I3s3 + орчуулгын masking засвар (I3t-тэй ижил кэш) — D3-ийн хамгийн сайн inference тохиргоо (I3t-тэй харьцуулна)", group: D}
+  # Б арга (өөрийн DB-ийн мэдлэгийг RAG-тай prompt-оор сургах = D3)-ын нөлөө, M1 MADLAD орчуулгатай (M1a-ийн кэш). M1s3 − M1s2 = D3 adapter-ийн
+  # цэвэр нөлөө (prompt, сан, орчуулга ижил); M1a (56.7%) = D2 + бүтэн prompt.
+  M1s3: {base: I3s3, translation_cache: m1_madlad_improved, desc: "I3s3 (D3 adapter, schema linking, I3 сан) + MADLAD M1 орчуулга", group: D}
+  M1s2: {base: M1s3, adapter: d2, desc: "M1s3-тай ижил prompt, D2 adapter — D3-ийн хяналт", group: D}
+
+  # ---------------- E: шилдэг тохиргоон дээр засвар, санал хураалт, татгалзалт
+  E1: {base: "${best_config}", repair_rounds: 2, repair_on_empty: true, desc: "Алдааны мессежээр засах (2 удаа хүртэл; төлөвлөгөө: 1–3)", group: E}
+  E2: {base: E1, candidates: 8, sampling: true, seeds: [1, 2, 3], desc: "8 нэр дэвшигч SQL-ийн санал хураалт (гүйцэтгэлийн үр дүнгээр)", group: E}
+  E3: {base: E2, abstain_threshold: 0.5, desc: "Санал нийлэлтээр татгалзах (босгыг E2-ийн муруйгаас сонгоно)", group: E}
+  E3c: {base: E2, abstain_threshold: 0.5, low_conf_action: clarify, desc: "Санал нийлэлт < 0.5 (олонх үгүй) бол тодруулга асуух (хоёр тайлбарыг харуулна)", group: E}
+  E4: {base: E2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "E2 + хоосон/0/DB-д байхгүй утгатай хувилбар хасах + %q засвар + AUTHORING ангиллын дүрмийн татгалзал/тодруулга (reselect, загваргүй)", group: E}
+  E4f: {base: E2, vote_filter: true, desc: "E2 + зөвхөн хувилбарын шүүлт ба %q засвар (дүрэмгүй)", group: E}
+
+  # ---------------- H: ерөнхий засвар (2026-10-17; dev-ийн алдааны ангиллаас, асуулт тус бүрд тааруулаагүй — test-ээр баталгаажуулна)
+  H1: {base: D2, postproc: true, intent_check: true, intent_refuse_only: true, abstain_on_error: true, desc: "+ схемээс гаргасан SQL засвар, хувийн мэдээлэл/бичих хүсэлтээс татгалзах, алдаатай SQL-ээс татгалзах", group: H}
+  H2: {base: H1, translate: true, translate_mode: bilingual, desc: "H1 + асуултын англи машин орчуулгын мөр (retrieval монголоор)", group: H}
+  H3: {base: H1, translate: true, desc: "H1 + асуултыг англи машин орчуулгаар солих (A4 кэш)", group: H}
+  H4: {base: H1, translate: true, translate_mode: en_prompt, desc: "H1 + загварт зөвхөн англи орчуулга, retrieval ба жишээ монгол асуултаар (жишээ англиар)", group: H}
+  I1: {base: H4, index_dir: build/index_dev, desc: "H4 + dev-ийн хариулах боломжтой асуулт жишээний санд (dev дээр өөрийн family хасагдана; test-д dev бүгд)", group: I}
+  I2: {base: H4, index_dir: build/index_plus, desc: "H4 + шинээр бичсэн, шалгасан жишээ (knowledge/examples_plus.jsonl)", group: I}
+  I3: {base: H4, index_dir: build/index_plus_dev, desc: "H4 + шинэ жишээ + dev асуулт", group: I}
+  I1r: {base: I1, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "I1 + E4-ийн дүрэм (reselect)", group: I}
+  I2r: {base: I2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "I2 + E4-ийн дүрэм (reselect)", group: I}
+  I3r: {base: I3, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "I3 + E4-ийн дүрэм (reselect)", group: I}
+  I3t: {base: I3, translation_cache: qwen3.5-9b.fix, desc: "I3 + орчуулгын masking засвар (хуурамч/зохиомол [V] → монгол+англи, утгыг DB-ийн хэлбэрээр; scripts/dev/fix_translations.py)", group: I}
+  I4: {base: I3t, index_dir: build/index_plus2_dev, desc: "I3t + 2-р шатны шинэ жишээ (knowledge/examples_plus_all.jsonl = examples_plus + examples_plus2; dev дээр өөрийн family хасагдана)", group: I}
+  # M (docs/MT_INVARIANT_PLAN.md §5.6 MT-7): I3 + fine-tune хийсэн орчуулагчийн dev кэш (STAGE=mt, m0_translate.py; латин → кирилл
+  # хөрвүүлж орчуулсан «improved»). M0a = MADLAD zero-shot, M1a = MADLAD QLoRA, M1q = Qwen3.5-9B QLoRA. Харьцуулалт: I3t (46.9%)
+  # T (docs/MT_INVARIANT_PLAN.md §6.4): t2s_inv1 adapter (суурь Arctic + S1–S4, STAGE=t2s_inv) — served=inv1 (нэгтгэсэн fp16).
+  # T1 = I3t (few-shot-тэй, сургалтынхаас ялгаатай) + inv1; T1n = few-shot-гүй (сургалтын prompt-той ижил хэлбэр). Харьцуулалт: I3t (D2)
+  T1: {base: I3t, adapter: inv1, desc: "I3t + t2s_inv1 adapter (тогтмол мэдлэгийн T2S, T-1)", group: T}
+  T1n: {base: T1, fewshot_k: 0, desc: "T1 few-shot-гүй (t2s_inv1-ийн сургалтын prompt)", group: T}
+  M0a: {base: I3, translation_cache: m0_madlad_improved, desc: "I3 + MADLAD-400-3B zero-shot орчуулга (M0)", group: M}
+  M1a: {base: I3, translation_cache: m1_madlad_improved, desc: "I3 + MADLAD-400-3B QLoRA (санхүүгийн хэллэг, M1)", group: M}
+  M1q: {base: I3, translation_cache: m1_q9b_improved, desc: "I3 + Qwen3.5-9B QLoRA орчуулагч (M1)", group: M}
+  # M1a-г E бүлгийн аргатай хослуулах (хамгийн их хүлээгдэж буй ахиц): M1r = M1a-ийн 1 хувилбар дээр E4-ийн дүрэм (reselect, GPU-гүй;
+  # дүрэм dev-ээс гаргасан тул test-ээр л батална), M1e2 = 8 нэр дэвшигч + засвар, M1e4 = M1e2 + дүрэм (reselect).
+  M1r: {base: M1a, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1a + E4-ийн дүрэм (reselect)", group: M}
+  M1e2: {base: M1a, repair_rounds: 2, repair_on_empty: true, candidates: 8, sampling: true, desc: "M1a + засвар (2) + 8 нэр дэвшигчийн санал хураалт (E2-той ижил)", group: M}
+  M1e4: {base: M1e2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1e2 + E4-ийн дүрэм (reselect)", group: M}
+  # M1m: M1 + DB-ийн утгыг «» тэмдэглэсэн орчуулга (m0_translate --mark-values db; сургалтын формат) — M1-ийн утга хадгалалт 13.6%-ийг засах
+  M1m: {base: M1a, translation_cache: m1_madlad_marked, desc: "I3 + MADLAD M1 орчуулга, DB-ийн утга «» тэмдэглэгээтэй", group: M}
+  M1mr: {base: M1m, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1m + E4-ийн дүрэм (reselect)", group: M}
+  M1me2: {base: M1e2, translation_cache: m1_madlad_marked, desc: "M1e2-той ижил, утгын тэмдэглэгээтэй орчуулга", group: M}
+  M1me4: {base: M1me2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1me2 + E4-ийн дүрэм (reselect)", group: M}
+  I3t2: {base: I3, translation_cache: qwen3.5-9b.t2, desc: "I3 + T2 орчуулга: маскыг DB-ийн оноосон нэрээр шүүх, semantic_model/glossary-аас нэр томьёоны RAG (translate_terms.py; eval set-ээс үг аваагүй)", group: I}
+  WEB: {base: I3t, index_dir: build/index_web, schema_linking: true, desc: "Вэб үйлчилгээ: I3t (англи prompt, жишээний сан 160 + 475 + dev, орчуулгыг шууд) + schema linking (T4-д богино prompt), 1 хувилбар", group: I}
+  I3tr: {base: I3t, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "I3t + E4-ийн дүрэм (reselect)", group: I}
+  H4t: {base: H4, translation_cache: qwen3.5-9b.fix, desc: "H4 + орчуулгын masking засвар", group: I}
+  J1: {base: I3t, glossary_en: true, glossary_file: knowledge/glossary_plus.yaml, index_dir: build/index_plus_dev_j, desc: "I3t + нэр томьёо англиар (definition_en, «Use exactly: SQL») ба 7 шинэ нэр томьёо (knowledge/glossary_plus.yaml; бусад тохиргоонд нөлөөлөхгүй)", group: J}
+  J1r: {base: J1, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "J1 + E4-ийн дүрэм (reselect)", group: J}
+  # K — agentic горимыг (G бүлгийн код, docs/AGENT.md) одоогийн шилдэг inference тохиргоон дээр (I3t2) хэмжинэ
+  K1: {base: I3t2, agent: true, desc: "I3t2 + agent: гүйцэтгэл ба литерал шалгах tool → Arctic self-critic → засах (≤2); санал хураалтын ялагч дээр", group: K}
+  K2: {base: K1, agent_critic: false, desc: "K1 − LLM critic (зөвхөн детерминист tool-ийн олдвороор засна; critic-ийн нэмэр = K1 − K2)", group: K}
+  K3: {base: K1, agent_plan: true, desc: "K1 + planner (SQL-ээс өмнө англи төлөвлөгөө)", group: K}
+  WEBA: {base: WEB, agent: true, desc: "Вэб + agent (tool + critic, ≤2 засвар). config/web.yaml-ийн run_id: WEBA; асуултад 1–5 нэмэлт LLM дуудлага", group: K}
+
+  # ---------------- F: шинэлэг санаа
+  F1: {base: A1, dataset: bird_mn, dialect: sqlite_native, desc: "Монгол BIRD хувилбар дээр A1", group: F}
+  F1b: {base: F1, describe: true, values: true, glossary: true, fewshot_k: 4, desc: "Монгол BIRD хувилбар дээр B5 (BIRD evidence)", group: F}
+  F2: {base: B5, value_mode: rule, desc: "B5 + дүрмийн бичиг хоорондын утга тааруулалт (дагавар, галиг)", group: F}
+  F3: {base: F2, value_mode: learned, desc: "F2 + хэрэглэгчийн логоос сургасан галиг хувиргагч", group: F}
+  F4: {base: C6, adapter: f4, desc: "C6 + бичгээс үл хамаарах reward", group: F}
+  F5: {base: "${best_a}", pivot: true, desc: "A + англи pivot дахин томьёолол (prompt-оор)", group: F}
+  F6: {base: "${best_sft}", adapter: f6, desc: "C-ийн шилдэг жор + англи pivot-той сургалтын мөр", group: F}
+  F7: {base: "${best_a}", intent: true, compare_to: A4, desc: "Монгол хэлэнд хүчтэй жижиг загвар → intent JSON → SQL (A4-тэй харьцуулна)", group: F}
+  F8: {base: B5, semantic_router: true, desc: "Semantic layer + чиглүүлэгч (KPI-г шууд compile)", group: F}
+  F9a: {base: B5, index_dir: build/index_f9a, desc: "Санал зөрөлтөөр сонгосон 100 тэмдэглэгээг жишээний санд нэмсэн", group: F}
+  F9b: {base: B5, index_dir: build/index_f9b, compare_to: F9a, desc: "Санамсаргүй сонгосон 100 тэмдэглэгээг нэмсэн (F9a-тай харьцуулна)", group: F}
+  F10: {base: D1, adapter: f10, search_values_tool: true, models: [sqrl-9b], desc: "sqrl + search_values tool (tool-той траектороор сургасан, D-ийн жор)", group: F}
+
+  # ---------------- G: agentic систем (төлөвлөгөөнөөс гадуурх нэмэлт; text2sql-thesis-ийн Planner → Writer → Critic)
+  # Нэг удаад нэг өөрчлөлт: G1 = суурь + agent давталт; G2/G3 нь G1-ээс нэг зүйлээр ялгаатай. docs/AGENT.md
+  G1: {base: "${best_config}", agent: true, desc: "Agent: гүйцэтгэл ба литерал шалгах tool → LLM critic → засах (≤2 удаа)", group: G}
+  G2: {base: G1, agent_critic: false, desc: "G1 − LLM critic (зөвхөн детерминист tool-ийн олдвороор засна)", group: G}
+  G3: {base: G1, agent_plan: true, desc: "G1 + planner (SQL-ээс өмнө англи төлөвлөгөө)", group: G}
+  G4: {base: "${best_a}", agent: true, desc: "RAG-гүй agent: A-шилдэг + G1-ийн давталт", group: G}
+  G5: {base: G1, agent_literal_check: false, desc: "G1 − литерал tool (утга шалгах DB tool-ийн нэмэр = G1 − G5)", group: G}
+  G6: {base: G2, agent_literal_check: false, desc: "G2 − литерал tool = зөвхөн гүйцэтгэлийн алдаагаар нэмэлт засвар (agent-гүй давталтын суурь)", group: G}

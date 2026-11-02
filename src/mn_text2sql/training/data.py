@@ -48,6 +48,17 @@ class TrainItem:
     def evidence(self, variant: str) -> str:
         return self.evidence_en if variant == "en" else (self.evidence_mn or self.evidence_en)
 
+    @property
+    def order_matters(self) -> bool:
+        """L10: үр дүнгийн мөрийн дараалал зөвд тооцогдох эсэх (үнэлгээний EvalItem.order_matters-тэй ижил) —
+        extra.order_matters (жишээний сан, түүний C3 хувилбар; synth_own-ийн мөр). Байхгүй бол False (өмнөх дүрэм)."""
+        return bool((self.extra or {}).get("order_matters"))
+
+    @property
+    def placeholders_ok(self) -> bool:
+        """H3: BIRD-ийн орчуулгад placeholder бүрэн сэргээгдсэн (extra.placeholders_ok; талбаргүй хуучин мөр — True)."""
+        return (self.extra or {}).get("placeholders_ok") is not False
+
 
 def load_training_cfg(path: str = "config/training.yaml") -> dict:
     with open(resolve_path(path), encoding="utf-8") as fh:
@@ -164,22 +175,24 @@ def translate_items(cfg: Config, tcfg: dict, src: str = "bird_selected.jsonl", m
     lock = threading.Lock()
     latin_share = float(tcfg["data"].get("latin_share", 0.3))
 
-    def tr(text: str, sql: str) -> str:
+    def tr(text: str, sql: str) -> tuple[str, bool]:
         if not text.strip():
-            return ""
+            return "", True
         masked, mapping = _protect(text, sql)
         msgs = [{"role": "system", "content": MN_SYSTEM}]
         for s, t in MN_FEWSHOT:
             msgs += [{"role": "user", "content": s}, {"role": "assistant", "content": t}]
         msgs.append({"role": "user", "content": masked})
         resp = llm.chat(msgs, temperature=0.0, max_tokens=512)
-        return _restore(resp.texts[0].split("</think>")[-1].strip(), mapping)[0]
+        return _restore(resp.texts[0].split("</think>")[-1].strip(), mapping)
 
     def work(it: TrainItem):
         if it.id in done:
             return
-        it.question_mn = tr(it.question_en, it.gold_sql)
-        it.evidence_mn = tr(it.evidence_en, it.gold_sql)
+        it.question_mn, ok_q = tr(it.question_en, it.gold_sql)
+        it.evidence_mn, ok_e = tr(it.evidence_en, it.gold_sql)
+        # H3: өмнө ok-ийг хаядаг байв — одоо хадгалж, sample_file нь False мөрийг хасна (TrainItem.placeholders_ok)
+        it.extra["placeholders_ok"] = ok_q and ok_e
         rng = random.Random(f"{seed}:{it.id}")
         it.question_latin = latin_variant(it.question_mn, rng)
         it.extra["train_variant"] = "latin" if rng.random() < latin_share else "mn"
@@ -188,7 +201,11 @@ def translate_items(cfg: Config, tcfg: dict, src: str = "bird_selected.jsonl", m
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(work, items))
-    return {"file": str(out), "total": len(items), "translated": len(read_items(out))}
+    res = read_items(out)
+    bad = sum(1 for it in res if not it.placeholders_ok)
+    if bad:
+        log.warning("translate: %d/%d мөрөнд placeholder сэргээгдээгүй — sample-д орохгүй", bad, len(res))
+    return {"file": str(out), "total": len(items), "translated": len(res), "placeholders_bad": bad}
 
 
 # ---------------------------------------------------------------------------
@@ -206,11 +223,23 @@ def human_items(cfg: Config) -> list[TrainItem]:
         d = json.loads(line)
         if not d.get("gold_sql"):
             continue
+        extra = {"family": d.get("family"), "values": d.get("values") or []}
+        if d.get("question_mixed"):        # L5: dedup-д шалгагдана (TrainItem-д тусдаа талбар алга)
+            extra["question_mixed"] = d["question_mixed"]
+        if d.get("order_matters"):         # L10: sampling/GRPO-ийн зөвийн шалгалт үнэлгээний дүрмээр (TrainItem.order_matters)
+            extra["order_matters"] = True
         out.append(TrainItem(id=f"human-{d['id']}", source="human", engine="postgres", gold_sql=d["gold_sql"],
                              question_en=d.get("question_en", ""), question_mn=d["question_mn"],
                              question_latin=d.get("question_latin", ""), difficulty=d.get("difficulty", ""),
-                             extra={"family": d.get("family"), "values": d.get("values") or []}))
+                             extra=extra))
     return out
+
+
+def item_questions(it: TrainItem) -> list[str]:
+    """Давхардлын шүүлтэд шалгах асуултын бүх хувилбар: mn, latin, en, mixed (L5: жишээний сан/синтезийн
+    question_mixed — extra-д, эсвэл ийм attribute-тай мөрд)."""
+    mixed = getattr(it, "question_mixed", None) or (it.extra or {}).get("question_mixed")
+    return [q for q in (it.question_mn, it.question_latin, it.question_en, mixed) if q]
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +274,7 @@ def dedup_against_eval(cfg: Config, items: list[TrainItem], threshold: float = 0
         import numpy as np
         ev = emb.encode([q for _, q in eval_texts])
         for i, it in enumerate(items):
-            qs = [q for q in (it.question_mn, it.question_latin, it.question_en) if q]
+            qs = item_questions(it)
             if not qs:
                 continue
             tv = emb.encode(qs)
@@ -257,9 +286,7 @@ def dedup_against_eval(cfg: Config, items: list[TrainItem], threshold: float = 0
     else:
         ev = [(eid, _vec(q)) for eid, q in eval_texts]
         for i, it in enumerate(items):
-            for q in (it.question_mn, it.question_latin, it.question_en):
-                if not q:
-                    continue
+            for q in item_questions(it):
                 vq = _vec(q)
                 best = max(((eid, _cos(vq, v)) for eid, v in ev), key=lambda x: x[1], default=(None, 0))
                 if best[1] >= threshold:

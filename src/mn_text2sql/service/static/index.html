@@ -48,6 +48,7 @@ th{color:var(--muted);font-weight:500}
 details summary{cursor:pointer;color:var(--muted);font-size:.85rem}
 .health{font-size:.8rem;color:var(--muted);margin-bottom:12px}
 </style>
+<script src="/analyst/analyst.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -60,6 +61,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem}
     <button id="go" type="submit">Асуух</button>
   </form>
   <div class="examples" id="examples"></div>
+  <details id="hist"><summary>🕘 Өмнөх асуултууд (дарж дахин ажиллуулна)</summary><div id="histBox"></div></details>
   <div class="status-line" id="st"></div>
   <div class="list" id="list"></div>
 </div>
@@ -71,7 +73,9 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;
 const ST = {answered:"хариулсан", refused:"татгалзсан", abstained:"хариулаагүй", clarify:"тодруулга хэрэгтэй", error:"алдаа", shadow_logged:"shadow горим"};
 $("#examples").innerHTML = EX.map(e => `<button type="button" class="ex">${esc(e)}</button>`).join("");
 $("#examples").addEventListener("click", e => { if (e.target.classList.contains("ex")) { $("#q").value = e.target.textContent; $("#q").focus(); }});
-fetch("/health").then(r => r.json()).then(h => { $("#health").textContent = `Тохиргоо ${h.run} · горим ${h.mode}`; })
+// /health нь горим/тохиргоог зөвхөн түлхүүртэй хүсэлтэд буцаана (3-р аудит L5)
+fetch("/health", {headers: (k => k ? {"X-T2S-Key": k} : {})(new URLSearchParams(location.search).get("k"))})
+  .then(r => r.json()).then(h => { $("#health").textContent = h.mode ? `Тохиргоо ${h.run} · горим ${h.mode}` : "Сервер ажиллаж байна"; })
   .catch(() => { $("#health").textContent = "Сервертэй холбогдсонгүй."; });
 function card(q, r){
   const rows = r.rows && r.rows.length ? `<div class="tw"><table><thead><tr>${r.columns.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${r.rows.map(row=>`<tr>${row.map(v=>`<td>${esc(v ?? "NULL")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${r.row_count>r.rows.length?`<div class="meta">нийт ${r.row_count} мөр, эхний ${r.rows.length}</div>`:""}` : (r.status==="answered" ? `<div class="meta">Үр дүн хоосон (0 мөр).</div>` : "");
@@ -83,6 +87,7 @@ function card(q, r){
       ${r.tables&&r.tables.length?`<span>хүснэгт: ${r.tables.map(esc).join(", ")}</span>`:""}</div>
     ${r.explanation_mn?`<div class="note">${esc(r.explanation_mn)}</div>`:""}
     ${rows}
+    ${window.T2SAnalyst ? T2SAnalyst.render(r.analyst) : ""}
     ${r.sql?`<div><h3>SQL</h3><pre>${esc(r.sql)}</pre></div>`:""}
     ${r.error?`<div class="err">${esc(r.error_stage||"")}: ${esc(r.error)}</div>`:""}
     <details><summary>Дэлгэрэнгүй</summary>
@@ -103,25 +108,30 @@ $("#f").addEventListener("submit", async e => {
   try {
     // урт хүсэлтийг tunnel тасалдаг тул ажил эхлүүлээд 2 с тутам шалгана
     const key = new URLSearchParams(location.search).get("k");
-    const kq = key ? "?k=" + encodeURIComponent(key) : "";
+    const kh = key ? {"X-T2S-Key": key} : {};   // түлхүүрийг толгойгоор (URL/лог-д үлдээхгүй)
     const getJson = async (url, init) => {
+      init = init || {}; init.headers = Object.assign({}, init.headers || {}, kh);
       const res = await fetch(url, init); const txt = await res.text(); let j;
       try { j = JSON.parse(txt); } catch { throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`); }
       if (!res.ok) throw new Error(j.detail || res.status); return j;
     };
-    const {job} = await getJson("/ask_job" + kq, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({question:q})});
+    const {job} = await getJson("/ask_job", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({question:q})});
     let r = null;
     while (true) {
       await new Promise(ok => setTimeout(ok, 2000));
-      let j; try { j = await getJson(`/job/${job}` + kq); } catch (e) { if (/^HTTP 5/.test(e.message)) continue; throw e; }
+      let j; try { j = await getJson(`/job/${job}`); } catch (e) { if (/^HTTP 5/.test(e.message)) continue; throw e; }
       if (j.done) { if (j.error) throw new Error(j.error); r = j.result; break; }
     }
     $("#list").insertAdjacentHTML("afterbegin", card(q, r));
+    if (window.T2SAnalyst) { T2SAnalyst.bind($("#list").firstElementChild, r.analyst, {ask: nq => { $("#q").value = nq; $("#f").requestSubmit(); }}); T2SAnalyst.history.add(q, r.status); renderHist(); }
     $("#st").textContent = "";
   } catch (err) {
     $("#st").textContent = `Алдаа: ${err.message}. Серверийн цонхны логийг шалгана уу.`;
   } finally { clearInterval(timer); $("#go").disabled = false; }
 });
+// Асуултын түүх (зөвхөн энэ хөтөчид)
+function renderHist(){ if (window.T2SAnalyst) T2SAnalyst.renderHistory($("#histBox"), q => { $("#q").value = q; $("#f").requestSubmit(); }); }
+renderHist();
 $("#q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#f").requestSubmit(); }});
 </script>
 </body>

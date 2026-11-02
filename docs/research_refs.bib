@@ -1,0 +1,1060 @@
+% research_refs.bib — new references for docs/RESEARCH_NEXT.md (2026-10-29)
+% Same conventions as report_diplom/references.bib:
+%   * keys: author_year_shortname, lowercase, underscore-separated
+%   * arXiv preprints -> @misc with eprint/eprinttype/primaryclass
+%   * more than six authors -> first six + "and others"
+% Every entry below was opened (arXiv abs/html, ACL Anthology) or seen in search
+% results on 2026-10-29. Venue information marked "note" comes from the authors'
+% repository or an index listing and was NOT checked against the proceedings.
+% References already present in references.bib are NOT repeated here
+% (pourreza_2024_chase_sql, lee_2025_mcs_sql, gao_2024_xiyan_sql, pourreza_2023_din_sql,
+%  yao_2025_arctic_text2sql_r1, li_2025_omnisql, kattamuri_2025_contrastive_grpo,
+%  lee_2024_trustsql, pham_2026_multispider2, aktas_2026_birdturk, dawar_2026_indicdb,
+%  zhang_2024_mm_eval, minggad_2026_monculture_eval, maamari_2024_death_schema_linking,
+%  beskorovainyi_2026_onprem_frontier, zhang_2025_exesql).
+
+% =============================================================================
+% Candidate selection and test-time scaling
+% =============================================================================
+
+% XiYan-SQL (full paper) — multi-generator + fine-tuned 7B selection model; BIRD 75.63%
+@misc{liu_2025_xiyan_sql,
+  author    = {Liu, Yifu and Zhu, Yin and Gao, Yingqi and Luo, Zhiling and Li, Xiaoxia and Shi, Xiaorong and others},
+  title     = {{XiYan-SQL: A Novel Multi-Generator Framework For Text-to-SQL}},
+  year      = {2025},
+  eprint    = {2507.04701},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2507.04701}
+}
+
+% JudgeSQL — RLVR-trained 7B reasoning judge + weighted consensus tournament; +3.33 avg over SC on BIRD dev
+@misc{bai_2025_judgesql,
+  author    = {Bai, Jiayuan and Pan, Xuan-guang and Tao, Chongyang and Ma, Shuai},
+  title     = {{JudgeSQL: Reasoning over SQL Candidates with Weighted Consensus Tournament}},
+  year      = {2025},
+  eprint    = {2510.15560},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2510.15560}
+}
+
+% Agentar-Scale-SQL — internal + sequential + parallel test-time scaling, tournament selection; BIRD test 81.67%
+@misc{wang_2025_agentar_scale_sql,
+  author    = {Wang, Pengfei and Sun, Baolin and Dong, Xuemei and Dai, Yaxun and Yuan, Hongwei and Chu, Mengdie and others},
+  title     = {{Agentar-Scale-SQL: Advancing Text-to-SQL through Orchestrated Test-Time Scaling}},
+  year      = {2025},
+  eprint    = {2509.24403},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2509.24403}
+}
+
+% Alpha-SQL — zero-shot MCTS over SQL construction steps; 69.7% BIRD dev with 32B open model
+@inproceedings{li_2025_alpha_sql,
+  author    = {Li, Boyan and Zhang, Jiayi and Fan, Ju and Xu, Yanwei and Chen, Chong and Tang, Nan and others},
+  title     = {{Alpha-SQL: Zero-Shot Text-to-SQL using Monte Carlo Tree Search}},
+  booktitle = {Proceedings of the 42nd International Conference on Machine Learning (ICML 2025)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {267},
+  year      = {2025},
+  eprint    = {2502.17248},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB},
+  url       = {https://proceedings.mlr.press/v267/li25dt.html}
+}
+
+% =============================================================================
+% Schema linking
+% =============================================================================
+
+% RSL-SQL — bidirectional (forward + backward) schema linking, binary selection; strict recall 94%
+@misc{cao_2024_rsl_sql,
+  author    = {Cao, Zhenbiao and Zheng, Yuanlei and Fan, Zhihao and Zhang, Xiaojin and Chen, Wei and Bai, Xiang},
+  title     = {{RSL-SQL: Robust Schema Linking in Text-to-SQL Generation}},
+  year      = {2024},
+  eprint    = {2411.00073},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2411.00073}
+}
+
+% SchemaGraphSQL — FK graph + shortest-path join-path enumeration, one LLM call for source/target tables
+@inproceedings{safdarian_2026_schemagraphsql,
+  author    = {Safdarian, AmirHossein and Mohammadi, Milad and Jahanbakhsh, Ehsan and Shahamat Naderi, Mona and Faili, Heshaam},
+  title     = {{SchemaGraphSQL: Efficient Schema Linking with Pathfinding Graph Algorithms for Text-to-SQL on Large-Scale Databases}},
+  booktitle = {Findings of the Association for Computational Linguistics: EACL 2026},
+  year      = {2026},
+  eprint    = {2505.18363},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2505.18363},
+  note      = {Venue from ACL Anthology preview listing 2026.findings-eacl.134; pages not checked}
+}
+
+% =============================================================================
+% RL fine-tuning and reward models
+% =============================================================================
+
+% SQL-R1 — RL-trained NL2SQL reasoning model (3B/7B/14B); 88.6% Spider, 66.6% BIRD (7B)
+@misc{ma_2025_sql_r1,
+  author    = {Ma, Peixian and Zhuang, Xialie and Xu, Chengjin and Jiang, Xuhui and Chen, Ran and Guo, Jian},
+  title     = {{SQL-R1: Training Natural Language to SQL Reasoning Model By Reinforcement Learning}},
+  year      = {2025},
+  eprint    = {2504.08600},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2504.08600},
+  note      = {Authors' repository states acceptance at NeurIPS 2025; not checked against proceedings}
+}
+
+% Reasoning-SQL — GRPO with SQL-tailored partial rewards (schema linking, n-gram, syntax, LLM judge); 14B
+@misc{pourreza_2025_reasoning_sql,
+  author    = {Pourreza, Mohammadreza and Talaei, Shayan and Sun, Ruoxi and Wan, Xingchen and Li, Hailong and Mirhoseini, Azalia and others},
+  title     = {{Reasoning-SQL: Reinforcement Learning with SQL Tailored Partial Rewards for Reasoning-Enhanced Text-to-SQL}},
+  year      = {2025},
+  eprint    = {2503.23157},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2503.23157},
+  note      = {Google Research listing indicates COLM 2025; not checked against proceedings}
+}
+
+% Reward-SQL — Chain-of-CTEs reasoning + process reward model; 68.9% BIRD dev with Qwen2.5-Coder-7B
+@misc{zhang_2025_reward_sql,
+  author    = {Zhang, Yuxin and Fan, Meihao and Fan, Ju and Yi, Mingyang and Luo, Yuyu and Tan, Jian and others},
+  title     = {{Reward-SQL: Boosting Text-to-SQL via Stepwise Reasoning and Process-Supervised Rewards}},
+  year      = {2025},
+  eprint    = {2505.04671},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2505.04671}
+}
+
+% SLM-SQL — SFT + GRPO for 0.5B–1.5B models; 1.5B reaches 67.08% BIRD dev
+@misc{sheng_2025_slm_sql,
+  author    = {Sheng, Lei and Xu, Shuai-Shuai},
+  title     = {{SLM-SQL: An Exploration of Small Language Models for Text-to-SQL}},
+  year      = {2025},
+  eprint    = {2507.22478},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2507.22478}
+}
+
+% =============================================================================
+% Synthetic data for a single (in-domain) database
+% =============================================================================
+
+% SING-SQL — per-database synthetic data (sub-schema SQL -> question back-translation, judge + exec filter)
+@misc{caferoglu_2025_sing_sql,
+  author    = {Cafero{\u{g}}lu, Hasan Alp and {\c{C}}elik, Mehmet Serhat and Ulusoy, {\"O}zg{\"u}r},
+  title     = {{SING-SQL: A Synthetic Data Generation Framework for In-Domain Text-to-SQL Translation}},
+  year      = {2025},
+  eprint    = {2509.25672},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2509.25672}
+}
+
+% SENSE — strong-LLM synthetic data + weak-LLM data for preference learning
+@inproceedings{yang_2024_sense,
+  author    = {Yang, Jiaxi and Hui, Binyuan and Yang, Min and Yang, Jian and Lin, Junyang and Zhou, Chang},
+  title     = {{Synthesizing Text-to-SQL Data from Weak and Strong LLMs}},
+  booktitle = {Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year      = {2024},
+  pages     = {7864--7875},
+  address   = {Bangkok, Thailand},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2024.acl-long.425},
+  eprint    = {2408.03256},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL}
+}
+
+% =============================================================================
+% Abstention / unanswerable detection
+% =============================================================================
+
+% LatentRefusal — probe on intermediate hidden states for answerability gating; avg F1 88.5%, ~2 ms
+@misc{ren_2026_latentrefusal,
+  author    = {Ren, Xuancheng and Hu, Shijing and Lu, Zhihui and Huang, Jiangqi and Duan, Qiang},
+  title     = {{LatentRefusal: Latent-Signal Refusal for Unanswerable Text-to-SQL Queries}},
+  year      = {2026},
+  eprint    = {2601.10398},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2601.10398}
+}
+
+% Query Carefully — No-Answer Rules + few-shot; ~0.8 unanswerable detection, weak on missing values (0.5)
+@misc{saxer_2025_query_carefully,
+  author    = {Saxer, Jasmin and Aigner, Isabella Maria and Linzmeier, Luise and Weiler, Andreas and Stockinger, Kurt},
+  title     = {{Query Carefully: Detecting the Unanswerables in Text-to-SQL Tasks}},
+  year      = {2025},
+  eprint    = {2512.21345},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB},
+  url       = {https://arxiv.org/abs/2512.21345},
+  note      = {Author list as shown on the arXiv abstract page; may be incomplete}
+}
+
+% Confidence estimation — entropy-based selective classifier; detects irrelevant questions better than wrong SQL
+@misc{somov_2025_confidence_text2sql,
+  author    = {Somov, Oleg and Tutubalina, Elena},
+  title     = {{Confidence Estimation for Error Detection in Text-to-SQL Systems}},
+  year      = {2025},
+  eprint    = {2501.09527},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2501.09527},
+  note      = {arXiv comment: to be published in AAAI 2025 Proceedings}
+}
+
+% =============================================================================
+% Multilingual / low-resource
+% =============================================================================
+
+% BIRD_PT — BIRD questions + evidence translated to Brazilian Portuguese, schema kept in English
+@inproceedings{nobre_2026_bird_pt,
+  author    = {Nobre, Lucas and Sousa, Suele and Teles, Savio and Soares, Anderson},
+  title     = {{Language Effects in Text-to-SQL Across English and Portuguese}},
+  booktitle = {Proceedings of the 17th International Conference on Computational Processing of Portuguese (PROPOR 2026)},
+  year      = {2026},
+  address   = {Salvador, Brazil},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://preview.aclanthology.org/ingest-dnd/2026.propor-1.27.pdf},
+  note      = {Anthology ID 2026.propor-1.27 (from preview URL); pages not checked}
+}
+
+% Lotus — LLM translation of unseen languages in underrepresented scripts (traditional Mongolian, Yi)
+@inproceedings{lin_2025_lotus,
+  author    = {Lin, Dianqing and Aruukhan and Hou, Hongxu and Sun, Shuo and Chen, Wei and Yang, Yichen and others},
+  title     = {{Can Large Language Models Translate Unseen Languages in Underrepresented Scripts?}},
+  booktitle = {Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2025},
+  pages     = {23137--23150},
+  address   = {Suzhou, China},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://aclanthology.org/2025.emnlp-main.1179/}
+}
+
+% =============================================================================
+% Tools
+% =============================================================================
+
+% Unsloth — memory-efficient LoRA/QLoRA and GRPO training; used to judge Kaggle T4 feasibility
+@online{unsloth_2025_grpo,
+  author    = {{Unsloth AI}},
+  title     = {{Train your own R1 reasoning model with Unsloth (GRPO)}},
+  year      = {2025},
+  url       = {https://unsloth.ai/blog/r1-reasoning},
+  urldate   = {2026-10-29}
+}
+
+% =============================================================================
+% RESEARCH_TECH_2.md (2026-10-30)
+% =============================================================================
+
+% ExCoT — execution-guided CoT + iterative DPO (Snowflake); direct-SQL DPO hurts, CoT DPO helps
+@inproceedings{zhai_2025_excot,
+  author    = {Zhai, Bohan and Xu, Canwen and He, Yuxiong and Yao, Zhewei},
+  title     = {{ExCoT: Optimizing Reasoning for Text-to-SQL with Execution Feedback}},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2025},
+  year      = {2025},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://aclanthology.org/2025.findings-acl.982/},
+  note      = {arXiv:2503.19988}
+}
+
+% CoT is what makes DPO work for Text-to-SQL
+@misc{liu_2025_cot_dpo_text2sql,
+  author        = {Liu, Hanbing and Li, Haoyang and Zhang, Xiaokang and Chen, Ruotong and Xu, Haiyong and Tian, Tian and Qi, Qi and Zhang, Jing},
+  title         = {{Uncovering the Impact of Chain-of-Thought Reasoning for Direct Preference Optimization: Lessons from Text-to-SQL}},
+  year          = {2025},
+  eprint        = {2502.11656},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2502.11656}
+}
+
+% CSC-SQL — corrective self-consistency: top-2 result groups -> merge-revision model (GRPO)
+@inproceedings{sheng_2025_csc_sql,
+  author    = {Sheng, Lei and Xu, Shuai-Shuai},
+  title     = {{CSC-SQL: Corrective Self-Consistency in Text-to-SQL via Reinforcement Learning}},
+  booktitle = {Findings of the Association for Computational Linguistics: IJCNLP-AACL 2025},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2505.13271},
+  note      = {arXiv:2505.13271; Anthology ID 2025.findings-ijcnlp.91 (from search, not opened)}
+}
+
+% SDE-SQL — self-driven DB exploration with SQL probes
+@inproceedings{xie_2026_sde_sql,
+  author    = {Xie, Wenxuan and Dai, Yaxun and Jiang, Wenhao},
+  title     = {{SDE-SQL: Enhancing Text-to-SQL Generation in Large Language Models via Self-Driven Exploration with SQL Probes}},
+  booktitle = {Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  year      = {2026},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://aclanthology.org/2026.acl-long.116/},
+  note      = {arXiv:2506.07245}
+}
+
+% E-SQL — question enrichment + candidate predicate generation
+@misc{caferoglu_2024_e_sql,
+  author        = {Caferoğlu, Hasan Alp and Ulusoy, Özgür},
+  title         = {{E-SQL: Direct Schema Linking via Question Enrichment in Text-to-SQL}},
+  year          = {2024},
+  eprint        = {2409.16751},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2409.16751}
+}
+
+% SHARE — SLM-based hierarchical action correction assistant
+@inproceedings{qu_2025_share,
+  author    = {Qu, Ge and Li, Jinyang and Qin, Bowen and Li, Xiaolong and Huo, Nan and Ma, Chenhao and Cheng, Reynold},
+  title     = {{SHARE: An SLM-based Hierarchical Action CorREction Assistant for Text-to-SQL}},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL)},
+  year      = {2025},
+  pages     = {11268--11292},
+  address   = {Vienna, Austria},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://aclanthology.org/2025.acl-long.552}
+}
+
+% ReFoRCE — self-refinement, consensus enforcement, column exploration (Spider 2.0)
+@misc{deng_2025_reforce,
+  author        = {Deng, Minghang and others},
+  title         = {{ReFoRCE: A Text-to-SQL Agent with Self-Refinement, Consensus Enforcement, and Column Exploration}},
+  year          = {2025},
+  eprint        = {2502.00675},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2502.00675},
+  note          = {Earlier version at ICLR 2025 workshop; author list abbreviated}
+}
+
+% ROUTE — robust multitask tuning and collaboration prompting for open-source LLMs
+@inproceedings{qin_2025_route,
+  author    = {Qin, Yang and others},
+  title     = {{ROUTE: Robust Multitask Tuning and Collaboration for Text-to-SQL}},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2412.10138},
+  note      = {Author list abbreviated}
+}
+
+% AmbiSQL — interactive ambiguity detection and resolution
+@misc{ding_2025_ambisql,
+  author        = {Ding, Zhongjun and Lin, Yin and others},
+  title         = {{AmbiSQL: Interactive Ambiguity Detection and Resolution for Text-to-SQL}},
+  year          = {2025},
+  eprint        = {2508.15276},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DB},
+  url           = {https://arxiv.org/abs/2508.15276},
+  note          = {SIGMOD 2026 demonstration (from search, not verified); author list abbreviated}
+}
+
+% TTRL — test-time RL with majority-vote rewards
+@inproceedings{zuo_2025_ttrl,
+  author    = {Zuo, Yuxin and Zhang, Kaiyan and others},
+  title     = {{TTRL: Test-Time Reinforcement Learning}},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2504.16084},
+  note      = {Author list abbreviated}
+}
+
+% LinkAlign — scalable schema linking with query rewriting / reflection
+@inproceedings{wang_2025_linkalign,
+  author    = {Wang, Yihan and Liu, Peiyu},
+  title     = {{LinkAlign: Scalable Schema Linking for Real-World Large-Scale Multi-Database Text-to-SQL}},
+  booktitle = {Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2503.18596}
+}
+
+% Graph-Reward-SQL — execution-free RL reward via graph matching + CTE step reward
+@inproceedings{weng_2025_graph_reward_sql,
+  author    = {Weng, Han and others},
+  title     = {{Graph-Reward-SQL: Execution-Free Reinforcement Learning for Text-to-SQL via Graph Matching and Stepwise Reward}},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2025},
+  year      = {2025},
+  pages     = {12917--12943},
+  address   = {Suzhou, China},
+  publisher = {Association for Computational Linguistics},
+  url       = {https://arxiv.org/abs/2505.12380},
+  note      = {Author list abbreviated}
+}
+
+% ---- R4: security & governance (docs/research/R4_security_governance.md) ----
+@misc{owasp_2025_llm_top10,
+  title        = {{OWASP} Top 10 for Large Language Model Applications 2025},
+  author       = {{OWASP GenAI Security Project}},
+  year         = {2024},
+  howpublished = {\url{https://genai.owasp.org/llm-top-10/}},
+  note         = {Version 2025; LLM01 Prompt Injection, LLM05 Improper Output Handling}
+}
+
+@article{pedro_2023_p2sql,
+  title   = {From Prompt Injections to {SQL} Injection Attacks: How Protected is Your {LLM}-Integrated Web Application?},
+  author  = {Pedro, Rodrigo and Castro, Daniel and Carreira, Paulo and Santos, Nuno},
+  journal = {arXiv preprint arXiv:2308.01990},
+  year    = {2023},
+  url     = {https://arxiv.org/abs/2308.01990}
+}
+
+@inproceedings{greshake_2023_indirect,
+  title     = {Not What You've Signed Up For: Compromising Real-World {LLM}-Integrated Applications with Indirect Prompt Injection},
+  author    = {Greshake, Kai and Abdelnabi, Sahar and Mishra, Shailesh and Endres, Christoph and Holz, Thorsten and Fritz, Mario},
+  booktitle = {Proceedings of the 16th ACM Workshop on Artificial Intelligence and Security (AISec)},
+  year      = {2023},
+  url       = {https://arxiv.org/abs/2302.12173}
+}
+
+@misc{pg_docs_rls,
+  title        = {{PostgreSQL} Documentation: Row Security Policies},
+  author       = {{The PostgreSQL Global Development Group}},
+  year         = {2024},
+  howpublished = {\url{https://www.postgresql.org/docs/current/ddl-rowsecurity.html}}
+}
+
+@misc{pg_docs_rules_privileges,
+  title        = {{PostgreSQL} Documentation: Rules and Privileges (security\_barrier views)},
+  author       = {{The PostgreSQL Global Development Group}},
+  year         = {2024},
+  howpublished = {\url{https://www.postgresql.org/docs/current/rules-privileges.html}}
+}
+
+@techreport{fed_2011_sr117,
+  title       = {Supervisory Guidance on Model Risk Management ({SR} 11-7)},
+  author      = {{Board of Governors of the Federal Reserve System} and {Office of the Comptroller of the Currency}},
+  institution = {Board of Governors of the Federal Reserve System},
+  year        = {2011},
+  url         = {https://www.federalreserve.gov/supervisionreg/srletters/sr1107.htm}
+}
+
+@techreport{nist_2023_ai_rmf,
+  title       = {Artificial Intelligence Risk Management Framework ({AI RMF} 1.0)},
+  author      = {{National Institute of Standards and Technology}},
+  institution = {NIST},
+  number      = {NIST AI 100-1},
+  year        = {2023},
+  url         = {https://doi.org/10.6028/NIST.AI.100-1}
+}
+
+@misc{mn_2021_pdp_law,
+  title        = {Хувь хүний мэдээлэл хамгаалах тухай хууль (Law on Personal Data Protection)},
+  author       = {{Монгол Улсын Их Хурал}},
+  year         = {2021},
+  howpublished = {\url{https://legalinfo.mn/en/edtl/16532053734461}},
+  note         = {Adopted 2021-12-17, effective 2022-05-01; unofficial English translation}
+}
+
+@misc{pwc_2022_mn_pdp,
+  title        = {Mongolia introduces Personal Data Protection Law effective from 1 May 2022},
+  author       = {{PwC Mongolia}},
+  year         = {2022},
+  howpublished = {\url{https://www.pwc.com/mn/en/tax_alerts/tax_alert_02_2022.html}},
+  note         = {Tax/legal alert 02/2022}
+}
+
+@misc{mn_2021_cyber_law,
+  title        = {Кибер аюулгүй байдлын тухай хууль (Law on Cyber Security)},
+  author       = {{Монгол Улсын Их Хурал}},
+  year         = {2021},
+  howpublished = {\url{https://legalinfo.mn}},
+  note         = {Adopted 2021-12-17; exact URL and applicability to banks unverified}
+}
+
+% ---- R1: translation stage & low-resource Text2SQL (docs/research/R1_translation.md) ----
+@inproceedings{min_2019_cspider,
+  author    = {Min, Qingkai and Shi, Yuefeng and Zhang, Yue},
+  title     = {A Pilot Study for {C}hinese {SQL} Semantic Parsing},
+  booktitle = {Proceedings of EMNLP-IJCNLP 2019},
+  year      = {2019},
+  url       = {https://aclanthology.org/D19-1377}
+}
+@inproceedings{nguyen_2020_vitext2sql,
+  author    = {Nguyen, Anh Tuan and Dao, Mai Hoang and Nguyen, Dat Quoc},
+  title     = {A Pilot Study of Text-to-{SQL} Semantic Parsing for {V}ietnamese},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2020},
+  pages     = {4079--4085},
+  year      = {2020},
+  url       = {https://aclanthology.org/2020.findings-emnlp.364}
+}
+@inproceedings{bakshandaeva_2022_pauq,
+  author    = {Bakshandaeva, Daria and Somov, Oleg and Dmitrieva, Ekaterina and Davydova, Vera and Tutubalina, Elena},
+  title     = {{PAUQ}: Text-to-{SQL} in {R}ussian},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2022},
+  year      = {2022},
+  url       = {https://aclanthology.org/2022.findings-emnlp.175}
+}
+@inproceedings{almohaimeed_2024_ar_spider,
+  author    = {Almohaimeed, Saleh and Almohaimeed, Saad and Al Ghanim, Mansour and Wang, Liqiang},
+  title     = {{Ar-Spider}: Text-to-{SQL} in {A}rabic},
+  booktitle = {Proceedings of the 39th ACM/SIGAPP Symposium on Applied Computing (SAC '24)},
+  year      = {2024},
+  doi       = {10.1145/3605098.3636065},
+  note      = {arXiv:2402.15012}
+}
+@misc{heakl_2024_araspider,
+  author        = {Heakl, Ahmed and Mohamed, Youssef and Zaky, Ahmed B.},
+  title         = {{AraSpider}: Democratizing {A}rabic-to-{SQL}},
+  year          = {2024},
+  eprint        = {2402.07448},
+  archivePrefix = {arXiv}
+}
+@inproceedings{jose_2021_mrat_sql,
+  author    = {Jos{\'e}, Marcelo Archanjo and Cozman, Fabio Gagliardi},
+  title     = {{mRAT-SQL+GAP}: A {P}ortuguese Text-to-{SQL} Transformer},
+  booktitle = {Brazilian Conference on Intelligent Systems (BRACIS 2021)},
+  year      = {2021},
+  note      = {Venue details from memory; verify before citing}
+}
+@inproceedings{artetxe_2023_revisiting_mt,
+  author    = {Artetxe, Mikel and Goswami, Vedanuj and Bhosale, Shruti and Fan, Angela and Zettlemoyer, Luke},
+  title     = {Revisiting Machine Translation for Cross-lingual Classification},
+  booktitle = {Proceedings of EMNLP 2023},
+  pages     = {6489--6499},
+  year      = {2023},
+  doi       = {10.18653/v1/2023.emnlp-main.399}
+}
+@inproceedings{sherborne_2020_bootstrapping,
+  author    = {Sherborne, Tom and Xu, Yumo and Lapata, Mirella},
+  title     = {Bootstrapping a Crosslingual Semantic Parser},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2020},
+  pages     = {499--517},
+  year      = {2020},
+  url       = {https://aclanthology.org/2020.findings-emnlp.45}
+}
+@inproceedings{sennrich_2016_backtranslation,
+  author    = {Sennrich, Rico and Haddow, Barry and Birch, Alexandra},
+  title     = {Improving Neural Machine Translation Models with Monolingual Data},
+  booktitle = {Proceedings of ACL 2016},
+  year      = {2016},
+  url       = {https://aclanthology.org/P16-1009},
+  note      = {Details from memory; verify pages}
+}
+@inproceedings{moon_2020_rtt_qe,
+  author    = {Moon, Jihyung and Cho, Hyunchang and Park, Eunjeong L.},
+  title     = {Revisiting Round-trip Translation for Quality Estimation},
+  booktitle = {Proceedings of EAMT 2020},
+  pages     = {91--104},
+  year      = {2020},
+  url       = {https://aclanthology.org/2020.eamt-1.11}
+}
+@article{freitag_2022_mbr,
+  author  = {Freitag, Markus and Grangier, David and Tan, Qijun and Liang, Bowen},
+  title   = {High Quality Rather than High Model Probability: Minimum {B}ayes Risk Decoding with Neural Metrics},
+  journal = {Transactions of the Association for Computational Linguistics},
+  volume  = {10},
+  pages   = {811--825},
+  year    = {2022},
+  doi     = {10.1162/tacl_a_00491}
+}
+@inproceedings{ohmer_2023_form_meaning,
+  author    = {Ohmer, Xenia and Bruni, Elia and Hupkes, Dieuwke},
+  title     = {Separating form and meaning: Using self-consistency to quantify task understanding across multiple senses},
+  booktitle = {Proceedings of the Third Workshop on Natural Language Generation, Evaluation, and Metrics (GEM)},
+  pages     = {258--276},
+  year      = {2023},
+  url       = {https://aclanthology.org/2023.gem-1.22}
+}
+@inproceedings{dinu_2019_terminology,
+  author    = {Dinu, Georgiana and Mathur, Prashant and Federico, Marcello and Al-Onaizan, Yaser},
+  title     = {Training Neural Machine Translation to Apply Terminology Constraints},
+  booktitle = {Proceedings of ACL 2019},
+  pages     = {3063--3068},
+  year      = {2019},
+  doi       = {10.18653/v1/P19-1294}
+}
+@inproceedings{bergmanis_2021_lemma_annotations,
+  author    = {Bergmanis, Toms and Pinnis, M{\=a}rcis},
+  title     = {Facilitating Terminology Translation with Target Lemma Annotations},
+  booktitle = {Proceedings of EACL 2021},
+  pages     = {3105--3111},
+  year      = {2021},
+  doi       = {10.18653/v1/2021.eacl-main.271}
+}
+@inproceedings{hokamp_2017_gbs,
+  author    = {Hokamp, Chris and Liu, Qun},
+  title     = {Lexically Constrained Decoding for Sequence Generation Using Grid Beam Search},
+  booktitle = {Proceedings of ACL 2017},
+  year      = {2017},
+  url       = {https://aclanthology.org/P17-1141},
+  note      = {Details from memory; verify}
+}
+@inproceedings{post_2018_dba,
+  author    = {Post, Matt and Vilar, David},
+  title     = {Fast Lexically Constrained Decoding with Dynamic Beam Allocation for Neural Machine Translation},
+  booktitle = {Proceedings of NAACL-HLT 2018},
+  year      = {2018},
+  url       = {https://aclanthology.org/N18-1119},
+  note      = {Details from memory; verify}
+}
+@inproceedings{kocmi_2023_gemba,
+  author    = {Kocmi, Tom and Federmann, Christian},
+  title     = {Large Language Models Are State-of-the-Art Evaluators of Translation Quality},
+  booktitle = {Proceedings of EAMT 2023},
+  pages     = {193--203},
+  year      = {2023},
+  url       = {https://aclanthology.org/2023.eamt-1.19}
+}
+@inproceedings{feng_2022_labse,
+  author    = {Feng, Fangxiaoyu and Yang, Yinfei and Cer, Daniel and Arivazhagan, Naveen and Wang, Wei},
+  title     = {Language-agnostic {BERT} Sentence Embedding},
+  booktitle = {Proceedings of ACL 2022 (Volume 1: Long Papers)},
+  pages     = {878--891},
+  year      = {2022},
+  url       = {https://aclanthology.org/2022.acl-long.62}
+}
+
+% =============================================================================
+% docs/research/R2_finetune_kaggle.md (2026-10-30) — preference optimisation and LoRA forgetting
+% (yao_2025_arctic_text2sql_r1, shao_2024_deepseekmath, dettmers_2023_qlora, hu_2022_lora are in references.bib)
+% Venues below are from general knowledge / arXiv listings and were NOT re-checked against proceedings in this session.
+% =============================================================================
+
+% DPO — preference optimisation without an explicit reward model; base of ExCoT
+@inproceedings{rafailov_2023_dpo,
+  author    = {Rafailov, Rafael and Sharma, Archit and Mitchell, Eric and Ermon, Stefano and Manning, Christopher D. and Finn, Chelsea},
+  title     = {{Direct Preference Optimization: Your Language Model is Secretly a Reward Model}},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  year      = {2023},
+  eprint    = {2305.18290},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2305.18290}
+}
+
+% ORPO — reference-free, monolithic SFT + odds-ratio preference loss
+@inproceedings{hong_2024_orpo,
+  author    = {Hong, Jiwoo and Lee, Noah and Thorne, James},
+  title     = {{ORPO: Monolithic Preference Optimization without Reference Model}},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP 2024)},
+  year      = {2024},
+  eprint    = {2403.07691},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2403.07691}
+}
+
+% SimPO — reference-free, length-normalised reward with target margin
+@inproceedings{meng_2024_simpo,
+  author    = {Meng, Yu and Xia, Mengzhou and Chen, Danqi},
+  title     = {{SimPO: Simple Preference Optimization with a Reference-Free Reward}},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  year      = {2024},
+  eprint    = {2405.14734},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2405.14734}
+}
+
+% KTO — prospect-theoretic alignment from unpaired desirable/undesirable signals
+@inproceedings{ethayarajh_2024_kto,
+  author    = {Ethayarajh, Kawin and Xu, Winnie and Muennighoff, Niklas and Jurafsky, Dan and Kiela, Douwe},
+  title     = {{KTO: Model Alignment as Prospect Theoretic Optimization}},
+  booktitle = {Proceedings of the 41st International Conference on Machine Learning (ICML 2024)},
+  year      = {2024},
+  eprint    = {2402.01306},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2402.01306}
+}
+
+% Iterative RPO — DPO + NLL on correctness-labelled CoT pairs; iterated on-policy
+@inproceedings{pang_2024_irpo,
+  author    = {Pang, Richard Yuanzhe and Yuan, Weizhe and Cho, Kyunghyun and He, He and Sukhbaatar, Sainbayar and Weston, Jason},
+  title     = {{Iterative Reasoning Preference Optimization}},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  year      = {2024},
+  eprint    = {2404.19733},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2404.19733}
+}
+
+% LoRA learns less and forgets less than full fine-tuning (code/math, Llama-2-7B)
+@article{biderman_2024_lora_forgets,
+  author    = {Biderman, Dan and Portes, Jacob and Gonzalez Ortiz, Jose Javier and Paul, Mansheej and Greengard, Philip and Jennings, Connor and others},
+  title     = {{LoRA Learns Less and Forgets Less}},
+  journal   = {Transactions on Machine Learning Research},
+  year      = {2024},
+  eprint    = {2405.09673},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2405.09673}
+}
+
+% =============================================================================
+% R7 — inference efficiency on Kaggle T4 (docs/research/R7_inference_efficiency.md, 2026-10-30)
+% kwon_2023_vllm is already in report_diplom/references.bib and is not repeated.
+% Bibliographic details from memory of the arXiv listings; vLLM doc pages opened 2026-10-30.
+% =============================================================================
+
+% SGLang — RadixAttention prefix reuse across requests (cross-question prefix caching idea)
+@inproceedings{zheng_2024_sglang,
+  author    = {Zheng, Lianmin and Yin, Liangsheng and Xie, Zhiqiang and Sun, Chuyue and Huang, Jeff and Yu, Cody Hao and others},
+  title     = {{SGLang: Efficient Execution of Structured Language Model Programs}},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2024},
+  eprint    = {2312.07104},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2312.07104}
+}
+
+% Sarathi-Serve — chunked prefill, the basis of vLLM's --max-num-batched-tokens behaviour
+@inproceedings{agrawal_2024_sarathi_serve,
+  author    = {Agrawal, Amey and Kedia, Nitin and Panwar, Ashish and Mohan, Jayashree and Kwatra, Nipun and Gulavani, Bhargav S. and others},
+  title     = {{Taming Throughput-Latency Tradeoff in LLM Inference with Sarathi-Serve}},
+  booktitle = {18th USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+  year      = {2024},
+  eprint    = {2403.02310},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2403.02310}
+}
+
+% AWQ — activation-aware 4-bit weight quantization (valid on Turing in vLLM)
+@inproceedings{lin_2024_awq,
+  author    = {Lin, Ji and Tang, Jiaming and Tang, Haotian and Yang, Shang and Chen, Wei-Ming and Wang, Wei-Chen and others},
+  title     = {{AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration}},
+  booktitle = {Proceedings of Machine Learning and Systems (MLSys)},
+  year      = {2024},
+  eprint    = {2306.00978},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2306.00978}
+}
+
+% GPTQ — post-training int4/int8 weight quantization
+@inproceedings{frantar_2023_gptq,
+  author    = {Frantar, Elias and Ashkboos, Saleh and Hoefler, Torsten and Alistarh, Dan},
+  title     = {{GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers}},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  eprint    = {2210.17323},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2210.17323}
+}
+
+% LLM.int8() — bitsandbytes 8-bit inference
+@inproceedings{dettmers_2022_llm_int8,
+  author    = {Dettmers, Tim and Lewis, Mike and Belkada, Younes and Zettlemoyer, Luke},
+  title     = {{LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale}},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2022},
+  eprint    = {2208.07339},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2208.07339}
+}
+
+% "Give Me BF16 or Give Me Death" — accuracy cost of W4A16/W8A8 across model sizes and tasks
+@inproceedings{kurtic_2025_quant_tradeoffs,
+  author    = {Kurtic, Eldar and Marques, Alexandre and Pandit, Shubhra and Kurtz, Mark and Alistarh, Dan},
+  title     = {{``Give Me BF16 or Give Me Death''? Accuracy-Performance Trade-Offs in LLM Quantization}},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL)},
+  year      = {2025},
+  eprint    = {2411.02355},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2411.02355},
+  note      = {Venue not checked against the proceedings}
+}
+
+% Speculative decoding — draft-and-verify, exact for greedy
+@inproceedings{leviathan_2023_speculative,
+  author    = {Leviathan, Yaniv and Kalman, Matan and Matias, Yossi},
+  title     = {{Fast Inference from Transformers via Speculative Decoding}},
+  booktitle = {Proceedings of the 40th International Conference on Machine Learning (ICML)},
+  year      = {2023},
+  eprint    = {2211.17192},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2211.17192}
+}
+
+% Prompt lookup decoding — n-gram drafts copied from the prompt (vLLM "ngram" method)
+@online{saxena_2023_prompt_lookup,
+  author    = {Saxena, Apoorv},
+  title     = {{Prompt Lookup Decoding}},
+  year      = {2023},
+  url       = {https://github.com/apoorvumang/prompt-lookup-decoding},
+  urldate   = {2026-10-30}
+}
+
+% s1 — budget forcing: cap/extend the thinking phase by appending end-of-thinking tokens
+@misc{muennighoff_2025_s1,
+  author    = {Muennighoff, Niklas and Yang, Zitong and Shi, Weijia and Li, Xiang Lisa and Fei-Fei, Li and Hajishirzi, Hannaneh and others},
+  title     = {{s1: Simple Test-Time Scaling}},
+  year      = {2025},
+  eprint    = {2501.19393},
+  eprinttype = {arXiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2501.19393}
+}
+
+% Adaptive-Consistency — Beta/Dirichlet stopping rule used in docs/ADAPTIVE_SAMPLING.md
+@inproceedings{aggarwal_2023_adaptive_consistency,
+  author    = {Aggarwal, Pranjal and Madaan, Aman and Yang, Yiming and {Mausam}},
+  title     = {{Let's Sample Step by Step: Adaptive-Consistency for Efficient Reasoning and Coding with LLMs}},
+  booktitle = {Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2023},
+  eprint    = {2305.11860},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2305.11860}
+}
+
+% ESC — early-stopping self-consistency (window-level agreement)
+@inproceedings{li_2024_esc,
+  author    = {Li, Yiwei and Yuan, Peiwen and Feng, Shaoxiong and Pan, Boyuan and Wang, Xinglin and Sun, Bin and others},
+  title     = {{Escape Sky-high Cost: Early-stopping Self-Consistency for Multi-step Reasoning}},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  eprint    = {2401.10480},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2401.10480}
+}
+
+% vLLM documentation — quantization hardware compatibility table (Turing: AWQ/GPTQ/Marlin yes, FP8 W8A8 no)
+@online{vllm_2025_quantization_hw,
+  author    = {{vLLM Team}},
+  title     = {{Quantization: Supported Hardware}},
+  year      = {2025},
+  url       = {https://docs.vllm.ai/en/latest/features/quantization/index.html},
+  urldate   = {2026-10-30}
+}
+
+% vLLM documentation — n-gram speculative decoding (speculative_config, prompt_lookup_min/max)
+@online{vllm_2025_ngram_spec,
+  author    = {{vLLM Team}},
+  title     = {{Speculative Decoding: N-Gram}},
+  year      = {2025},
+  url       = {https://docs.vllm.ai/en/latest/features/speculative_decoding/n_gram/},
+  urldate   = {2026-10-30}
+}
+
+% =============================================================================
+% R3 — evaluation methodology (docs/research/R3_evaluation.md, 2026-10-30)
+% Already in report_diplom/references.bib (not repeated): zhong_2020_test_suite,
+% li_2023_bird, wretblad_2024_bird_noise, jin_2026_annotation_errors,
+% lee_2024_trustsql, bhaskar_2023_ambiqt, saparina_2024_ambrosia, mcnemar_1947.
+% lei_2025_spider2 and dong_2025_practiq were seen in search results on 2026-10-30;
+% the statistics classics below are cited from memory (pages not re-checked).
+% =============================================================================
+
+@inproceedings{lei_2025_spider2,
+  author    = {Lei, Fangyu and Chen, Jixuan and Ye, Yuxiao and Cao, Ruisheng and Shin, Dongchan and Su, Hongjin and others},
+  title     = {Spider 2.0: Evaluating Language Models on Real-World Enterprise Text-to-SQL Workflows},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  eprint    = {2411.07763},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2411.07763},
+  note      = {Author list abbreviated}
+}
+
+@inproceedings{pourreza_2023_evaluating,
+  author    = {Pourreza, Mohammadreza and Rafiei, Davood},
+  title     = {Evaluating Cross-Domain Text-to-{SQL} Models and Benchmarks},
+  booktitle = {Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2023},
+  publisher = {Association for Computational Linguistics},
+  note      = {Venue from memory; not re-checked}
+}
+
+@inproceedings{dong_2025_practiq,
+  author    = {Dong, Mingwen and Kumar, Nischal Ashok and Hu, Yiqun and Chauhan, Anuj and Hang, Chung-Wei and Chang, Shuaichen and others},
+  title     = {{PRACTIQ}: A Practical Conversational Text-to-{SQL} Dataset with Ambiguous and Unanswerable Queries},
+  booktitle = {Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics (NAACL)},
+  pages     = {255--273},
+  year      = {2025},
+  eprint    = {2410.11076},
+  eprinttype = {arXiv},
+  url       = {https://arxiv.org/abs/2410.11076},
+  note      = {Author list abbreviated; co-author names after the first not re-checked}
+}
+
+@article{elyaniv_2010_selective,
+  author  = {El-Yaniv, Ran and Wiener, Yair},
+  title   = {On the Foundations of Noise-free Selective Classification},
+  journal = {Journal of Machine Learning Research},
+  volume  = {11},
+  pages   = {1605--1641},
+  year    = {2010}
+}
+
+@inproceedings{geifman_2019_aurc,
+  author    = {Geifman, Yonatan and Uziel, Guy and El-Yaniv, Ran},
+  title     = {Bias-Reduced Uncertainty Estimation for Deep Neural Classifiers},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2019}
+}
+
+@article{wilson_1927_ci,
+  author  = {Wilson, Edwin B.},
+  title   = {Probable Inference, the Law of Succession, and Statistical Inference},
+  journal = {Journal of the American Statistical Association},
+  volume  = {22},
+  number  = {158},
+  pages   = {209--212},
+  year    = {1927}
+}
+
+@article{newcombe_1998_paired_ci,
+  author  = {Newcombe, Robert G.},
+  title   = {Improved Confidence Intervals for the Difference between Binomial Proportions Based on Paired Data},
+  journal = {Statistics in Medicine},
+  volume  = {17},
+  number  = {22},
+  pages   = {2635--2650},
+  year    = {1998}
+}
+
+@article{holm_1979,
+  author  = {Holm, Sture},
+  title   = {A Simple Sequentially Rejective Multiple Test Procedure},
+  journal = {Scandinavian Journal of Statistics},
+  volume  = {6},
+  number  = {2},
+  pages   = {65--70},
+  year    = {1979}
+}
+
+@inproceedings{dror_2018_hitchhiker,
+  author    = {Dror, Rotem and Baumer, Gili and Shlomov, Segev and Reichart, Roi},
+  title     = {The Hitchhiker's Guide to Testing Statistical Significance in Natural Language Processing},
+  booktitle = {Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  pages     = {1383--1392},
+  year      = {2018},
+  publisher = {Association for Computational Linguistics}
+}
+
+@inproceedings{card_2020_power,
+  author    = {Card, Dallas and Henderson, Peter and Khandelwal, Urvashi and Jia, Robin and Mahowald, Kyle and Jurafsky, Dan},
+  title     = {With Little Power Comes Great Responsibility},
+  booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  pages     = {9263--9274},
+  year      = {2020},
+  publisher = {Association for Computational Linguistics}
+}
+
+@article{dwork_2015_reusable_holdout,
+  author  = {Dwork, Cynthia and Feldman, Vitaly and Hardt, Moritz and Pitassi, Toniann and Reingold, Omer and Roth, Aaron},
+  title   = {The Reusable Holdout: Preserving Validity in Adaptive Data Analysis},
+  journal = {Science},
+  volume  = {349},
+  number  = {6248},
+  pages   = {636--638},
+  year    = {2015}
+}
+
+@article{gao_2024_dail_sql,
+  author    = {Gao, Dawei and Wang, Haibin and Li, Yaliang and Sun, Xiuyu and Qian, Yichen and Ding, Bolin and Zhou, Jingren},
+  title     = {{Text-to-SQL Empowered by Large Language Models: A Benchmark Evaluation}},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {17},
+  number    = {5},
+  pages     = {1132--1145},
+  year      = {2024},
+  doi       = {10.14778/3641204.3641221},
+  eprint    = {2308.15363},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+@inproceedings{pourreza_2023_din_sql,
+  author    = {Pourreza, Mohammadreza and Rafiei, Davood},
+  title     = {{DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction}},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  year      = {2023},
+  eprint    = {2304.11015},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2304.11015}
+}
+
+@inproceedings{wang_2025_mac_sql,
+  author    = {Wang, Bing and Ren, Changyu and Yang, Jian and Liang, Xinnian and Bai, Jiaqi and Chai, LinZheng and others},
+  title     = {{MAC-SQL: A Multi-Agent Collaborative Framework for Text-to-SQL}},
+  booktitle = {Proceedings of the 31st International Conference on Computational Linguistics (COLING 2025)},
+  pages     = {540--557},
+  year      = {2025},
+  publisher = {Association for Computational Linguistics},
+  eprint    = {2312.11242},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2312.11242}
+}
+
+@misc{talaei_2024_chess,
+  author    = {Talaei, Shayan and Pourreza, Mohammadreza and Chang, Yu-Chen and Mirhoseini, Azalia and Saberi, Amin},
+  title     = {{CHESS: Contextual Harnessing for Efficient SQL Synthesis}},
+  year      = {2024},
+  eprint    = {2405.16755},
+  eprinttype = {arxiv},
+  primaryclass = {cs.LG},
+  url       = {https://arxiv.org/abs/2405.16755}
+}
+
+@misc{maamari_2024_death_schema_linking,
+  author    = {Maamari, Karime and Abubaker, Fadhil and Jaroslawicz, Daniel and Mhedhbi, Amine},
+  title     = {{The Death of Schema Linking? Text-to-SQL in the Age of Well-Reasoned Language Models}},
+  year      = {2024},
+  eprint    = {2408.07702},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2408.07702}
+}
+
+@article{chung_2025_long_context_nl2sql,
+  author    = {Chung, Yeounoh and Kakkar, Gaurav T. and Gan, Yu and Milne, Brenton and {\"O}zcan, Fatma},
+  title     = {{Is Long Context All You Need? Leveraging LLM's Extended Context for NL2SQL}},
+  journal   = {Proceedings of the VLDB Endowment},
+  volume    = {18},
+  number    = {8},
+  pages     = {2735--2747},
+  year      = {2025},
+  doi       = {10.14778/3742728.3742761},
+  eprint    = {2501.12372},
+  eprinttype = {arxiv},
+  primaryclass = {cs.DB}
+}
+
+@misc{gao_2024_xiyan_sql,
+  author    = {Gao, Yingqi and Liu, Yifu and Li, Xiaoxia and Shi, Xiaorong and Zhu, Yin and Wang, Yiming and others},
+  title     = {{A Preview of XiYan-SQL: A Multi-Generator Ensemble Framework for Text-to-SQL}},
+  year      = {2024},
+  eprint    = {2411.08599},
+  eprinttype = {arxiv},
+  primaryclass = {cs.AI},
+  url       = {https://arxiv.org/abs/2411.08599}
+}
+
+@inproceedings{ren_2024_purple,
+  author    = {Ren, Tonghui and Fan, Yuankai and He, Zhenying and Huang, Ren and Dai, Jiaqi and Huang, Can and others},
+  title     = {{PURPLE: Making a Large Language Model a Better SQL Writer}},
+  booktitle = {Proceedings of the 40th IEEE International Conference on Data Engineering (ICDE 2024)},
+  year      = {2024},
+  eprint    = {2403.20014},
+  eprinttype = {arxiv},
+  url       = {https://arxiv.org/abs/2403.20014}
+}
+
+@misc{nahid_2025_bidirectional_schema_linking,
+  author    = {Nahid, Md Mahadi Hasan and Rafiei, Davood and Zhang, Weiwei and Zhang, Yong},
+  title     = {{Rethinking Schema Linking: A Context-Aware Bidirectional Retrieval Approach for Text-to-SQL}},
+  year      = {2025},
+  eprint    = {2510.14296},
+  eprinttype = {arxiv},
+  primaryclass = {cs.CL},
+  url       = {https://arxiv.org/abs/2510.14296}
+}
+
+@misc{glass_2025_extractive_schema_linking,
+  author    = {Glass, Michael and others},
+  title     = {{Extractive Schema Linking for Text-to-SQL}},
+  year      = {2025},
+  eprint    = {2501.17174},
+  eprinttype = {arxiv},
+  url       = {https://arxiv.org/abs/2501.17174}
+}

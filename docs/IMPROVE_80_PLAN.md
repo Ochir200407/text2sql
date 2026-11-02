@@ -134,7 +134,7 @@ max_length 16384-т сургагдсан тул өөрийн DB-ийн 344 га�
 **Kaggle-д ажиллуулах (2×T4).**
 1. Локал: `python scripts/notebook/pack_train_d3.py --src <бүтэн data/train> --out <хавтас>` → `t2s_train_d3.zip.part00`
    (+ ≤ 9.5 MB-аар хуваасан бусад part) ба `SHA256_train_d3.txt` (детерминист, ~0.8 MB; eval-ийн id/асуулттай мөр хасна).
-   Шинэ private dataset болгон байршуулна. Шинэчилсэн кодыг `python scripts/notebook/pack_code.py` → text2sql dataset.
+   Шинэ private dataset болгон байршуулна. Шинэчилсэн кодыг `python scripts/notebook/pack_code.py --slim` → text2sql dataset.
 2. Notebook: Add Input = код + train_d3 dataset; GPU T4 x2, Internet On. ТОХИРГОО: `MODE = "stage"`,
    `STAGE = "train_d3"`, `BEST_A = "A7"`; үнэлгээ хийх бол `os.environ["D3_EVAL"] = "1"` ба
    `os.environ["D3_RUNS"] = "H4s:dev D3s:dev"` (`<ID>[@d2|d3]:<split>`; @-гүй бол run-ий adapter: H4s → D2-ийн нэгтгэсэн

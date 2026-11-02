@@ -16,7 +16,7 @@ import numpy as np
 from rapidfuzz import fuzz
 
 from ..text.normalize import (
-    Transliterator, cyr_key, script_of, stem_variants, tokens, weak_latin_keys,
+    Transliterator, cyr_key, script_of, stem_variants, strip_suffix, tokens, weak_latin_keys,
 )
 from .bm25 import BM25, normalize_scores
 from .embed import cosine_top
@@ -99,6 +99,64 @@ class ValueHit:
     keyword: str
 
 
+# M1vf (F1, RunOptions.value_match): "legacy" = хуучин тааралт (анхдагч, байт-байтаар ижил); "strict" = кирилл түлхүүрийг
+# зөвхөн кириллээр + дагавар хассан/угтвар тааралтаар (сул латин түлхүүр «байсан → Баасан», «хувьд → Ховд»-г үүсгэдэг)
+VALUE_MATCH_MODES = ("legacy", "strict")
+# Хүснэгтийн linking-ийн өсгөлтөд тооцох баттай тааралт (fuzzy буюу ойролцоо кирилл тааралт өсгөхгүй)
+STRONG_KINDS = frozenset({"exact", "stem", "prefix"})
+_MIXED_SUFFIX = re.compile(r"^(.*[0-9a-z])-[а-яёөү]{1,5}$")   # VIP-ийн, UB01-ээс → vip, ub01
+
+
+@dataclass
+class MatchedValueHit(ValueHit):
+    """value_match="strict"-ийн тааралт: kind = exact | stem (дагавар хассан хэлбэр = утга) | prefix (утгын эхний
+    үг(үүд)) | fuzzy (зөвхөн кирилл ratio). legacy горим энгийн ValueHit буцаадаг тул түүний хэлбэр өөрчлөгдөхгүй."""
+    kind: str = "fuzzy"
+
+
+def stem_forms(kw_c: str) -> set[str]:
+    """Түлхүүрийн (cyr_key) дагавар хассан хэлбэрүүд: сүүлийн үгийн stem_variants, үг бүрийн strip_suffix
+    (Дарханы салбарын → дархан салбар), латин/тоон үгийн кирилл дагавар (vip-ийн → vip)."""
+    words = kw_c.split()
+    if not words:
+        return set()
+    forms = {kw_c, " ".join(strip_suffix(w) for w in words)}
+    forms.update(" ".join(words[:-1] + [v]) for v in stem_variants(words[-1]))
+    forms.add(" ".join(_MIXED_SUFFIX.sub(r"\1", w) for w in words))
+    return {f for f in forms if f}
+
+
+def strict_match(kw_c: str, kw_l: list[str], forms: set[str], cyrillic: bool, vc: str, vl: str,
+                 min_score: float = 0.85) -> tuple[float, str] | None:
+    """F1 (value_match="strict"): (оноо, төрөл) эсвэл None. Кирилл түлхүүрт сул латин түлхүүр огт хэрэглэхгүй:
+    яг тэнцүү → 1.0; дагавар хассан хэлбэр нь утга → 0.95; утга нь түлхүүрийн хэлбэрээр + зайгаар эхэлдэг (угтвар,
+    тэр хэлбэр нь утгын ≥60%) → 0.9; бусад нь кирилл ratio ≥ min_score (≤4 үсэгтэй түлхүүрт ≥ 0.95). Латин/холимог түлхүүрт
+    хуучин сул латин харьцуулалт, гэхдээ хэсэгчилсэн тааралт зөвхөн угтвараар (partial_ratio нь «oro»-г «moron»-ы дунд
+    олдог)."""
+    if kw_c == vc:
+        return 1.0, "exact"
+    s_cyr = fuzz.ratio(kw_c, vc) / 100.0
+    if vc in forms:
+        return max(0.95, s_cyr), "stem"
+    if cyrillic:
+        if len(vc) >= 5 and any(len(f) >= max(4, 0.6 * len(vc)) and vc.startswith(f + " ") for f in forms):
+            return max(0.9, s_cyr), "prefix"
+        if len(kw_c) <= 4 and s_cyr < 0.95:
+            return None
+        return (s_cyr, "fuzzy") if s_cyr >= min_score else None
+    s_lat = max(fuzz.ratio(k, vl) for k in kw_l) / 100.0
+    s_pre = max((fuzz.ratio(k[:len(vl)], vl) if len(k) > len(vl) else fuzz.ratio(k, vl[:len(k)])
+                 for k in kw_l if 0.6 * len(vl) <= len(k) <= len(vl) + 4), default=0) / 100.0 \
+        if len(kw_c) >= 5 else 0.0
+    prefix = len(vl) >= 5 and s_pre >= 0.95
+    score = max(s_cyr, s_lat, 0.9 * s_pre if prefix else 0.0)
+    if len(kw_c) <= 4 and s_cyr < 0.95:
+        return None
+    if score < min_score:
+        return None
+    return score, ("exact" if max(s_cyr, s_lat) >= 1.0 else "prefix" if prefix else "fuzzy")
+
+
 # Ижил оноотой утгыг эрэмбэлэхэд гол хүснэгтүүдийг түрүүлүүлнэ
 _TABLE_PRIORITY = {"branches": 0, "products": 0, "loans": 1, "customers": 1, "deposits": 2, "accounts": 2,
                    "employees": 3, "loan_applications": 3}
@@ -145,11 +203,27 @@ class ValueIndex:
         return out
 
     def search(self, question: str, per_keyword: int = 10, top_total: int = 16, mode: str = "basic",
-               translit: Transliterator | None = None, min_score: float = 0.85) -> list[ValueHit]:
+               translit: Transliterator | None = None, min_score: float = 0.85,
+               match: str = "legacy") -> list[ValueHit]:
+        """match (RunOptions.value_match): "legacy" = хуучин оноо (анхдагч); "strict" = strict_match (MatchedValueHit)."""
+        if match not in VALUE_MATCH_MODES:
+            raise ValueError(f"value_match: үл мэдэгдэх горим {match!r} (боломжит: {VALUE_MATCH_MODES})")
         hits: dict[tuple[str, str, str], ValueHit] = {}
         for kw in self.keywords(question, mode, translit):
             kw_c = cyr_key(kw)
             kw_l = weak_latin_keys(kw)
+            if match == "strict":
+                forms, cyrillic = stem_forms(kw_c), script_of(kw) == "cyrillic"
+                for i, _ in self.bm25.top(kw, per_keyword):
+                    e = self.entries[i]
+                    m = strict_match(kw_c, kw_l, forms, cyrillic, *self.keys[i], min_score=min_score)
+                    if m is None:
+                        continue
+                    key, sc, old = (e.table, e.column, e.value), round(m[0], 3), hits.get((e.table, e.column, e.value))
+                    # тэнцвэл баттай төрөл (exact/stem/prefix) давуу — linking-ийн өсгөлт түүнийг хардаг
+                    if old is None or (sc, m[1] in STRONG_KINDS) > (old.score, getattr(old, "kind", "") in STRONG_KINDS):
+                        hits[key] = MatchedValueHit(e.table, e.column, e.value, sc, kw, m[1])
+                continue
             for i, _ in self.bm25.top(kw, per_keyword):
                 e = self.entries[i]
                 vc, vl = self.keys[i]
@@ -230,6 +304,25 @@ def mask_question(question: str, values: list[str]) -> str:
     return NUMBER.sub("<тоо>", q)
 
 
+MASK_MODES = ("legacy", "values")
+_FIRST_WORD = re.compile(r"\s*([A-Za-zА-Яа-яЁёӨөҮү][\w\-]*)")
+
+
+def mask_values(text: str, hits, entity_keys: dict[str, str]) -> list[str]:
+    """M1vf (F3, RunOptions.mask_mode="values"): жишээний хайлтад асуултаас маскжуулах хэсгүүд —
+    (1) утгын тааралтын DB-ийн утга (хуучин шиг; асуултад байвал л солигдоно), (2) DB-ийн оноосон нэр (салбар,
+    дүүрэг, аймаг …; ≤5 тэмдэгтийн дагаврыг хассан хэлбэр нь утгатай тэнцүү — translate_fix.span_value), (3) regex
+    (бизнес түлхүүр, салбарын код, огноо, ишлэл). Хуучин `_quoted()` нь том үсгээр эхэлсэн бүх үгийг, тэр дундаа
+    өгүүлбэрийн ЭХНИЙ үгийг (Барьцаа, Зээлийн, Өнөөдөр …) маскжуулдаг байв — энд эхний үг зөвхөн (1)/(2)-т таарвал."""
+    from ..pipeline.translate import filter_spans, find_value_spans
+    spans = find_value_spans(text)
+    first = _FIRST_WORD.match(text or "")
+    if first and first.group(1)[:1].isupper():
+        spans.append(first.group(1))
+    keep, _ = filter_spans(spans, text, entity_keys)
+    return list(dict.fromkeys([h.value for h in hits] + keep))
+
+
 def sql_skeleton(sql: str) -> list[str]:
     """SQL-ийн бүтэц: түлхүүр үг, функц, оператор; нэр, тоо, текстийг хасна."""
     s = re.sub(r"'(?:[^']|'')*'", " _v_ ", sql or "")
@@ -276,7 +369,9 @@ class ExampleIndex:
 
     def search(self, question: str, values: list[str], qvec: np.ndarray | None = None, k: int = 4,
                preliminary_sql: str | None = None, alpha: float = 0.5, exclude_families: set[str] | None = None,
-               pool: int = 20) -> list[Example]:
+               pool: int = 20, table_rerank=None) -> list[Example]:
+        """table_rerank (retrieval/fewshot_rerank.TableRerank, M1fs): pool-ыг жишээний SQL-ийн хүснэгт ↔ linked
+        хүснэгтийн Jaccard-аар дахин эрэмбэлнэ (None = хуучин эрэмбэ яг хэвээр)."""
         masked = mask_question(question, values)
         bm = normalize_scores(dict(self.bm25.top(masked, pool)))
         em = cosine_top(self.emb, qvec, pool) if qvec is not None else {}
@@ -286,10 +381,21 @@ class ExampleIndex:
         cands = [i for i, _ in sorted(sc.items(), key=lambda kv: -kv[1])[:pool]]
         if exclude_families:
             cands = [i for i in cands if self.examples[i].family not in exclude_families]
-        if preliminary_sql:
+        if table_rerank is not None:
+            from .fewshot_rerank import rerank_score
+            cands.sort(key=lambda i: -rerank_score(sc.get(i, 0.0), self.example_tables(i), table_rerank))
+        elif preliminary_sql:
             cands.sort(key=lambda i: -(0.5 * sc.get(i, 0) + 0.5 * skeleton_similarity(preliminary_sql,
                                                                                        self.examples[i].sql)))
         return [self.examples[i] for i in cands[:k]]
+
+    def example_tables(self, i: int) -> frozenset[str]:
+        """i-р жишээний SQL-ийн хүснэгтийн олонлог (sqlglot; кэштэй)."""
+        cache = self.__dict__.setdefault("_tables_cache", {})
+        if i not in cache:
+            from .fewshot_rerank import sql_tables
+            cache[i] = sql_tables(self.examples[i].sql)
+        return cache[i]
 
 
 # ---------------------------------------------------------------------------

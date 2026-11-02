@@ -1,10 +1,13 @@
 """reselect: загварын татгалзал (нэг хувилбартай run) дээр дүрэм онлайнтай адил түрүүлж ажиллана (tester M1)."""
 import json
 
+import pytest
+
 from mn_text2sql.config import load_config
 from mn_text2sql.eval.reselect import reselect_run
 
 
+@pytest.mark.db   # PostgreSQL (reselect_run нь Executor-оор гүйцэтгэнэ) — conftest DB_OK-гүй бол алгасна
 def test_rule_precedes_model_refusal_in_single_candidate_runs(tmp_path):
     cfg = load_config()
     dev = [json.loads(x) for x in open(cfg["eval"]["dev_file"], encoding="utf-8") if x.strip()]
@@ -38,6 +41,7 @@ def test_merge_candidates_puts_weighted_extra_first():
     assert merge_candidates([], ["x", "y"], 1) == ["x", "y"]
 
 
+@pytest.mark.db   # PostgreSQL (reselect_run нь Executor-оор гүйцэтгэнэ) — conftest DB_OK-гүй бол алгасна
 def test_ensemble_extra_run_outvotes_base_with_weight(tmp_path):
     """E5: суурь run-ий 2 буруу хувилбарыг нэмэлт run-ий зөв хувилбар жин 3-аар давна, жин 1-ээр давахгүй."""
     cfg = load_config()

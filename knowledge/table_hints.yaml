@@ -1,0 +1,92 @@
+# =====================================================================
+# Хүснэгтийн ялгах зөвлөмж (table_hints, M1th) — төстэй хүснэгтийг андуурахаас сэргийлэх богино англи мөр.
+# ---------------------------------------------------------------------
+# Хосыг dev-ийн буруу хариултын (gold хүснэгт → таамагласан хүснэгт) давтамжаар СОНГОСОН (docs/ACCURACY_PLAN.md «M1th»),
+# харин зөвлөмжийн АГУУЛГЫГ зөвхөн knowledge/semantic_model.yaml-ийн хүснэгт/баганын тайлбар, enum утгаас бичсэн
+# (dev-ийн gold SQL-ээс аваагүй). Prompt нь орчуулгын дараа англи тул зөвлөмж англиар.
+#   tables: 2 хүснэгт = андуурдаг хос; 1 хүснэгт = тухайн хүснэгтийн шүүлтийн сануулга
+#   hint:   prompt-д evidence мөр болж орно
+# Сонголт (knowledge/table_hints.py): бүх хүснэгт нь prompt-д байх ба ядаж нэг нь linked_tables-д → linked эрэмбээр ≤ 5 мөр.
+# =====================================================================
+version: 1
+hints:
+  # ---------------------------------------------------------- андуурдаг хосууд (dev давтамжаар эрэмбэлсэн)
+  - tables: [loans, loan_applications]
+    hint: "loan_applications = loan requests and their decisions (requested/approved amount, status_code, submitted/decided date); loans = loans actually contracted and disbursed (terms, balances, DPD). Only CONTRACTED applications become loans."
+  - tables: [loan_writeoffs, loan_payments]
+    hint: "loan_writeoffs = write-off events (writeoff_date, written-off principal/interest/penalty/fee, total_amount, recovered_amount after write-off); loan_payments = individual repayments (payment_date, amount, payment_type, status)."
+  - tables: [loans, loan_payments]
+    hint: "loans has one row per loan with cumulative principal_paid and principal_outstanding; loan_payments has one row per repayment (payment_date, amount, allocated_principal/interest) for payments made in a period."
+  - tables: [deposits, accounts]
+    hint: "deposits = deposit contracts (term, demand, child deposits) with interest rate, term and balance; accounts = current and savings accounts (account_type_code CURRENT/SAVINGS). A question about deposits uses deposits."
+  - tables: [loan_schedule, loan_payments]
+    hint: "loan_schedule = planned installments (due_date, principal_due/interest_due/total_due, installment status PAID/OVERDUE ...); loan_payments = money actually received (payment_date, amount)."
+  - tables: [loans, accounts]
+    hint: "Loan balances live in loans (principal_outstanding, principal_outstanding_mnt); accounts holds only customer current and savings accounts."
+  - tables: [loan_writeoffs, loans]
+    hint: "loans.written_off_amount and status_code WRITTEN_OFF describe a loan's current state; loan_writeoffs has the write-off event itself (writeoff_date, writeoff_type, amounts by component, recovered_amount)."
+  - tables: [loan_dpd_history, loans]
+    hint: "loans.days_past_due is the current DPD (as of today); loan_dpd_history is a month-end snapshot per active loan (snapshot_date) for past dates, PAR trends and roll rates."
+  - tables: [loans, exchange_rates]
+    hint: "loans already has MNT columns (principal_amount_mnt, principal_outstanding_mnt); use them instead of joining exchange_rates."
+  - tables: [deposits, collaterals]
+    hint: "collaterals = pledged assets and their valuations (a pledged deposit is collateral_type_code DEPOSIT_PLG); customer deposit balances and rates are in deposits."
+  - tables: [credit_scores, loan_applications]
+    hint: "credit_scores = score (0-1000), risk_grade_code and pd_estimate per application; loan_applications holds the application itself (amounts, status, decision)."
+  - tables: [loan_writeoffs, loan_charges]
+    hint: "loan_charges = fees and late-payment penalties charged (amount, paid_amount, waived_amount); written-off fee/penalty amounts are in loan_writeoffs."
+  - tables: [collaterals, loan_collaterals]
+    hint: "collaterals = the asset and its valuation; loan_collaterals = link between a loan and a collateral with allocated_amount and LTV."
+  - tables: [gl_entries, transactions]
+    hint: "gl_entries = general ledger journal lines (income, expense, balance-sheet accounts; dr_cr D/C); transactions = customer account transactions (transaction_type_code, status_code)."
+  # ---------------------------------------------------------- нэг хүснэгтийн шүүлтийн сануулга (dev-д хамгийн их орхигдсон шүүлт)
+  - tables: [loan_payments]
+    hint: "loan_payments: successful payments have status = 'POSTED' (PENDING, REVERSED, FAILED are not); amount is in the loan currency (currency_code), there is no *_mnt column."
+  - tables: [loans]
+    hint: "loans: the active portfolio is is_active_portfolio = TRUE (ACTIVE, OVERDUE, RESTRUCTURED, LEGAL); loans with status PENDING_DISBURSEMENT have not been disbursed yet (disbursement_date is NULL)."
+
+# =====================================================================
+# Далд нөхцөл (default_predicates, T1 / M1ip) — асуултад шууд хэлээгүй ч хүснэгтийн анхдагч бизнесийн дүрэм.
+# ---------------------------------------------------------------------
+# Дүрэм бүрийг ЗӨВХӨН evalset/dev.jsonl-ийн gold SQL-ээр баталгаажуулсан (test-ийн gold-ыг огт уншаагүй):
+#   table_hints.predicate_support() — tests/test_implied_preds.py доорх dev_support тоог дахин тооцож шалгана.
+#   table_queries        = тухайн хүснэгтийг хэрэглэсэн dev gold SQL
+#   with_predicate       = тэдгээрээс pattern-тай (нөхцөлтэй) нь
+#   fires                = skip/when/keep-ийн дараа дүрэм идэвхжих асуулт
+#   fires_with_predicate = идэвхжээд gold-д нөхцөл байгаа нь (нарийвчлал = fires_with_predicate / fires)
+# skip/keep үгсийг dev-ийн эсрэг жишээнээс (P022 «failed», D002 «withdrawn», L012 «closed» ...) сонгосон тул dev-ийн
+# нарийвчлал өөдрөг; бодит үнэлгээ = M1ip-ийн dev run (test-д зөвхөн эцсийн сонголт).
+# Хасагдсан нэр дэвшигч (dev-ийн дэмжлэг сул): loan_payments currency_code = 'MNT' 5/19 (асуулт MNT-г шууд хэлдэг);
+#   collaterals status = 'ACTIVE' 4/5 (бүгд «active» гэж шууд хэлсэн, n бага); accounts status = 'ACTIVE' 2/7;
+#   loans currency_code = 'MNT' 3/76; loans status_code = 'CLOSED' 4/76 (асуултад шууд).
+# Сонголт (implied_predicates): хүснэгт нь linked (байхгүй бол prompt-ын) хүснэгтэд, асуулт (англи) skip-д таарахгүй
+#   (keep таарвал skip-ийг үл тооно), when байвал таарсан үед → файлын дарааллаар ≤ 4 мөр.
+# =====================================================================
+default_predicates:
+  - table: loan_payments
+    sql: "status = 'POSTED'"
+    hint: "Implied condition: payments received or made means successful payments only, loan_payments.status = 'POSTED' (PENDING, REVERSED, FAILED excluded), unless the question asks about those statuses."
+    pattern: 'status\s*=\s*''POSTED'''
+    skip: ['\bfail', '\brevers', '\bpending\b', '\bby status\b', 'regardless of (the )?status']
+    dev_support: {table_queries: 19, with_predicate: 18, fires: 18, fires_with_predicate: 18}
+  - table: loans
+    sql: "is_active_portfolio"
+    hint: "Implied condition: questions about current loans, the loan portfolio, outstanding balances or overdue loans use loans.is_active_portfolio = TRUE, unless the question is about disbursements, closed, written-off or pending loans or a past snapshot."
+    pattern: 'is_active_portfolio'
+    skip: ['disburs', '\bclosed?\b', 'repaid', 'written[- ]off|write-?off', '\bpending\b', '\blegal\b', '\bstatus\b', 'snapshot|end[- ]of|end-\d{4}|as of', '\bever\b', 'first(-ever)? loan', 'schedule|installment', 'guarantee', 'collection case']
+    keep: '\bactive\b|\bportfolio\b'
+    dev_support: {table_queries: 76, with_predicate: 47, fires: 46, fires_with_predicate: 46}
+  - table: loans
+    sql: "disbursement_date IS NOT NULL"
+    hint: "Implied condition: disbursed loans have loans.disbursement_date IS NOT NULL (or a disbursement_date range); loans with status PENDING_DISBURSEMENT are not disbursed."
+    pattern: 'disbursement_date\s*(IS\s+NOT\s+NULL|BETWEEN|[<>]=?)'
+    when: 'disburs'
+    skip: ['\bpending\b']
+    dev_support: {table_queries: 76, with_predicate: 12, fires: 10, fires_with_predicate: 10}
+  - table: deposits
+    sql: "status = 'ACTIVE'"
+    hint: "Implied condition: deposit balances, rates and counts refer to open deposits, deposits.status = 'ACTIVE', unless the question asks about closed, matured, early-withdrawn, pledged or newly opened deposits."
+    pattern: 'status\s*=\s*''ACTIVE'''
+    skip: ['\bclosed?\b', 'withdrawn|early', '\bmatured\b', 'pledged', '\bopened\b', 'including']
+    keep: '\bactive\b'
+    dev_support: {table_queries: 21, with_predicate: 16, fires: 16, fires_with_predicate: 16}

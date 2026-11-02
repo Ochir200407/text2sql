@@ -15,7 +15,8 @@ MD_INTRO = r"""# Монгол Text2SQL — тест (Kaggle / Colab)
 Энэ notebook нь `scripts/server/run_plan_l4.sh`-ийн үе шатыг (A, B, F, E, G, thesis, test) ажиллуулж, **бүх үр дүнг нэг
 файлд — `t2s_results.zip`** — 15 минут тутам хадгална. Дараагийн сесс тэр файлаас үргэлжилнэ (дууссан асуултыг алгасна).
 
-**Нэг удаагийн бэлтгэл (локал):** `python scripts/notebook/pack_code.py` → `dist/t2s_code.zip`.
+**Нэг удаагийн бэлтгэл (локал):** `python scripts/notebook/pack_code.py --slim` → `dist/t2s_code.zip` (Kaggle-ийн
+browser-ийн байршуулалтын 10 MB-ын хязгаар; `--slim`-гүй багц хэтэрнэ).
 
 **Kaggle:**
 1. Datasets → New Dataset → `t2s_code.zip`-ийг байршуулна (нэр нь жишээ нь `t2s-code`).
@@ -125,7 +126,10 @@ if cap < 8.0:          # T4: BF16/FP8 алга → fp16, бүх GPU-д хува�
         raise SystemExit("Нэг T4 (16 GB)-д 7–9B загвар багтахгүй — Kaggle «GPU T4 x2» эсвэл Colab L4/A100")
     base = f"--dtype half --tensor-parallel-size {n} --max-model-len 32768 --gpu-memory-utilization 0.90"
     mm = ' --limit-mm-per-prompt {"image":0,"video":0}'
-    os.environ["T2S_VLLM_ARGS"] = base
+    # --enable-prefix-caching: V1-д анхдагч ч тодорхой бичнэ (n=8 түүвэр, засварын яриа 20k угтвараа хуваалцана;
+    # R7 §2.1). models.yaml-д зөвхөн arctic-ийн мөрөнд бий (ижил requirements-gpu.txt-ийн vLLM) — Qwen3.5-ийн
+    # hybrid (linear attention) загварт тодорхой асаахгүй (models.yaml-тай адил, хувилбараас хамаарах эрсдэл).
+    os.environ["T2S_VLLM_ARGS"] = base + " --enable-prefix-caching"
     os.environ["T2S_VLLM_ARGS__sqrl_9b"] = base + mm
     os.environ["T2S_VLLM_ARGS__qwen3_5_9b"] = base + mm
     os.environ["T2S_LLM_TIMEOUT_S"] = "1200"   # T4 удаан: урт reasoning-д 180 с хүрэлцэхгүй

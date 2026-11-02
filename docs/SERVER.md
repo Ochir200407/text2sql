@@ -71,7 +71,7 @@ bash scripts/server/serve_model.sh stop
   | `best_sft` / `best_sft_adapter` | C-ийн шилдэг | C6, D1, F6 |
 
 - Test (200 асуулт) нь бүлэг бүрийн эцэст зөвхөн шилдэг тохиргоонд ажиллана:
-  `STAGE=test BEST_A=A6 TEST_IDS=A6,B5,E2 bash scripts/server/run_plan_l4.sh` (тайлан: `results/REPORT_test.md`).
+  `STAGE=test BEST_A=A6 TEST_IDS=A6,B5,E2 bash scripts/server/run_plan_l4.sh` (тайлан: `results/REPORT.md`-ийн «Test» хэсэг; тусдаа REPORT_test.md үүсгэдэггүй).
 - Орлуулах шийдвэр: `t2s compare --a results/runs/test/EXT-current/... --b results/runs/test/E2/...` (McNemar, ΔEX,
   TrustSQL).
 - Embedding (bge-m3) нь eval үед CPU дээр (`T2S_EMBED_DEVICE=cpu`, env.sh). Индекс embedding-тэй боловч загвар

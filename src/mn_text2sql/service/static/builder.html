@@ -6,6 +6,7 @@
 <title>Text2SQL flow builder</title>
 <link rel="stylesheet" href="/builder/vendor/drawflow.min.css">
 <script src="/builder/vendor/drawflow.min.js"></script>
+<script src="/analyst/analyst.js"></script>
 <style>
 /* Layout (company-rag workflow builder-ийн загвар): дээд мөр; palette | Drawflow canvas | таб бүхий хажуугийн самбар */
 :root{--bg:#f5f6f8;--panel:#fff;--line:#e3e6eb;--text:#1d2330;--muted:#6b7385;--accent:#3b5bdb;--accent-soft:#e8edff;
@@ -401,7 +402,8 @@ body.simple .nd-head{padding:10px 12px 4px;font-size:14px}
   <aside class="side">
     <div class="tabs"><button data-t="test" class="on" title="Асуулт илгээж бодит урсгалыг турших">💬 Emulator</button><button data-t="props" title="Сонгосон алхмын тохиргоо">⚙ Inspector</button></div>
     <div class="pane on emu" id="t-test">
-      <div class="emu-head"><span id="srv" class="srv"></span><span class="grow"></span><button class="mini" id="chatReset" title="Яриаг цэвэрлэх">⟳ Шинэ яриа</button></div>
+      <div class="emu-head"><span id="srv" class="srv"></span><span class="grow"></span><button class="mini" id="histBtn" title="Өмнөх асуултууд — дарж дахин ажиллуулна" aria-expanded="false">🕘 Түүх</button><button class="mini" id="chatReset" title="Яриаг цэвэрлэх">⟳ Шинэ яриа</button></div>
+      <div id="histPanel" hidden style="border-bottom:1px solid var(--line);padding:6px 8px;background:#fff"></div>
       <div id="chat" class="chat"></div>
       <div id="nomodel" hidden></div>
       <div class="composer"><textarea id="q" placeholder="Асуултаа бичнэ үү…" title="Enter — илгээх, Shift+Enter — шинэ мөр" rows="1"></textarea><button class="primary" id="run" title="Илгээх (Enter)">➤</button></div>
@@ -461,7 +463,9 @@ body.simple .nd-head{padding:10px 12px 4px;font-size:14px}
 <script>
 // ================= Ерөнхий =================
 const key = new URLSearchParams(location.search).get("k");
-const kq = key ? "?k=" + encodeURIComponent(key) : "";
+const admin = new URLSearchParams(location.search).get("admin");
+// түлхүүрийг толгойгоор илгээнэ (URL/access log-д үлдээхгүй); ?k= нь хуудсыг нээх холбоосонд л
+const authH = Object.assign({}, key ? {"X-T2S-Key": key} : {}, admin ? {"X-T2S-Admin": admin} : {});
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const store = {   // хувийн тохиромж л (асуултын түүх г.м.) — хадгалагдахгүй байж болно
@@ -470,8 +474,8 @@ const store = {   // хувийн тохиромж л (асуултын түүх
 };
 
 async function api(path, opt) {
-  const r = await fetch(path + kq, opt && {method: opt.method || "POST", headers: {"Content-Type": "application/json"},
-                                         body: opt.body && JSON.stringify(opt.body)});
+  const r = await fetch(path, opt ? {method: opt.method || "POST", headers: Object.assign({"Content-Type": "application/json"}, authH),
+                                     body: opt.body && JSON.stringify(opt.body)} : {headers: authH});
   const t = await r.text(); let j;
   try { j = JSON.parse(t); } catch { throw new Error(t.slice(0, 300) || r.statusText); }
   if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
@@ -1218,7 +1222,8 @@ function botMsg(i) {
     const out = r.steps.find(s => s.node === "output") || {}, st = STATUS[out.status] || ["info", out.status || "?"];
     h = `<div class="meta"><span class="stc ${st[0]}">${st[1]}</span><span>${(r.latency_ms / 1000).toFixed(1)} с</span>${out.row_count != null ? `<span>· ${out.row_count} мөр</span>` : ""}</div>` +
       (out.explanation ? `<div>${esc(out.explanation)}</div>` : "") + tableHtml(out) +
-      (out.sql ? `<details ${out.columns ? "" : "open"}><summary>SQL</summary><pre>${esc(out.sql)}</pre></details>` : "");
+      (out.sql ? `<details ${out.columns ? "" : "open"}><summary>SQL</summary><pre>${esc(out.sql)}</pre></details>` : "") +
+      (window.T2SAnalyst ? T2SAnalyst.render(r.analyst) : "");   // итгэл, хязгаар, график, SQL тайлбар, татах, 👍/👎
   } else {
     const d = rec.insp, rg = d.rag;
     h = `<div class="meta"><span class="stc info">⚪ загваргүй</span></div>Prompt бэлэн: ≈ <b>${(d.tokens?.total || 0).toLocaleString()}</b> токен` +
@@ -1226,6 +1231,7 @@ function botMsg(i) {
   }
   h += `<div class="acts"><button data-a="trace">${L().trace}</button><button data-a="prompt">${L().prompt}</button>${r && (r.steps.find(s => s.node === "output") || {}).sql ? '<button data-a="sql">📋 SQL хуулах</button>' : ""}</div>`;
   const el = addMsg("bot", h);
+  if (r && window.T2SAnalyst) T2SAnalyst.bind(el, r.analyst, {key, ask: nq => { $("#q").value = nq; send(); }});   // дараагийн асуулт
   el.querySelector('[data-a="trace"]').onclick = () => { renderTrace(i); showDbg("trace"); };
   el.querySelector('[data-a="prompt"]').onclick = () => openPrompt(i);
   const cp = el.querySelector('[data-a="sql"]'); if (cp) cp.onclick = () => copyText((r.steps.find(s => s.node === "output") || {}).sql || "");
@@ -1246,7 +1252,8 @@ async function send() {
         showProgress(ty, j);
         if (!j.done) continue;
         if (j.error) throw new Error(j.error);
-        CHAT[i].run = lastRun = j.result; CHAT[i].insp = j.result.inspect; break;
+        CHAT[i].run = lastRun = j.result; CHAT[i].insp = j.result.inspect;
+        window.T2SAnalyst?.history.add(q, j.result.status); break;
       }
     } else {
       CHAT[i].insp = await api("/flow/inspect", {body: {flow: toFlow(), base, question: q}});
@@ -1280,6 +1287,14 @@ function showProgress(ty, j) {
   $("#chat").scrollTop = $("#chat").scrollHeight;
 }
 $("#run").onclick = send;
+// Асуултын түүх (энэ хөтөчид): дарвал асуултыг дахин илгээнэ
+function renderHist() {
+  if (!window.T2SAnalyst) return;
+  T2SAnalyst.renderHistory($("#histPanel"), q => { $("#histPanel").hidden = true; $("#histBtn").setAttribute("aria-expanded", "false"); $("#q").value = q; send(); });
+  $("#histPanel").insertAdjacentHTML("beforeend", T2SAnalyst.history.list().length ? '<div style="text-align:right"><button class="mini" id="histClear">Түүх цэвэрлэх</button></div>' : "");
+  const c = $("#histClear"); if (c) c.onclick = () => { T2SAnalyst.history.clear(); renderHist(); };
+}
+$("#histBtn").onclick = () => { const p = $("#histPanel"); p.hidden = !p.hidden; $("#histBtn").setAttribute("aria-expanded", String(!p.hidden)); if (!p.hidden) renderHist(); };
 $("#q").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
 $("#chatReset").onclick = () => {
   CHAT.length = 0; lastRun = null; refreshState();

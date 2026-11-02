@@ -6,6 +6,10 @@
 3. Асуулт: LLM (орчуулагч загвар) анхны асуулт/SQL-ийг жишээ болгон шинэ SQL-д тохирох монгол ба англи асуулт
    бичнэ; латиныг галигийн хоёр хэв маягаар.
 4. dev/test-тэй давхардлыг training.data.dedup_against_eval шүүнэ (асуулт ба үр дүнгийн hash).
+L1 (2026-10-31): загвар нь жишээний сангийн ТҮҮХИЙ мөр (knowledge/examples.jsonl) байсан — `dedup` human.jsonl-ээс
+хасдаг (eval асуулттай ойролцоо / ижил gold үр дүнтэй) жишээний тогтмолыг сольсон хувилбар нь eval асуултын «өөрчилсөн
+хувилбар» боловч өөрийн асуултын ижил байдлын босгоос доош орж own_synth_clean-д үлдэж болно. Одоо ийм загварыг
+(dedup_against_eval-ийн ижил дүрмээр) хасна; бусад загварын хувилбар өмнөхтэй яг ижил (template_jobs).
 """
 
 from __future__ import annotations
@@ -119,8 +123,31 @@ def sql_variants(sql: str, values: dict, rng: random.Random, k: int = 6) -> list
     return out
 
 
+def template_exclusions(cfg: Config, tcfg: dict, templates: list[TrainItem], use_embeddings: bool = True) -> dict:
+    """L1: `dedup`-ийн human.jsonl-ээс хасагдах жишээ (dedup_against_eval, ижил босго ба embedding-ийн сонголт) —
+    {id: dedup-ийн бичлэг (eval_id, sim | reason)}. Тэдгээрийг C3-ийн загвар болгохгүй."""
+    from .data import dedup_against_eval
+    _, dropped = dedup_against_eval(cfg, templates, float(tcfg["data"]["dedup_threshold"]),
+                                    use_embeddings=use_embeddings)
+    return {d["id"]: d for d in dropped}
+
+
+def template_jobs(templates: list[TrainItem], values: dict, rng: random.Random, per: int, cap: int,
+                  base_hash=lambda t: None, excluded=frozenset()) -> list[tuple]:
+    """(загвар, шинэ SQL, загварын үр дүнгийн hash) ажлууд. rng-ийг БҮХ загварт өмнөхтэй ижил зарцуулна (хасагдсан
+    загварын хувилбарыг ч үүсгэнэ), shuffle ба cap-ийн ДАРАА excluded загварынхыг хасна — хасаагүй загварын ажил ба
+    тэдгээрийн эрэмбэ L1-ийн өмнөхтэй яг ижил (зөвхөн eval-тэй давхардсан загварын хувилбар л алга болно)."""
+    jobs = []
+    for t in templates:
+        bh = None if t.id in excluded else base_hash(t)
+        for s in sql_variants(t.gold_sql, values, rng, per):
+            jobs.append((t, s, bh))
+    rng.shuffle(jobs)
+    return [j for j in jobs[: cap * 2] if j[0].id not in excluded]
+
+
 def synthesize(cfg: Config, tcfg: dict, model_name: str | None = None, base_url: str | None = None,
-               seed: int = 42, workers: int = 16, llm=None) -> dict:
+               seed: int = 42, workers: int = 16, llm=None, use_embeddings: bool = True) -> dict:
     from ..bird.data import latin_variant
     from ..llm.client import make_llm
     rng = random.Random(seed)
@@ -140,19 +167,21 @@ def synthesize(cfg: Config, tcfg: dict, model_name: str | None = None, base_url:
     ex = Executor(bot_dsn(cfg), statement_timeout_ms=cfg["db"]["statement_timeout_ms"], maxconn=workers + 2)
     values = _values_by_column(cfg)
     templates = human_items(cfg)
-    jobs = []
-    for t in templates:
+    excluded = template_exclusions(cfg, tcfg, templates, use_embeddings)
+    if excluded:
+        log.warning("synth: eval-тэй давхардсан %d жишээг загвар болгохгүй (L1): %s", len(excluded), sorted(excluded))
+
+    def template_hash(t: TrainItem) -> str | None:
         g = guard.check(t.gold_sql)
         base = ex.run(g.sql) if g.ok else None
-        base_hash = result_hash(base.columns, base.rows) if base is not None and base.ok else None
-        for s in sql_variants(t.gold_sql, values, rng, per):
-            jobs.append((t, s, base_hash))
-    rng.shuffle(jobs)
-    jobs = jobs[: cap * 2]
+        return result_hash(base.columns, base.rows) if base is not None and base.ok else None
+
+    jobs = template_jobs(templates, values, rng, per, cap, template_hash, excluded)
     lock = threading.Lock()
     out_items: list[TrainItem] = []
     seen_hashes: set[str] = set()
-    stats = {"templates": len(templates), "candidates": len(jobs), "kept": 0, "empty_or_same": 0, "qgen_failed": 0}
+    stats = {"templates": len(templates), "templates_excluded": sorted(excluded), "candidates": len(jobs), "kept": 0,
+             "empty_or_same": 0, "qgen_failed": 0}
 
     def work(job):
         t, sql, base_hash = job
@@ -183,10 +212,11 @@ def synthesize(cfg: Config, tcfg: dict, model_name: str | None = None, base_url:
             with lock:
                 stats["qgen_failed"] += 1
             return
+        # L10: хувилбар нь зөвхөн тогтмолыг солих тул ORDER BY-ийн утга загварынхтай ижил — order_matters өвлөнө
         item = TrainItem(id=f"synth-{t.id}-{h[:8]}", source="own_synth", engine="postgres", gold_sql=sql,
                          question_mn=obj["mn"].strip(), question_en=(obj.get("en") or "").strip(),
                          question_latin=latin_variant(obj["mn"], random.Random(h)), difficulty=t.difficulty,
-                         extra={"template": t.id})
+                         extra={"template": t.id, **({"order_matters": True} if t.order_matters else {})})
         with lock:
             out_items.append(item)
             stats["kept"] += 1

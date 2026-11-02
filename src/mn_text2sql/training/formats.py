@@ -11,6 +11,9 @@
   байхгүй) үлдээнэ.
 * F6 (pivot): reasoning-ийн эхэнд "Restated: <англи нэг өгүүлбэр>" мөр.
 * C4 (english_share): англи асуултын гаргалтын эзлэх хувийг тохируулна.
+* R2-A (B9, сонголттой): sample_prompt — аль prompt-оор түүвэрлэсэн гаргалтыг цуглуулах (анхдагч: plain, tool-той бол
+  жорын prompt); жорын prompt-той ижил бол хадгалсан prompt-ыг (дахин угсрахгүй) ашиглана. eval_share — family-ээр
+  бүлэглэсэн validation (<recipe>__<model>.eval.jsonl; run_sft-ийн early stopping).
 """
 
 from __future__ import annotations
@@ -96,10 +99,19 @@ def _read_jsonl(path: Path) -> list[dict]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
-def collect_samples(tcfg: dict, model_name: str, prompt_mode: str, data_keys: list[str], tool: bool = False) -> list[dict]:
+def sample_mode(prompt_mode: str, tool: bool = False, sample_prompt: str | None = None) -> str:
+    """Цуглуулах sample файлын prompt (файлын нэрийн <model>__<prompt>__ хэсэг): sample_prompt өгвөл тэр (R2-A: h4s-ээр
+    шууд түүвэрлэсэн); үгүй бол plain (D2/D3: plain гаргалтыг дахин ашиглаж prompt-ыг солино), tool-той бол жорын prompt."""
+    if sample_prompt:
+        return sample_prompt
+    return prompt_mode if prompt_mode == "plain" or tool else "plain"
+
+
+def collect_samples(tcfg: dict, model_name: str, prompt_mode: str, data_keys: list[str], tool: bool = False,
+                    sample_prompt: str | None = None) -> list[dict]:
     """Жорын data түлхүүрээр (rejection, cot, synth, human) sample файлуудыг цуглуулна."""
     d = train_dir(tcfg) / "samples"
-    mode = prompt_mode if prompt_mode == "plain" or tool else "plain"   # D2: plain гаргалтыг дахин ашиглана
+    mode = sample_mode(prompt_mode, tool, sample_prompt)
     out = []
     for key in data_keys:
         for src in SOURCE_FILES.get(key, []):
@@ -202,6 +214,32 @@ def to_records(sample: dict, tok, pivot: bool = False, new_messages: list[dict] 
     return recs
 
 
+def split_group(sample: dict, items: dict) -> str:
+    """Validation-ийн хуваалтын бүлэг (B9): нэг family-ийн мөр (human жишээ, түүний синтетик хувилбарууд —
+    extra.template → тухайн жишээний family, synth_own-ийн нэг skeleton — extra.family) бүгд train эсвэл eval-д
+    орно (хувилбар нь нөгөө талд үлдэж loss-ийг хуурахгүй). Family-гүй (BIRD) мөр — асуултаараа (item_id)."""
+    iid = str(sample.get("item_id"))
+    it = items.get(iid)
+    extra = (it.extra or {}) if it is not None else {}
+    if extra.get("family"):
+        return f"family:{extra['family']}"
+    tpl = extra.get("template")
+    if tpl:
+        src = items.get(str(tpl))
+        fam = (src.extra or {}).get("family") if src is not None else None
+        return f"family:{fam}" if fam else f"template:{tpl}"
+    return f"item:{iid}"
+
+
+def pick_eval_groups(groups, share: float, seed: int = 42) -> set[str]:
+    """Бүлгийн share хувийг (≥ 1, ≤ нийт − 1) детерминист сонгоно — бүлгийн эрэмбэ, файлын дарааллаас үл хамаарна."""
+    pool = sorted(set(groups))
+    if share <= 0 or len(pool) < 2:
+        return set()
+    k = min(max(int(round(share * len(pool))), 1), len(pool) - 1)
+    return set(random.Random(f"{seed}:eval").sample(pool, k))
+
+
 def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int = 42, tokenizer=None) -> dict:
     spec = tcfg["recipes"][recipe]
     if spec["kind"] != "sft":
@@ -217,7 +255,10 @@ def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int =
     data_keys = spec["data"]
     if data_keys == "best_sft":   # D2/F6: C-ийн ШИЛДЭГ жорын өгөгдлийн холимог (training.yaml: best_sft)
         data_keys = tcfg["recipes"][tcfg["best_sft"]]["data"]
-    samples = collect_samples(tcfg, model_name, prompt_mode, data_keys, tool)
+    sample_prompt = spec.get("sample_prompt")       # B9 (R2-A): жишээ нь h4s-ээр шууд түүвэрлэсэн __h4s__ файл
+    smode = sample_mode(prompt_mode, tool, sample_prompt)
+    eval_share = float(spec.get("eval_share", tcfg["sft_defaults"].get("eval_share")) or 0)
+    samples = collect_samples(tcfg, model_name, prompt_mode, data_keys, tool, sample_prompt=sample_prompt)
     if not samples:
         raise FileNotFoundError(f"{recipe}: sample файл алга (data/train/samples/{model_name}__...). Эхлээд sample/cot")
     max_len = recipe_max_length(tcfg, recipe)
@@ -239,9 +280,10 @@ def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int =
                  spec["bird_limit"])
     bird_stored = spec.get("bird_prompt", "render") == "stored"
     renderer = None
-    if prompt_mode in ("rag", "h4s") and not tool:
+    if prompt_mode in ("rag", "h4s") and not tool and smode != prompt_mode:
+        # plain гаргалтыг жорын prompt-оор дахин угсарна (D2/D3); жорын prompt-оор түүвэрлэсэн бол хадгалсан нь яг тэр
         renderer = Renderer(cfg, model_name, prompt_mode, tool, pivot, index_dir=spec.get("index_dir"))
-    item_index = load_item_index(tcfg) if renderer is not None else {}
+    item_index = load_item_index(tcfg) if renderer is not None or eval_share > 0 else {}
     rng = random.Random(seed)
     en_share = spec.get("english_share")
     if en_share is not None:
@@ -254,7 +296,7 @@ def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int =
                         want_en)
     else:
         samples = [s for s in samples if s["variant"] != "en"]
-    pairs: list[tuple[str, dict]] = []      # (engine, мөр) — хасалтыг өөрийн DB / BIRD-ээр тайлагнана
+    pairs: list[tuple[str, dict, str | None]] = []   # (engine, мөр, eval-ийн бүлэг) — хасалтыг engine-ээр тайлагнана
     missing = 0
     for s in samples:
         new_msgs = None
@@ -266,14 +308,15 @@ def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int =
             new_msgs, _ = renderer.messages(it, s["variant"])
             if s["family"] == "sqrl":
                 new_msgs = new_msgs[:1]          # зөвхөн system (schema/evidence) солигдоно
-        pairs += [(s.get("engine") or "?", r) for r in to_records(s, tokenizer, pivot, new_msgs)]
+        grp = split_group(s, item_index) if eval_share > 0 else None
+        pairs += [(s.get("engine") or "?", r, grp) for r in to_records(s, tokenizer, pivot, new_msgs)]
     if missing:
         log.warning("%s: %d гаргалтын эх мөр (data/train/*.jsonl) олдсонгүй — алгасав", recipe, missing)
     # T-06: max_length-аас урт мөр (prompt + completion) таслагдаж completion-оо алдахаас сэргийлж хасаж бүртгэнэ
-    kept, too_long, lengths, comp_lengths = [], 0, [], []
+    kept, kept_groups, too_long, lengths, comp_lengths = [], [], 0, [], []
     by_engine: dict[str, Counter] = {}
-    report_all = renderer is not None or bool(extra)
-    for eng, r in pairs:
+    report_all = renderer is not None or bool(extra) or eval_share > 0
+    for eng, r, grp in pairs:
         n_tok = len(tokenizer(r["prompt"] + r["completion"], add_special_tokens=False)["input_ids"])
         c = by_engine.setdefault(eng, Counter())
         c["records"] += 1
@@ -293,10 +336,14 @@ def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int =
         if report_all:   # completion-ий урт: CE-ийн санах ой ба сургалтын хугацааны тайланд (D3)
             comp_lengths.append(len(tokenizer(r["completion"], add_special_tokens=False)["input_ids"]))
         kept.append(r)
+        kept_groups.append(grp)
     if too_long:
         log.warning("%s: %d/%d мөр max_length=%d-аас урт тул хасагдлаа (%s)", recipe, too_long, len(pairs), max_len,
                     {e: c["dropped_too_long"] for e, c in by_engine.items()})
-    records = kept
+    # B9: eval_share > 0 бол family-ийн бүлгээр validation (анхдагч 0 — бүх мөр сургалтад, өмнөх үйлдэл ба эрэмбэ)
+    held = pick_eval_groups(kept_groups, eval_share, seed) if eval_share > 0 else set()
+    records = [r for r, g in zip(kept, kept_groups, strict=True) if g not in held]
+    eval_records = [r for r, g in zip(kept, kept_groups, strict=True) if g in held]
     rng.shuffle(records)
     out = train_dir(tcfg) / "sft" / f"{recipe}__{model_name}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -305,11 +352,22 @@ def build_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, seed: int =
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
     report = {"file": str(out), "samples": len(samples), "records": len(records), "dropped_too_long": too_long,
               "english_samples": sum(1 for s in samples if s["variant"] == "en")}
+    if eval_share > 0:
+        random.Random(f"{seed}:eval_order").shuffle(eval_records)
+        eval_out = out.with_name(f"{out.stem}.eval.jsonl")
+        with open(eval_out, "w", encoding="utf-8") as fh:
+            for r in eval_records:
+                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+        report.update(eval_file=str(eval_out), eval_records=len(eval_records), eval_groups=len(held),
+                      groups=len(set(kept_groups)), eval_share=eval_share)
+        if not eval_records:
+            log.warning("%s: eval_share=%s боловч validation мөр алга (бүлэг < 2) — run_sft eval-гүй сургана",
+                        recipe, eval_share)
     if report_all:
         # postgres = өөрийн DB (human + own_synth), sqlite = BIRD; tokens = хадгалсан мөрийн нийт токен (сургалтын хугацаа)
         def _stat(xs: list[int]) -> dict:
             return {"total": sum(xs), "median": int(statistics.median(xs)) if xs else 0, "max": max(xs, default=0)}
-        report.update(prompt=prompt_mode, max_length=max_len, missing_items=missing, **extra,
+        report.update(prompt=prompt_mode, sample_prompt=smode, max_length=max_len, missing_items=missing, **extra,
                       by_engine={e: dict(c) for e, c in sorted(by_engine.items())},
                       tokens=_stat(lengths), completion_tokens=_stat(comp_lengths),
                       render=renderer.stats if renderer is not None else {})

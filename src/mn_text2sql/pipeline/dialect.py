@@ -92,9 +92,27 @@ def _quarter_format(node: exp.TimeToStr) -> exp.Expression | None:
     return quarter_to_char(node, arg)
 
 
-def _convert(node: exp.Expression) -> exp.Expression | None:
+def _strftime_mods(node: exp.Anonymous) -> exp.Expression | None:
+    """F5 (transpile_fix): strftime(fmt, x, modifier, …) — sqlglot хувиргадаггүй (PG: «function strftime(unknown, date,
+    unknown) does not exist»). Modifier-ийг date()/datetime()-тэй ижил дүрмээр хэрэглээд TO_CHAR; SQLite-д хүчингүй
+    modifier («start of quarter», «end of year») бол хөндөхгүй (загварын алдаа хэвээр)."""
+    args = list(node.expressions or [])
+    if len(args) < 3 or not (isinstance(args[0], exp.Literal) and args[0].is_string):
+        return None
+    base = "CAST(CURRENT_TIMESTAMP AS TIMESTAMP)" if _is_now(args[1]) else _base_sql(args[1])
+    body = _apply_mods(base, args[2:])
+    if body is None:
+        return None
+    inner = sqlglot.parse_one(body, read="postgres")
+    tts = exp.TimeToStr(this=inner, format=args[0].copy())
+    return quarter_to_char(tts, inner) if "%q" in args[0].this else tts
+
+
+def _convert(node: exp.Expression, fix: bool = False) -> exp.Expression | None:
     if isinstance(node, exp.TimeToStr):
         return _quarter_format(node)
+    if fix and isinstance(node, exp.Anonymous) and (node.name or "").lower() == "strftime":
+        return _strftime_mods(node)
     if isinstance(node, exp.Date):
         mods = [x for x in [node.args.get("zone"), *(node.expressions or [])] if x is not None]
         body = _apply_mods(_base_sql(node.this), mods)
@@ -149,9 +167,145 @@ def _bool_literal(node: exp.Expression, bool_cols: frozenset[str]) -> exp.Expres
     return None
 
 
-def sqlite_to_postgres(sql: str, bool_cols: frozenset[str] = frozenset()) -> str:
+# ---------------------------------------------------------------- transpile_fix (RunOptions.transpile_fix, анхдагч off)
+# SQLite-д хүчинтэй боловч хөрвүүлгийн дараа PostgreSQL-д алдаа өгдөг бүтэц (dev-ийн гүйцэтгэлийн алдаанаас, асуултын
+# агуулгад тааруулаагүй ерөнхий дүрэм):
+#   F1 WHERE/HAVING дахь SELECT-ийн alias («HAVING npl_ratio > 15» — SQLite alias-ийг таньдаг, PG үгүй) → alias-ийн
+#      илэрхийлэл (нэр нь DB-ийн/CTE-ийн багана биш үед л — SQLite ч FROM-ийн баганыг alias-аас түрүүлж таньдаг)
+#   F2 strftime (зөвхөн тоон формат) / substr-ийн текстийг арифметик эсвэл тоотой харьцуулалтад → CAST(… AS INT)
+#      (SQLite текстийг автоматаар тоо болгодог: «(strftime('%m', d) - 1) / 3 + 1»; PG: «text - integer»)
+#   F3 substr(огноо/тоон багана, …) → substr(CAST(… AS TEXT), …) (SQLite-д огноо нь текст; PG: «substring(date, …)»)
+#   F4 boolean багана / нөхцөл SUM, AVG, арифметикт → CAST(… AS INT); MAX/MIN(boolean) → BOOL_OR/BOOL_AND (SQLite 0/1)
+#   F5 strftime(fmt, x, modifier…) → modifier-ийг хэрэглээд TO_CHAR (_strftime_mods)
+_NUM_FMT = re.compile(r"^(?:%[YmdHMSjWwsuyekIlGgV])+$")
+_ARITH = (exp.Add, exp.Sub, exp.Mul, exp.Div, exp.Mod, exp.IntDiv)
+_CMP = (exp.EQ, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
+_PRED = (*_CMP, exp.And, exp.Or, exp.Not, exp.Is, exp.In, exp.Like, exp.ILike, exp.Between)
+_NUMERIC_PG = ("smallint", "integer", "bigint", "numeric", "real", "double precision", "decimal")
+_TEXT_PG = ("text", "character varying", "character", "varchar", "char", "bpchar")
+
+
+def column_types(types: dict[str, str] | None) -> dict[str, frozenset[str]]:
+    """{"хүснэгт.багана": PG төрөл} (retrieval-ийн column_examples.json __types__) → {багана: {төрлүүд}} (жижиг үсгээр)."""
+    out: dict[str, set[str]] = {}
+    for key, typ in (types or {}).items():
+        col = str(key).split(".")[-1].lower()
+        out.setdefault(col, set()).add(str(typ).lower())
+    return {k: frozenset(v) for k, v in out.items()}
+
+
+def _unparen(node: exp.Expression | None) -> exp.Expression | None:
+    while isinstance(node, exp.Paren):
+        node = node.this
+    return node
+
+
+def _numeric_operand(node: exp.Expression | None, numeric_cols: frozenset[str]) -> bool:
+    node = _unparen(node)
+    if isinstance(node, exp.Literal):
+        return not node.is_string
+    if isinstance(node, (*_ARITH, exp.Neg)):
+        return True
+    if isinstance(node, exp.Cast):
+        return node.to is not None and node.to.is_type(*exp.DataType.NUMERIC_TYPES)
+    return isinstance(node, exp.Column) and (node.name or "").lower() in numeric_cols
+
+
+def _numeric_context(node: exp.Expression, numeric_cols: frozenset[str]) -> bool:
+    child, parent = node, node.parent
+    while isinstance(parent, exp.Paren):
+        child, parent = parent, parent.parent
+    if isinstance(parent, (*_ARITH, exp.Neg)):
+        return True
+    if isinstance(parent, _CMP):
+        other = parent.expression if parent.this is child else parent.this
+        return _numeric_operand(other, numeric_cols)
+    if isinstance(parent, exp.Between) and parent.this is child:
+        return _numeric_operand(parent.args.get("low"), numeric_cols) or \
+            _numeric_operand(parent.args.get("high"), numeric_cols)
+    if isinstance(parent, exp.In) and parent.this is child and parent.expressions:
+        return all(_numeric_operand(e, numeric_cols) for e in parent.expressions)
+    return False
+
+
+def _texty_number(node: exp.Expression) -> bool:
+    if isinstance(node, exp.TimeToStr):
+        fmt = node.args.get("format")
+        return isinstance(fmt, exp.Literal) and fmt.is_string and bool(_NUM_FMT.match(fmt.this))
+    return isinstance(node, exp.Substring)
+
+
+def _wrap(node: exp.Expression) -> exp.Expression:
+    """Нарийн илэрхийллийг багана/функцийн оронд тавихад үйлдлийн дарааллыг хадгална."""
+    if isinstance(node, (exp.Column, exp.Literal, exp.Func, exp.Paren, exp.Cast)):
+        return node
+    return exp.Paren(this=node)
+
+
+def _inline_select_aliases(tree: exp.Expression, known_cols: frozenset[str]) -> None:
+    """F1: WHERE/HAVING дахь (тодотголгүй) баганын нэр нь тухайн SELECT-ийн alias бөгөөд DB-ийн багана биш, бусад
+    SELECT/CTE-ийн гаралтын нэр ч биш бол alias-ийн илэрхийллээр солино."""
+    selects = list(tree.find_all(exp.Select))
+    outputs = {id(s): {(e.alias_or_name or "").lower() for e in s.expressions} for s in selects}
+    for sel in selects:
+        aliases = {e.alias.lower(): e.this for e in sel.expressions if isinstance(e, exp.Alias) and e.alias}
+        if not aliases:
+            continue
+        others = set().union(*[v for k, v in outputs.items() if k != id(sel)])
+        for clause in ("where", "having"):
+            part = sel.args.get(clause)
+            if part is None:
+                continue
+            for col in list(part.find_all(exp.Column)):
+                name = (col.name or "").lower()
+                if col.table or name not in aliases or name in known_cols or name in others:
+                    continue
+                if col.find_ancestor(exp.Select) is not sel:
+                    continue                     # дэд асуулгын багана
+                target = aliases[name]
+                if target.find(exp.Window) or (clause == "where" and target.find(exp.AggFunc)):
+                    continue                     # PG-д WHERE-д агрегат/window хүчингүй — SQLite ч алдаа өгнө
+                if col.find_ancestor(exp.AggFunc) is not None and target.find(exp.AggFunc):
+                    continue                     # агрегат дотор агрегат
+                col.replace(_wrap(target.copy()))
+
+
+def _sqlite_semantics(tree: exp.Expression, bool_cols: frozenset[str], col_types: dict[str, frozenset[str]],
+                      known_cols: frozenset[str]) -> exp.Expression:
+    numeric_cols = frozenset(c for c, ts in col_types.items() if ts and all(t in _NUMERIC_PG for t in ts))
+    nontext_cols = frozenset(c for c, ts in col_types.items() if ts and not any(t in _TEXT_PG for t in ts))
+    if known_cols:
+        _inline_select_aliases(tree, known_cols)                                   # F1
+    for sub in list(tree.find_all(exp.Substring)):                                 # F3
+        arg = sub.this
+        if isinstance(arg, exp.Column) and (arg.name or "").lower() in nontext_cols:
+            arg.replace(exp.cast(arg.copy(), "text"))
+    for node in [n for n in tree.find_all(exp.TimeToStr, exp.Substring) if _texty_number(n)]:   # F2
+        if _numeric_context(node, numeric_cols):
+            node.replace(exp.cast(node.copy(), "int"))
+    if bool_cols:                                                                   # F4
+        for agg in list(tree.find_all(exp.Sum, exp.Avg)):
+            arg = agg.this
+            if (isinstance(arg, exp.Column) and (arg.name or "").lower() in bool_cols) or isinstance(arg, _PRED):
+                arg.replace(exp.cast(arg.copy(), "int"))
+        for agg in list(tree.find_all(exp.Max, exp.Min)):
+            arg = agg.this
+            if isinstance(arg, exp.Column) and (arg.name or "").lower() in bool_cols and not agg.expressions:
+                agg.replace(exp.Anonymous(this="BOOL_OR" if isinstance(agg, exp.Max) else "BOOL_AND",
+                                          expressions=[arg.copy()]))
+        for col in list(tree.find_all(exp.Column)):
+            if (col.name or "").lower() in bool_cols and isinstance(col.parent, _ARITH):
+                col.replace(exp.cast(col.copy(), "int"))
+    return tree
+
+
+def sqlite_to_postgres(sql: str, bool_cols: frozenset[str] = frozenset(), fix: bool = False,
+                       col_types: dict[str, frozenset[str]] | None = None,
+                       known_cols: frozenset[str] | None = None) -> str:
     """SQLite SQL → PostgreSQL. Задлах боломжгүй бол эх SQL-ийг буцаана (guard/DB алдаа өгнө).
-    bool_cols: DB-ийн boolean баганын нэрс (жижиг үсгээр) — 0/1-ийг TRUE/FALSE болгоно."""
+    bool_cols: DB-ийн boolean баганын нэрс (жижиг үсгээр) — 0/1-ийг TRUE/FALSE болгоно.
+    fix (RunOptions.transpile_fix, анхдагч False = хуучин гаралт байт-байтаар): F1–F5 (дээрх тайлбар); col_types —
+    column_types()-ийн {багана: {PG төрөл}}, known_cols — DB-ийн бүх баганын нэр (F1-д заавал; байхгүй бол F1 алгасна)."""
     try:
         tree = sqlglot.parse_one(sql, read="sqlite")
     except Exception:
@@ -160,7 +314,7 @@ def sqlite_to_postgres(sql: str, bool_cols: frozenset[str] = frozenset()) -> str
         return sql
     # Доороос дээш: дотоод функцуудыг эхэлж хөрвүүлнэ
     for node in reversed(list(tree.walk())):
-        new = _convert(node)
+        new = _convert(node, fix)
         if new is None and bool_cols:
             new = _bool_literal(node, bool_cols)
         if new is not None:
@@ -168,6 +322,12 @@ def sqlite_to_postgres(sql: str, bool_cols: frozenset[str] = frozenset()) -> str
                 tree = new
             else:
                 node.replace(new)
+    if fix:
+        try:
+            col_types = col_types or {}
+            tree = _sqlite_semantics(tree, bool_cols, col_types, frozenset(known_cols or ()) | frozenset(col_types))
+        except Exception:  # noqa: BLE001 — засвар амжилтгүй бол хуучин хөрвүүлэлт (гаралт өөрчлөгдөхгүй)
+            return sqlite_to_postgres(sql, bool_cols)
     try:
         return tree.sql(dialect="postgres")
     except Exception:

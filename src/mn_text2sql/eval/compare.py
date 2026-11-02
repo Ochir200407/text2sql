@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import math
+import os
 import re
 import uuid
 from collections import Counter
@@ -18,6 +19,10 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 UB = timezone(timedelta(hours=8))
+# 2026-11-01 (dev шинжилгээ): executor сессийн цагийн бүсийг тохируулдаггүй тул UTC сесст date_trunc('month', DATE) нь
+# 00:00+00 болж UB руу хөрвүүлэхэд 08:00 — gold-ийн огноотой таарахгүй. T2S_TZ_NAIVE=1 бол timestamptz-ийг сессийн цагаар
+# (хөрвүүлэлтгүй) хэвийн болгоно — мэдрэмжийн дахин оноолтод (run_plan `tzfix`); анхдагч зан төлөв хэвээр.
+TZ_NAIVE = os.environ.get("T2S_TZ_NAIVE") == "1"
 
 
 def norm_value(v, ndigits: int = 2):
@@ -34,7 +39,7 @@ def norm_value(v, ndigits: int = 2):
         return round(f, ndigits if abs(f) >= 1 else 6)
     if isinstance(v, datetime):
         if v.tzinfo is not None:
-            v = v.astimezone(UB).replace(tzinfo=None)
+            v = v.replace(tzinfo=None) if TZ_NAIVE else v.astimezone(UB).replace(tzinfo=None)
         if v.time() == time(0, 0):
             return v.date().isoformat()
         return v.isoformat(sep=" ", timespec="seconds")

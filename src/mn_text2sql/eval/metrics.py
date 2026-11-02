@@ -9,21 +9,30 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import random
 from collections import Counter, defaultdict
 from pathlib import Path
 
+log = logging.getLogger(__name__)
+
 NO_ANSWER = {"abstained", "refused", "clarify"}
 
 
 def load_records(path: str | Path) -> list[dict]:
+    """JSONL → бичлэгүүд. L7: зөвхөн СҮҮЛИЙН мөр тасарсан бол (Kaggle-ийн 12 цагийн kill, бичих үеийн timeout —
+    JSON эсвэл UTF-8 дутуу) анхааруулгатай хаяна — resume тэр асуултыг дахин асууна; бусад мөрийн эвдрэл алдаа хэвээр."""
+    with open(path, "rb") as fh:
+        lines = [ln for ln in fh.read().splitlines() if ln.strip()]
     out = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if line:
-                out.append(json.loads(line))
+    for i, line in enumerate(lines):
+        try:
+            out.append(json.loads(line.decode("utf-8").strip()))
+        except ValueError:   # json.JSONDecodeError ба UnicodeDecodeError (тасарсан олон байтын тэмдэгт)
+            if i < len(lines) - 1:
+                raise
+            log.warning("%s: сүүлийн мөр тасарсан (%d байт) — хаяв; resume тэр асуултыг дахин асууна", path, len(line))
     return out
 
 
@@ -154,7 +163,10 @@ def summarize(records: list[dict], penalty_c=(1, 5, 10)) -> dict:
                          "unanimous_accuracy": _pct(_ex(una)),
                          "non_unanimous_accuracy": _pct(_ex([r for r in multi if not r.get("unanimous")])),
                          "oracle_at_k": _pct(_mean([any(r.get("cand_correct") or []) for r in multi])),
-                         "abstention_curve": abstention_curve(multi)}
+                         # L1: муруйн TrustSQL нь БҮХ ангиллын олон хувилбартай бичлэгээр (docstring); coverage/selective
+                         # нь abstention_curve дотроо зөвхөн хариулах боломжтойгоор хэвээр
+                         "abstention_curve": abstention_curve([r for r in records
+                                                               if (r.get("n_candidates") or 1) > 1])}
     # зардал
     lat = [r.get("latency_ms") for r in records if r.get("latency_ms") is not None]
     out["latency_ms"] = {"p50": _r(percentile(lat, 0.5)), "p95": _r(percentile(lat, 0.95)), "mean": _r(_mean(lat))}
@@ -173,6 +185,13 @@ def summarize(records: list[dict], penalty_c=(1, 5, 10)) -> dict:
     wrong = [r for r in ans if not r.get("correct")]
     out["error_stages"] = dict(Counter(r.get("error_stage") or ("abstained" if r.get("status") in NO_ANSWER
                                                                 else "wrong_result") for r in wrong))
+    # M2 / L3: gold гүйцэтгэл амжилтгүй ба дэд бүтцийн (infra) бичлэгийн тоо — зөвхөн байвал (хуучин summary хэвээр)
+    n_gold_err = sum(1 for r in records if r.get("gold_error"))
+    if n_gold_err:
+        out["gold_errors"] = n_gold_err
+    n_infra = sum(1 for r in records if r.get("error_stage") == "infra")
+    if n_infra:
+        out["infra_errors"] = n_infra
     return out
 
 
@@ -188,8 +207,17 @@ def _key(r: dict) -> tuple:
     return (r.get("question_id"), r.get("variant"))
 
 
+def fmt_p(p: float | None, sig: int = 3) -> str:
+    """p-утгыг тэмдэгт цифрээр (significant digits) хэвлэнэ — жижиг p «0.000» болохгүй:
+    0.117, 0.00635, 8.62e-04, 1.05e-11; p = 1 → «1»."""
+    if p is None:
+        return "—"
+    return f"{p:.{sig}g}" if p >= 1e-3 else f"{p:.{sig - 1}e}"
+
+
 def mcnemar(a: list[dict], b: list[dict], only_answerable: bool = True) -> dict:
-    """Хос асуулт (question_id, variant) дээр exact McNemar (binomial). b нь шинэ тохиргоо."""
+    """Хос асуулт (question_id, variant) дээр exact McNemar (binomial). b нь шинэ тохиргоо.
+    p_value-г бүрэн нарийвчлалтай буцаана (бөөрөнхийлөхгүй — 1.05e-11 нь 0.0 болохгүй); хэвлэхдээ fmt_p."""
     from scipy.stats import binomtest
     fa = {_key(r): bool(r.get("correct")) for r in a if not only_answerable or r.get("category") == "answerable"}
     fb = {_key(r): bool(r.get("correct")) for r in b if not only_answerable or r.get("category") == "answerable"}
@@ -200,7 +228,7 @@ def mcnemar(a: list[dict], b: list[dict], only_answerable: bool = True) -> dict:
     p = binomtest(min(b01, b10), n, 0.5).pvalue if n else 1.0
     ex_a = _mean([fa[k] for k in keys])
     ex_b = _mean([fb[k] for k in keys])
-    return {"n_pairs": len(keys), "wins": b01, "losses": b10, "p_value": round(float(p), 5),
+    return {"n_pairs": len(keys), "wins": b01, "losses": b10, "p_value": float(p),
             "delta_ex": _pct((ex_b or 0) - (ex_a or 0)), "significant": bool(n and p < 0.05)}
 
 

@@ -464,9 +464,15 @@ def _ex(recs: list[dict], drop_empty: bool = False) -> float | None:
     return round(100 * sum(bool(r.get("correct")) for r in ans) / len(ans), 2) if ans else None
 
 
+def _seed_mean(values) -> float | str:
+    """L8: seed-үүдийн дундаж (EX-тэй ижил дүрэм: None-ийг алгасна, 2 орон); нэг seed бол тэр утга; алга бол «—»."""
+    xs = [v for v in values if isinstance(v, (int, float))]
+    return round(sum(xs) / len(xs), 2) if xs else "—"
+
+
 def compare_report(cfg: Config, splits: tuple[str, ...] = ("dev", "test"), reference: str = "EXT-thesis-agent",
                    out: str = "results/thesis/COMPARE.md") -> dict:
-    from ..eval.metrics import load_records, mcnemar, summarize
+    from ..eval.metrics import fmt_p, load_records, mcnemar, summarize
     root = resolve_path(cfg["eval"]["results_dir"]) / "runs"
     lines = [
         "# Thesis benchmark: text2sql-thesis-ийн agent систем vs шинэ систем", "",
@@ -482,7 +488,8 @@ def compare_report(cfg: Config, splits: tuple[str, ...] = ("dev", "test"), refer
         "- **«gold хоосон-гүй» багана:** `gold_empty` кейс (5) нь ямар ч хоосон таамгийг зөв гэж тооцдог. Энэ багана тэдгээрийг "
         "хассан EX-ийг харуулна.",
         "- **McNemar:** суурь = thesis-ийн agent систем, ижил (асуулт, хэл) хос дээр, n = хосын тоо. Олон seed-тэй run (E2) "
-        "бол EX = seed-үүдийн дундаж, McNemar = хамгийн бага seed. docs/THESIS_BENCH.md", ""]
+        "бол EX, «gold хоосон-гүй», хүндрэл, гүйцэтгэгдсэн % = seed-үүдийн дундаж; McNemar (ба n) = хамгийн бага seed. "
+        "docs/THESIS_BENCH.md", ""]
     data: dict = {}
     pc = cfg["eval"]["penalty_c"]
     for split in splits:
@@ -525,17 +532,19 @@ def compare_report(cfg: Config, splits: tuple[str, ...] = ("dev", "test"), refer
                 if ref and v in ref and key[0] != reference:
                     mc = mcnemar(ref[v][min(ref[v])], first)
                     row[v]["mcnemar"] = mc
-                    deltas.append(f"{mc['delta_ex']:+} ({mc['p_value']}, {mc['n_pairs']}){' *' if mc['significant'] else ''}"
+                    deltas.append(f"{mc['delta_ex']:+} ({fmt_p(mc['p_value'])}, {mc['n_pairs']}){' *' if mc['significant'] else ''}"
                                   if mc["delta_ex"] is not None else "—")
                 else:
                     deltas.append("—")
-            mn_recs = per["mn"][min(per["mn"])] if per.get("mn") else None
-            mn = summarize(mn_recs, pc) if mn_recs else None
-            diff = " / ".join(str((mn["by_difficulty"].get(d) or {}).get("ex", "—")) for d in ("easy", "medium", "hard")) \
-                if mn else "—"
-            no_empty = _ex(mn_recs, drop_empty=True) if mn_recs else "—"
+            # L8: EX-тэй ижил нэгтгэл — seed бүрийн утгын дундаж (өмнө нь хамгийн бага seed-ийнх; нэг seed-д ижил)
+            mn_seeds = [recs for recs in (per.get("mn") or {}).values() if recs]
+            mn_summ = [summarize(recs, pc) for recs in mn_seeds]
+            diff = " / ".join(str(_seed_mean((s["by_difficulty"].get(d) or {}).get("ex") for s in mn_summ))
+                              for d in ("easy", "medium", "hard")) if mn_summ else "—"
+            no_empty = _seed_mean(_ex(recs, drop_empty=True) for recs in mn_seeds) if mn_seeds else "—"
+            exec_pct = _seed_mean(s["executable_pct"] for s in mn_summ) if mn_summ else "—"
             lines.append(f"| {key[0]} | {key[1]} | " + " | ".join(cells) + f" | {no_empty} | {diff} | "
-                         f"{mn['executable_pct'] if mn else '—'} | " + " | ".join(deltas) + " |")
+                         f"{exec_pct} | " + " | ".join(deltas) + " |")
             data[split][f"{key[0]}|{key[1]}"] = row
         lines += ["", "`*` = p < 0.05 (exact McNemar). Δ = ижил хос асуулт дээрх EX-ийн зөрүү (шинэ − thesis).", ""]
     ref_missing = not any(k.startswith(reference + "|") for s in data.values() for k in s)

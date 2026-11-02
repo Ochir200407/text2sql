@@ -87,6 +87,7 @@ security:
 eval:
   dev_file: "evalset/dev.jsonl"
   test_file: "evalset/test.jsonl"
+  fresh_file: "evalset/fresh.jsonl"   # 2026-11-02: шинэ, хараагүй 400 асуулт (ерөнхийлөлтийн шалгалт; test шиг нэг удаа)
   results_dir: "results"
   penalty_c: [1, 5, 10]          # TrustSQL найдвартай байдлын оноо: буруу хариулт −c
   float_tolerance: 0.01          # мөнгөн дүнгийн харьцуулалтын абсолют хүлцэл

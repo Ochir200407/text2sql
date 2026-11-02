@@ -6,6 +6,8 @@ mixed precision, gradient checkpointing; хоёр процессын DDP (torchr
 
 Өгөгдөл: data/train/sft/<recipe>__<model>.jsonl ({prompt, completion}); loss зөвхөн completion дээр.
 Гаралт: adapters/<recipe>__<model>/ (vLLM: --enable-lora --lora-modules <recipe>=adapters/<recipe>__<model>).
+R2-A (B9, сонголттой): base — HF суурийн оронд нэгтгэсэн жин (D2-merged); eval_share/eval_file — validation loss,
+early_stopping_patience — хамгийн бага eval_loss-тай checkpoint. t2s_meta.json-д код/сан/өгөгдлийн хувилбар (B10).
 """
 
 from __future__ import annotations
@@ -242,7 +244,37 @@ def completion_logits_trainer(base_cls):
 
 CRITICAL_CONFIG_KEYS = {"output_dir", "num_train_epochs", "per_device_train_batch_size", "gradient_accumulation_steps",
                         "learning_rate", "max_length", "completion_only_loss", "gradient_checkpointing", "fp16", "bf16",
-                        "save_steps", "max_steps"}
+                        "save_steps", "max_steps",
+                        # B9: зөвхөн eval-тэй үед дамжина — алга бол eval/early stopping-гүй чимээгүй сургахгүй
+                        "eval_strategy", "evaluation_strategy", "eval_steps", "per_device_eval_batch_size",
+                        "load_best_model_at_end", "metric_for_best_model"}
+
+
+def eval_settings(hp: dict, save_steps: int, config_fields: set[str]) -> dict:
+    """B9: eval_dataset-тай үеийн SFTConfig-ийн нэмэлт. eval_steps (анхдагч = save_steps) тутам validation loss;
+    per_device_eval_batch_size = сургалтынх (T4: 1 — completion_logits_only нь batch 1-д л хэсэгчилсэн CE).
+    early_stopping_patience бол хамгийн бага eval_loss-тай checkpoint-ийг төгсгөлд ачаална (Trainer-ийн шаардлага:
+    save_steps нь eval_steps-ийн үржвэр). transformers < 4.41 нь evaluation_strategy нэртэй."""
+    eval_steps = int(hp.get("eval_steps") or save_steps)
+    key = "evaluation_strategy" if "evaluation_strategy" in config_fields and "eval_strategy" not in config_fields \
+        else "eval_strategy"
+    kw = {key: "steps", "eval_steps": eval_steps, "per_device_eval_batch_size": int(hp["per_device_batch_size"])}
+    if hp.get("early_stopping_patience"):
+        if int(save_steps) % eval_steps:
+            raise ValueError(f"early stopping: save_steps={save_steps} нь eval_steps={eval_steps}-ийн үржвэр байх ёстой "
+                             "(хамгийн сайн checkpoint-ийг хадгалахын тулд)")
+        kw.update(load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False)
+    return kw
+
+
+def eval_data_path(data_path: Path, hp: dict, eval_file: str | None = None) -> Path | None:
+    """Validation файл: eval_file өгвөл тэр; жорын eval_share > 0 бол build_sft-ийн <data>.eval.jsonl; үгүй бол None
+    (анхдагч — өмнөх шиг eval-гүй)."""
+    if eval_file:
+        return Path(eval_file)
+    if float(hp.get("eval_share") or 0) > 0:
+        return data_path.with_name(f"{data_path.stem}.eval.jsonl")
+    return None
 
 
 def config_kwargs(cls, kw: dict):
@@ -308,12 +340,18 @@ def deadline_callback(deadline: float):
 
 
 def run_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, data_file: str | None = None,
-            output_dir: str | None = None, max_steps: int | None = None, force: bool = False) -> dict:
+            output_dir: str | None = None, max_steps: int | None = None, force: bool = False,
+            base: str | None = None, eval_file: str | None = None) -> dict:
+    """base: суурь жин (HF id эсвэл хавтас, жишээ нь D2-ийг нэгтгэсэн загвар — R2-A); анхдагч models.yaml-ийн hf_id
+    (revision-тэй). Tokenizer нь үргэлж hf_id-ийнх (build_sft-ийн prompt-той ижил). eval_file / жорын eval_share:
+    validation (eval_settings) — анхдагч алга."""
     import torch
     from datasets import Dataset
     from peft import LoraConfig
     from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
+
+    from .provenance import effective_batch, model_revision, provenance, sampling_settings
     spec = tcfg["recipes"][recipe]
     hp = dict(tcfg["sft_defaults"])
     hp.update({k: v for k, v in spec.items() if k in hp})
@@ -321,9 +359,20 @@ def run_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, data_file: st
     if fp16 and bf16:
         raise ValueError(f"{recipe}: fp16 ба bf16 зэрэг true байж болохгүй (T4: fp16: true, bf16: false)")
     mspec = load_models()["models"][model_name]
+    base_id = base or mspec["hf_id"]
+    revision = None if base else mspec.get("revision")
     data_path = Path(data_file) if data_file else ROOT / tcfg["data"]["dir"] / "sft" / f"{recipe}__{model_name}.jsonl"
     rows = [json.loads(x) for x in data_path.read_text(encoding="utf-8").splitlines() if x.strip()]
     ds = Dataset.from_list(rows)
+    eval_path = eval_data_path(data_path, hp, eval_file)
+    eval_rows: list[dict] = []
+    if eval_path is not None:
+        if not eval_path.exists():
+            raise FileNotFoundError(f"{recipe}: validation файл алга: {eval_path} (build --recipe {recipe} нь "
+                                    "eval_share > 0 үед үүсгэнэ, эсвэл --eval-file)")
+        eval_rows = [json.loads(x) for x in eval_path.read_text(encoding="utf-8").splitlines() if x.strip()]
+        if not eval_rows:
+            log.warning("SFT %s: validation файл хоосон (%s) — eval-гүй сургана", recipe, eval_path)
     out = Path(output_dir) if output_dir else ROOT / "adapters" / f"{recipe}__{model_name}"
     if not force and (done := finished(out)):
         log.info("SFT %s аль хэдийн дууссан (%s) — алгасав (--force-оор дахин)", recipe, out)
@@ -340,25 +389,26 @@ def run_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, data_file: st
         if world > 1:
             torch.cuda.set_device(local_rank)
         dmap = quant_device_map(world, local_rank)
-        log.info("SFT %s: QLoRA nf4 (%s), процесс %d/%d, device_map=%s", recipe, "fp16" if fp16 else "bf16",
-                 local_rank + 1, world, dmap)
-        model = load_base_model(mspec["hf_id"], mspec.get("revision"), dtype=torch.float16 if fp16 else torch.bfloat16,
+        log.info("SFT %s: QLoRA nf4 (%s), процесс %d/%d, device_map=%s, суурь %s", recipe, "fp16" if fp16 else "bf16",
+                 local_rank + 1, world, dmap, base_id)
+        model = load_base_model(base_id, revision, dtype=torch.float16 if fp16 else torch.bfloat16,
                                 quantize_4bit=True, device_map=dmap)
         model, n16 = prepare_qlora(model, bool(hp["gradient_checkpointing"]), frozen_fp16=fp16)
         log.info("SFT %s: 4 бит биш хөлдөөсөн %d тензорыг fp16 болгов; GPU санах ой %.1f GB", recipe, n16,
                  torch.cuda.memory_allocated() / 1e9 if torch.cuda.is_available() else 0.0)
     else:
-        model = load_base_model(mspec["hf_id"], mspec.get("revision"))
+        model = load_base_model(base_id, revision)
     # warmup_ratio-г зарим TRL/transformers хувилбар хассан тул алхмын тоогоор (warmup_steps) өгнө; DDP-д алхам бүр
     # world_size процессын batch-ийг нэгтгэнэ
     steps_per_epoch = math.ceil(len(rows) / (int(hp["per_device_batch_size"]) * int(hp["gradient_accumulation"]) * world))
     total_steps = int(max_steps) if max_steps else steps_per_epoch * math.ceil(float(hp["epochs"]))
+    save_steps = int(os.environ.get("T2S_SAVE_STEPS") or hp.get("save_steps", 200))
     kw = dict(
         output_dir=str(out), num_train_epochs=float(hp["epochs"]), per_device_train_batch_size=int(hp["per_device_batch_size"]),
         gradient_accumulation_steps=int(hp["gradient_accumulation"]), learning_rate=float(hp["learning_rate"]),
         lr_scheduler_type=hp["lr_scheduler"], warmup_steps=max(1, int(float(hp["warmup_ratio"]) * total_steps)),
         bf16=bf16, gradient_checkpointing=bool(hp["gradient_checkpointing"]), max_length=int(hp["max_length"]),
-        logging_steps=int(hp.get("logging_steps") or 10), save_strategy="steps", save_steps=int(os.environ.get("T2S_SAVE_STEPS") or hp.get("save_steps", 200)), save_total_limit=2,
+        logging_steps=int(hp.get("logging_steps") or 10), save_strategy="steps", save_steps=save_steps, save_total_limit=2,
         report_to="none", completion_only_loss=True,
         max_steps=int(max_steps) if max_steps else -1, seed=42)
     if fp16:
@@ -369,21 +419,32 @@ def run_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, data_file: st
         kw["ddp_find_unused_parameters"] = False
     if hp.get("optim"):
         kw["optim"] = hp["optim"]
+    if eval_rows:
+        import dataclasses
+        kw.update(eval_settings(hp, save_steps, {f.name for f in dataclasses.fields(SFTConfig)}))
     args = config_kwargs(SFTConfig, kw)
     peft_cfg = LoraConfig(r=int(hp["lora_r"]), lora_alpha=int(hp["lora_alpha"]), lora_dropout=float(hp["lora_dropout"]),
                           target_modules=hp["target_modules"], task_type="CAUSAL_LM")
     trainer_cls = completion_logits_trainer(SFTTrainer) if hp.get("completion_logits_only") else SFTTrainer
+    data_kw = {"train_dataset": ds}
+    if eval_rows:
+        data_kw["eval_dataset"] = Dataset.from_list(eval_rows)
     if qlora:
         # PeftModel-ийг өөрсдөө үүсгэнэ: TRL-ийн хувилбараас үл хамааран (хуучин TRL peft_config-оор
         # prepare_model_for_kbit_training-ийг дахин дуудаж fp16 болгосон embedding/lm_head-ийг fp32 болгодог) нэг ижил
         from peft import get_peft_model
         model = get_peft_model(model, peft_cfg)
-        trainer = trainer_cls(model=model, args=args, train_dataset=ds, processing_class=tok)
+        trainer = trainer_cls(model=model, args=args, processing_class=tok, **data_kw)
         n_train, recast = _trainable_fp32(trainer.model)
         log.info("SFT %s: сургагдах параметр %.1fM (LoRA r=%s), fp32 болгосон тензор %d (TRL bf16 болгосон бол > 0)",
                  recipe, n_train / 1e6, hp["lora_r"], recast)
     else:
-        trainer = trainer_cls(model=model, args=args, train_dataset=ds, processing_class=tok, peft_config=peft_cfg)
+        trainer = trainer_cls(model=model, args=args, processing_class=tok, peft_config=peft_cfg, **data_kw)
+    if eval_rows and hp.get("early_stopping_patience"):
+        from transformers import EarlyStoppingCallback
+        trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=int(hp["early_stopping_patience"])))
+        log.info("SFT %s: validation %d мөр, eval_steps %s, early stopping patience %s", recipe, len(eval_rows),
+                 kw.get("eval_steps"), hp["early_stopping_patience"])
     if hp.get("completion_logits_only"):
         # trainer үүсгэсний дараа: TRL ≥ 1.x нь __init__ дотор суурь загварын forward-ийг (fused head) нөхдөг — манай
         # нөхөөс түүнийг ороож, t2s_shift_labels-гүй дуудлагыг хэвээр нь дамжуулна
@@ -416,22 +477,69 @@ def run_sft(cfg: Config, tcfg: dict, recipe: str, model_name: str, data_file: st
         return {"adapter": str(out), "stopped": True, "checkpoint": last_checkpoint(out),
                 "global_step": trainer.state.global_step}
     trainer.save_model(str(out))
-    meta = {"recipe": recipe, "model": model_name, "hf_id": mspec["hf_id"], "records": len(rows), "hparams": hp,
-            "train_loss": getattr(result, "training_loss", None), "data": str(data_path), "world_size": world}
+    n_gpu = int(getattr(trainer.args, "n_gpu", 1) or 1)
+    if n_gpu > 1 and world == 1:
+        log.warning("SFT %s: torchrun-гүй %d GPU — Trainer DataParallel хэрэглэсэн (алхмын batch ×%d)", recipe, n_gpu,
+                    n_gpu)
+    meta = {"recipe": recipe, "model": model_name, "hf_id": mspec["hf_id"], "base": base_id, "records": len(rows),
+            # L2: HF commit (tokenizer = hf_id; base нь хавтас бол түүний гарал "base"-д) ба өгөгдлийн sampling тохиргоо
+            "model_revision": model_revision(mspec), "sampling": sampling_settings(tcfg),
+            "hparams": hp, "train_loss": getattr(result, "training_loss", None), "data": str(data_path),
+            "world_size": world,
+            "batch": {"per_device": int(hp["per_device_batch_size"]), "grad_acc": int(hp["gradient_accumulation"]),
+                      "n_gpu": n_gpu, "world_size": world,
+                      "effective": effective_batch(int(hp["per_device_batch_size"]), int(hp["gradient_accumulation"]),
+                                                   n_gpu, world)},
+            **provenance(train=data_path, eval=eval_path if eval_rows else None)}
+    if eval_rows:
+        st = trainer.state
+        meta["eval"] = {"file": str(eval_path), "records": len(eval_rows), "eval_steps": kw.get("eval_steps"),
+                        "best_metric": getattr(st, "best_metric", None),
+                        "best_checkpoint": getattr(st, "best_model_checkpoint", None),
+                        "global_step": st.global_step, "max_steps": st.max_steps,
+                        "early_stopped": bool(hp.get("early_stopping_patience")) and st.global_step < st.max_steps}
     if trainer.is_world_process_zero():   # DDP: зөвхөн нэг процесс бичнэ (save_model өөрөө үүнийг хийдэг)
         tok.save_pretrained(str(out))
         (out / "t2s_meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"adapter": str(out), **meta}
 
 
-def merge_adapter(model_name: str, adapter_dir: str, out_dir: str, base: str | None = None) -> str:
+MERGE_DTYPES = {"bf16": "BF16", "fp16": "F16", "fp32": "F32"}
+# adapter хавтсанд run_sft-ийн хадгалсан tokenizer (өмнөх merge_adapter нь tokenizer-ийг adapter-аас авдаг байсан)
+TOKENIZER_FILES = ("tokenizer.json", "tokenizer_config.json", "special_tokens_map.json", "added_tokens.json",
+                   "vocab.json", "merges.txt", "tokenizer.model", "chat_template.jinja", "chat_template.json")
+
+
+def merge_lora_module():
+    """scripts/notebook/merge_lora.py (numpy-ийн нэгтгэл — torch/peft шаардахгүй)-г модуль болгон ачаална."""
+    import importlib.util
+    path = ROOT / "scripts" / "notebook" / "merge_lora.py"
+    if not path.is_file():
+        raise FileNotFoundError(f"merge_lora.py алга: {path}")
+    spec = importlib.util.spec_from_file_location("t2s_merge_lora", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def merge_adapter(model_name: str, adapter_dir: str, out_dir: str, base: str | None = None,
+                  dtype: str = "bf16") -> str:
     """LoRA-г суурь загварт нэгтгэж бүтэн жин хадгална (GRPO-ийн эхлэл, эсвэл vLLM-д тусдаа загвар болгон).
-    base: GRPO-ийн LoRA-г нэгтгэхэд эхлэл болсон (SFT нэгтгэсэн) загварын хавтас."""
-    from peft import PeftModel
-    from transformers import AutoTokenizer
+    base: GRPO-ийн LoRA-г нэгтгэхэд эхлэл болсон (SFT нэгтгэсэн) загварын хавтас (эсвэл HF id); анхдагч models.yaml.
+    B6: W + scale·B·A-г fp32-оор бодоод dtype руу НЭГ удаа дугуйлна (scripts/notebook/merge_lora.py, тензор нэг
+    нэгээр — санах ой бага); PEFT-ийн bf16 merge шиг delta-г bf16-ийн нарийвчлалд давхар дугуйлахгүй.
+    dtype: bf16 (анхдагч — өмнөх гаралтын dtype), fp16 (T4/vLLM; 10 битийн mantissa — delta илүү хадгалагдана), fp32."""
+    if dtype not in MERGE_DTYPES:
+        raise ValueError(f"dtype={dtype!r} — {'/'.join(MERGE_DTYPES)}-ийн нэг")
+    import shutil
+    ml = merge_lora_module()
     mspec = load_models()["models"][model_name]
-    base = load_base_model(base) if base else load_base_model(mspec["hf_id"], mspec.get("revision"))
-    merged = PeftModel.from_pretrained(base, adapter_dir).merge_and_unload()
-    merged.save_pretrained(out_dir, safe_serialization=True)
-    AutoTokenizer.from_pretrained(adapter_dir, trust_remote_code=True).save_pretrained(out_dir)
+    base_dir = ml.resolve_base(base or mspec["hf_id"], None if base else mspec.get("revision"))
+    adapter, out = Path(adapter_dir), Path(out_dir)
+    info = ml.merge(Path(base_dir), adapter, out, out_dtype=MERGE_DTYPES[dtype])
+    copied = [f for f in TOKENIZER_FILES if (adapter / f).is_file()]
+    for f in copied:
+        shutil.copy2(adapter / f, out / f)
+    log.info("merge %s → %s: %d LoRA модуль, %s, tokenizer adapter-аас %d файл", adapter, out, info["modules"],
+             info.get("dtype"), len(copied))
     return out_dir

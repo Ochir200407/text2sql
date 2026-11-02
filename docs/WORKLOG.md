@@ -1,5 +1,10 @@
 # Ажлын бүртгэл — Монгол Text2SQL (text2sql-new)
 
+> **Шинэчилсэн (2026-10-31):** §1–2 нь 2026-10-18-ны байдал (түүх; «Одоо явж байна» хуучирсан). Одоогийн тоо:
+> `report_diplom/Chapters/Ch6_Results.tex` ба `docs/review/FULL_REVIEW_2026-10-30.md` §2 — жишээ нь dev E4 159/300
+> (хариулах 107/224); test-ийн шилдэг M1a 50.5% (хариулах 53.6%); dev-ээр сонгосон E4 test 45.0%, E3c 46.5% нь post hoc;
+> орчуулгын нөлөө ижил кодоор +7.7 хувь (p = 0.013). Сүүлийн бичлэгүүд файлын төгсгөлд.
+
 _Байдал: 2026-10-18 ~16:40 (Улаанбаатарын цаг, UTC+8). Загвар: зөвхөн Arctic-Text2SQL-R1-7B. Тоонуудын эх сурвалж:
 `docs/IMPROVE_40_PLAN.md`, `docs/IMPROVE_80_PLAN.md`, `results/runs/`, ажлын тэмдэглэл. Эх сурвалжид байхгүй тоог
 «тодорхойгүй» гэж бичив._
@@ -461,7 +466,7 @@ https://claude.ai/code/artifact/866bcd46-a684-488a-86f1-6adac40cf402.
 3. **Eval set-ийг LLM бичсэн.** dev/test ба 160 жишээг LLM agent-ууд ноороглож, LLM agent-ууд хянасан; заавар gold-ыг хоёр
    хүн шалгахыг шаарддаг. Иймд «хүний бичсэн» гэж бүү нэрлэ; эцсийн тайлангаас өмнө домэйн шинжээч gold-ыг хянах хэрэгтэй.
    Шинэ 195 жишээг мөн LLM бичсэн (DB-ээр гүйцэтгэж шалгасан ч утгын зөвийг хүн шалгаагүй).
-4. **Жижиг түүвэр.** Test 200 асуулт (хувь ±7 пункт орчим хэлбэлзэнэ), хариулах боломжгүй 24, хоёрдмол 25 — эдгээр
+4. **Жижиг түүвэр.** Test 200 асуулт (±7 хувь орчим хэлбэлзэнэ), хариулах боломжгүй 24, хоёрдмол 25 — эдгээр
    ангиллын хувь цөөн асуултаар их өөрчлөгдөнө. Test-ийн H4 → E2 нийт ахиц (+18/−9, p = 0.12) статистикийн хувьд
    ач холбогдолгүй; хариулах боломжтойгоор (p = 0.0026) ач холбогдолтой.
 5. **Тодруулгын тоо.** Тодруулгыг хоёрдмол (ба боломжгүй) асуултад зөвд тооцдог тул «их тодруулга» нийт хувийг өсгөж,
@@ -695,7 +700,7 @@ https://claude.ai/code/artifact/866bcd46-a684-488a-86f1-6adac40cf402.
 - **Version 16: MADLAD M1 сургалт явж байна** (2026-10-26 ~15:25 УБ): embedding=decoder, 94.4M trainable, 270 алхам,
   ~48 с/алхам (≈3.5 цаг үлдсэн), 11-р алхамд OOM-гүй. Дараа нь val chrF++, dev орчуулга (m1_madlad_none/improved), M1a T2S.
 - **2026-10-26 ~16:45 УБ шалгалт:** V16 MADLAD M1 сургалт 85/270 алхам (~49 с/алхам, OOM/алдаагүй, үлдсэн ~2.5 цаг). V15 M0a (MADLAD zero-shot орчуулга → Arctic s0) dev явц 225/300, зөв 92 (40.9%) — эцсийн тоо биш.
-- **V15 дууссан (2026-10-26 07:43 UTC, 11330 с):** M0a (I3 + MADLAD zero-shot «improved» орчуулга) dev EX = **36.16%** (хариулах боломжтой 81/224; CI95 29.9–42.4), нийт зөв 106/300, гүйцэтгэх боломжтой 100%. Харьцуулалт: I3t (Qwen орчуулга) 105/224 = 46.9%, I3 97/224 = 43.3% → MADLAD zero-shot −10.7 пункт (I3t-ээс). chrF++ ойролцоо (53.5 vs 58.0) байсан ч T2S-д муу. M1a (fine-tune) хүлээгдэж байна. V16: 160/270 алхам (~16:55 УБ).
+- **V15 дууссан (2026-10-26 07:43 UTC, 11330 с):** M0a (I3 + MADLAD zero-shot «improved» орчуулга) dev EX = **36.16%** (хариулах боломжтой 81/224; CI95 29.9–42.4), нийт зөв 106/300, гүйцэтгэх боломжтой 100%. Харьцуулалт: I3t (Qwen орчуулга) 105/224 = 46.9%, I3 97/224 = 43.3% → MADLAD zero-shot −10.7 хувь (I3t-ээс). chrF++ ойролцоо (53.5 vs 58.0) байсан ч T2S-д муу. M1a (fine-tune) хүлээгдэж байна. V16: 160/270 алхам (~16:55 УБ).
 - **V16 дууссан (2026-10-26 09:44 UTC, 226 мин):** MADLAD M1 QLoRA сургалт бүрэн (270 алхам, 2 эпох, train_loss 14.43, сүүлийн loss ~7.9; 43.3-аас буурсан), adapter `mt/madlad_m1/` Output-д хадгалагдсан. Харин сургалтын дараах val (beam 4) ба dev орчуулга (none/improved) T4-д **OOM** → M1a T2S алгасагдсан.
   Засвар: `m0_translate.py`/`train_mt.py` — adapter-ийг `merge_and_unload()` (LoRA-ийн нэмэлт санах ойгүй) + OOM-д багцыг хоёр хувааж дахин оролдох. Dataset v23 (өмнөх 7 MB zip дээр 5 файл сольсон), notebook input → V16 Output.
 - **Version 17 эхэлсэн (~17:55 УБ):** V16-ийн adapter-аас val chrF++ → dev орчуулга → M1a T2S.
@@ -709,7 +714,7 @@ https://claude.ai/code/artifact/866bcd46-a684-488a-86f1-6adac40cf402.
 - **Version 18 зогсоосон (2026-10-26 ~19:40 УБ, хэрэглэгчийн хүсэлтээр):** M1a T2S dev явцын дунд (11:11 UTC-ээс эхэлсэн) Stop Session. Цуцалсан version-ий Output хадгалагдахгүй байж магадгүй → M1 dev орчуулгын кэш (m1_madlad_*.jsonl) дахин үүсгэх шаардлагатай байж болно (~25 мин); оноонууд дээр бичигдсэн. Adapter V16-ийн Output-д хэвээр.
 - **Version 19 эхэлсэн (2026-10-26, хэрэглэгч «үргэлжлүүл»):** V18-тай ижил оролт (text2sql v24 + V16 Output) → val → M1 dev орчуулга → M1a T2S dev.
 - **V19 M1a явц (16:14 UTC):** 125/300, зөв 80 (64.0%) — M0a ижил цэгт 62/125 (49.6%). Эцсийн тоо биш.
-- **V19 M1a дууссан (2026-10-26 17:39 UTC, 11443 с):** M1a (I3 + MADLAD QLoRA M1 «improved» орчуулга → Arctic s0) dev EX = **56.7%** (хариулах боломжтой 127/224; CI95 50.5–63.4), нийт зөв **160/300 (53.3%)**, гүйцэтгэх боломжтой 100%, p50 61 с/асуулт. Харьцуулалт (хариулах/224): I3t (Qwen орчуулга) 105 = 46.9% → **+22 асуулт, +9.8 пункт**; M0a 81 = 36.2%; I3 97 = 43.3%. Нийт /300: I3t 132 (44.0%), E4 (dev дүрэмтэй) 159 (53.0%). Анхааруулга: зөвхөн dev, 1 seed, McNemar тооцоогүй (мөр бүрийн jsonl Kaggle output-д, татаагүй); test дээр нэг удаа хэмжих шаардлагатай. Танилцуулга, Docs тайлан, дипломын тайланд оруулсан (2026-10-27).
+- **V19 M1a дууссан (2026-10-26 17:39 UTC, 11443 с):** M1a (I3 + MADLAD QLoRA M1 «improved» орчуулга → Arctic s0) dev EX = **56.7%** (хариулах боломжтой 127/224; CI95 50.5–63.4), нийт зөв **160/300 (53.3%)**, гүйцэтгэх боломжтой 100%, p50 61 с/асуулт. Харьцуулалт (хариулах/224): I3t (Qwen орчуулга) 105 = 46.9% → **+22 асуулт, +9.8 хувь**; M0a 81 = 36.2%; I3 97 = 43.3%. Нийт /300: I3t 132 (44.0%), E4 (dev дүрэмтэй) 159 (53.0%). Анхааруулга: зөвхөн dev, 1 seed, McNemar тооцоогүй (мөр бүрийн jsonl Kaggle output-д, татаагүй); test дээр нэг удаа хэмжих шаардлагатай. Танилцуулга, Docs тайлан, дипломын тайланд оруулсан (2026-10-27).
 - **Хамгаалалтын танилцуулга (2026-10-27):** `report_diplom/Text2SQL_hamgaalalt.pptx` (ШУТИС-ийн CS-Thesis загвар, 17 слайд, M1a орсон); дахин үүсгэх скрипт `report_diplom/build_pptx.py`.
 - **MT-9 бэлтгэл (2026-10-27):** `run_plan_l4.sh`-ийн `mt` stage-д `MT_STEPS` алхам `test` нэмсэн. Алхам: V16-ийн adapter → test орчуулга (mn, `--final-test`, tag `m1_madlad_improved_test`) → M1a-ийн кэшид нэмэх (dev ба test-ийн id давхцахгүй) → `t2s eval --run M1a --split test` → Q| мөр (McNemar-ийг I3t_kaggle_q.txt-тэй тооцно). `config/kaggle_overrides.env`: STAGE=mt, MT_STEPS="test", KO_UNTIL=2026-10-29. Mock backend-ээр test орчуулгын замыг шалгасан. Upload zip (v25, 7.0 MB) бэлэн, гэхдээ **хараахан ажиллуулаагүй**: Chrome extension холбогдоогүй.
 - **Version 20 эхэлсэн (2026-10-27 ~12:00 УБ):** dataset text2sql v25 («MT_STEPS test») + V16 Output → M1 MADLAD test орчуулга → M1a test (D2, 200 асуулт). Хүлээгдэх хугацаа ~2–2.5 цаг. Харьцуулалт: I3t test 62/151.
@@ -735,3 +740,528 @@ https://claude.ai/code/artifact/866bcd46-a684-488a-86f1-6adac40cf402.
   report_diplom-ийн ашиглагдахгүй хуучин бүлгүүд (Ch1_Intro, Ch2_Related, Ch3_Method, Ch4_Data, Ch5_Model, Ch6_System, Ch7_Results, Ch8_Ethics, Ch9_Conclusion), build.log, `report/t2s_code.zip`.
   Зөөсөн: `t2s_results(1).zip` → `results/archive/t2s_results_2026-10-16.zip` (A1 dev-ийн 31 файл зөвхөн тэнд), хамгаалалтын хуваарийн зураг ба сэдэв батлах хуудас → `diplom ajluud/`,
   бүтээх зааврын docx → `docs/guide/`.
+- **GitHub (2026-10-27, хэрэглэгчийн хүсэлтээр):** `text2sql-new/` нь тусдаа git repo (main) → https://github.com/Ochir200407/text2sql (**public**), commit `eef96a4`, 356 файл / 10 MB.
+  Нийтлээгүй (.gitignore): data/, results/, build/, adapters/, `diplom ajluud/`, *.docx, .claude/, LaTeX out/. Push `ochirb-dev` бүртгэлээр (collaborator эрх өгсөн).
+- **M1a vs I3t McNemar (dev, хариулах боломжтой 224; 2026-10-27):** V19-ийн логийн `Q|` мөрөөс (M1a 127 зөв) ба `results/runs/dev/I3t_kaggle_q.txt` (105 зөв) — асуулт бүрээр хослуулсан:
+  M1a зөв/I3t буруу **+40**, эсрэгээр **−18** → exact McNemar **p = 0.0054**. Ялгаа нь зөвхөн орчуулгын кэш (qwen3.5-9b.fix ↔ m1_madlad_improved); загвар (D2 нэгтгэсэн fp16, T4 vLLM), I3 жишээний сан, 1 хувилбар ижил.
+- **Gold SQL-ийн аудит (2026-10-27, хэрэглэгч: «gold sql зөв үү сайн шалга»):** 3 agent, уншиж шалгасан (PG-гүй; gold бүр өмнө нь check-gold-оор ажилладаг, хоосон биш гэж батлагдсан).
+  178 асуулт: аль ч тохиргоо шийдээгүй dev 53 + test 55, санамсаргүй хяналт 70 (шийдэгдсэн асуултаас). **Буруу (WRONG) 0.** Хяналт 70/70 OK (алдааны дээд хязгаар ~4%).
+  Эргэлзээтэй: dev K018 (агентлагийн барагдуулалтын хувь — MNT/USD-г хөрвүүлэлгүй нийлүүлсэн; glossary fx_to_mnt шаарддаг), dev X009 (NPL хувьд COALESCE алга),
+  test P046 (PARTIALLY_PAID ирээдүйн урьдчилсан төлөлтийг «хоцорсон» гэж тоолж магадгүй), test A026/A060 («батлагдсан» = glossary-ийн 3 төлөв уу, APPROVED уу; A060 — decided/submitted огноо),
+  dev X035 (хоёрдмол: бүх зээлийн хүү үү, хассан зээлийнх үү). Жижиг: dev P012 notes нь SQL-тэй зөрчилддөг, dev P008 question_en нарийн.
+  Дүгнэлт: шийдэгдээгүй асуултууд хэцүү (LAG-ийн оны зааг, is_active_portfolio, валют хөрвүүлэлт, fan-out-гүй нэгтгэл, утга холбох), шошгын алдаа биш.
+  Засах санал: K018, P046, X009-ийг засах; A026/A060/X035-д alt_sql нэмэх — Kaggle PG дээр check-gold + өмнөх run-уудыг дахин оноолох шаардлагатай (эдгээр 6 асуултыг ямар ч тохиргоо шийдээгүй тул одоогийн тоо өөрчлөгдөх магадлал бага; alt нэмбэл зарим нь зөв болж болно).
+- **Хэцүү хэв маягийг RAG-д (2026-10-27, хэрэглэгчийн санаа):** eval-ийн өөрийн gold-ыг санд хийх нь алдагдал (leakage) тул хийхгүй. Оронд нь аль хэдийн бичсэн, eval-тэй давхардлыг хассан
+  2-р шатны 280 жишээ (`knowledge/examples_plus2.jsonl`, нийлбэр 475; LAG 14, валют/_mnt 174, is_active_portfolio 87 мөр) — I4 хэзээ ч ажиллаагүй. Шинэ run **M1i4** = M1a + build/index_plus2_dev;
+  `run_plan_l4.sh` mt stage-ийн `t2s` алхам MT_T2S-д M1i4 байвал индексийг үүсгэнэ. Дараагийн Kaggle сесс: MT_STEPS="t2s" MT_T2S="M1i4" (~2.5 цаг) → M1a 127/224-тэй McNemar.
+- **Хуваарилагч (knowledge selector, 2026-10-27, хэрэглэгчийн санаа):** dev-ийн хариулах боломжтой, нэр томьёо шаарддаг 137 асуултад нэр томьёоны хайлт (BM25, glossary_terms шошготой харьцуулсан)
+  top-4: хэрэгтэй нэр томьёоны 79.3% (бүгд олдсон 73.0%), top-8: 90.7% (86.9%), top-12: 95.9% (94.2%). Шинэ сонголт `glossary_k`, `knowledge_select`, `select_pool`
+  (`pipeline/options.py`, `orchestrator._select_glossary`): 12-ыг хайгаад **Arctic өөрөө** (өөр загваргүй) дугаараар хэрэгтэйг (≤6) сонгоно; уншиж чадахгүй бол top-4.
+  Жагсаалтад англи нэр + SQL хэлбэр (тодорхойлолтын ихэнх монгол). Run: M1ks, M1g8 (хяналт). `config/kaggle_overrides_next.env` (M1ks M1g8 M1i4). Тест: PG-гүй 2-оос бусад давсан.
+- **Version 21 дууссан (scriptVersionId 362739817, 10268 с):**
+  - m1_madlad_marked dev орчуулга: chrF++ кирилл 74.6 / латин 73.4 (M1 74.8/73.6), утга хадгалалт 13.6% хэвээр (тэмдэглэгээ нөлөөгүй — dev-ийн утгын 22 асуулт ихэвчлэн enum код бололтой), DB-ийн оноосон нэр 379.
+  - **M1m dev = 161/300 (53.7%), хариулах боломжтой 129/224 (57.6%, CI 51.3–63.8)**; M1a-тай хосоор: +2 (C011, X027) / −0, p = 0.5 → ялгаагүй.
+  - **M1r (M1a + E4-ийн дүрэм) = 184/300 (61.3%)**, хариулах 127/224, unanswerable 33/38, ambiguous 24/38. **M1mr = 186/300 (62.0%)**, хариулах 129/224, unanswerable 34/38, ambiguous 23/38. (Дүрэм dev-ээс гаргасан — test-ээр л батална.)
+  - **M1a test хийгдээгүй:** MADLAD test орчуулга CUDA OOM — t2s алхмын vLLM хоёр GPU-г эзэлсэн хэвээр. Орчуулга 0 → test хөндөгдөөгүй. Засвар: test орчуулгын өмнө `serve_model.sh stop`.
+- **Version 22 эхэлсэн (2026-10-27 ~18:30 УБ):** dataset v27 (хуваарилагч + засвар), MT_STEPS="t2s test", MT_T2S="M1ks M1g8" → дараа нь M1a test. ~8 цаг.
+- **Reranker туршилт (локал CPU, 2026-10-27 19:10-д зогсоосон):** venv `C:\Users\ochir.b\rrenv` (torch 2.14 CPU, transformers 5.21), `data.json` = BM25 top-12 нэр дэвшигч (dev 137 + tune 385, шошго glossary_terms).
+  **bge-reranker-v2-m3 dev (137/137, англи асуулт):** top4 recall 56.5% (BM25 74.1%), top6 71.5% (BM25 81.3%) — BM25-аас муу: хэрэгтэй нэр томьёо ихэвчлэн далд (жишээ «энэ оны эхнээс» → business_date), оноо ~0.003. → Бэлэн reranker-ийг шууд хэрэглэхгүй; Arctic хуваарилагч (M1ks, V22) эсвэл өөрийн жишээгээр fine-tune.
+  Tune 247/522-т зогссон; Qwen3-Reranker-0.6B хэмжээгүй. Үргэлжлүүлэх: `cd C:\Users\ochir.b\rrenv && bash run_all.sh` (scores_*.jsonl-ээс үргэлжилнэ; явц progress.txt).
+- **Version 22 (scriptVersionId 362787671) завсрын дүн (2026-10-27 ~23:00 УБ, 5 цаг ажилласан):**
+  - **M1g8 (нэр томьёо 8) dev = 158/300, хариулах боломжтой 126/224** — M1a (127)-тай хосоор +13 / −14, p = 1.0 → нэр томьёог зүгээр нэмэх нь нөлөөгүй (зарим асуулт засагдаж, ижил тооны асуулт эвдэрсэн; L-домэйнд 6 алдагдал).
+  - M1ks (хуваарилагч) явж байна: 225/300 (зөв 135). Дараа нь M1a test.
+- **V22: M1ks (хуваарилагч — 12 нэр томьёоноос Arctic сонгоно) dev = 165/300 (55.0%), хариулах боломжтой 130/224 (58.0%)**, unanswerable 17/38, ambiguous 18/38.
+  M1a (127)-тай хосоор **+15 / −12, p = 0.70** → ахиц статистикийн хувьд батлагдаагүй. Шинээр зөв болсны дунд өмнө нь хэн ч шийдээгүй G034, K035, X043 (+ M1m-д шийдэгдсэн X027).
+  Нийт 165/300 = dev-ийн нэг үүсгэлттэй (дүрэмгүй) тохиргооны хамгийн өндөр. Асуулт бүрийн дүн `results/runs/dev/M1ks_answerable_correct.txt`, M1a-ийнх `M1a_answerable_correct.txt`.
+  15:46 UTC-ээс M1a test (MADLAD test орчуулга → 200 асуулт) эхэлсэн.
+- **Нарийвчлалын судалгаа (2026-10-28, хэрэглэгч: «хэрхэн илүү оновчтой болгох вэ»):** dev-ийн M1a ∪ M1m ∪ M1g8 ∪ M1ks = **146/224 (65.2%)** (бүгд зөв 104, заримдаа зөв 42) — шилдэг ганц нь 130.
+  → Хамгийн их ахиц сонголтоос. `docs/ACCURACY_PLAN.md`. Шинэ: `run_plan` алхам `ens` (M1ens/M1ensr = reselect --extra, загваргүй), `scripts/rerank/rr.py` (bge-reranker fine-tune + сонголтын кэш,
+  локал smoke тест давсан), RunOptions.glossary_select_cache, M1rr. Илтгэлийн текст `docs/TALK_NOTES_1.md`. Version 23 төлөвлөгөө: MT_STEPS="rerank t2s ens", MT_T2S="M1rr M1i4" + t2s-v22-output input.
+- **2026-10-28 00:40 шалгалт:** V22 M1a TEST явж байна — 100/200 (нийт зөв 57), ~40 мин үлдсэн. Цэгцлэх ажил: илтгэлийн текстийг (docs/TALK_NOTES_1.md) танилцуулгын 19 слайд бүрт speaker notes болгосон (build_pptx.py, validate PASSED).
+- **2026-10-28 01:10 шалгалт:** V22 M1a TEST 175/200 (нийт зөв 97). Цэгцлэх: дипломын тайлангийн Ch6-д M1m/M1g8/M1ks/M1r мөр, M1a vs I3t McNemar (+40/−18, p=0.0054), тохиргоонуудын нэгдэл 146/224, gold аудит (178, буруу 0) нэмж PDF дахин хөрвүүлсэн. Багшийн асуулт-хариулт `docs/QA_DEFENSE_1.md` (18).
+- **V22 дууссан (27260 с) — M1a TEST (нэг удаа, MT-9):** нийт **101/200 (50.5%)**, хариулах боломжтой **81/151 (53.6%, CI95 45.7–61.4)**, unanswerable 6/24, ambiguous 14/25.
+  I3t test (62/151 = 41.1%)-тэй хосоор **+32 / −13, p = 0.0066** → сургасан MADLAD орчуулагч test дээр батлагдсан (+12.6 хувь). `results/runs/test/M1a_answerable_correct.txt`.
+  [2026-10-30 засвар: test-ээс мэдээлэл авсан 13 асуултгүйгээр +25/−12, p = 0.047; загвар төстэй 6-г ч хасвал +21/−12, p = 0.16 —
+  «батлагдсан» нь сул. FULL_REVIEW_2026-10-30 §2 (6–7), доорх 2026-10-30-ны «засвар» бичлэг.]
+  (Харьцуулалт: E4 test 90/200, E3c 93/200 нь dev-ийн дүрэм/тодруулгатай; M1a нь нэг үүсгэлт, дүрэмгүй.)
+- **Version 23 эхэлсэн (2026-10-28 ~01:45 УБ):** dataset text2sql v28, t2s-v8-output v3 (= V22 Output). MT_STEPS="rerank t2s ens", MT_T2S="M1rr M1i4". Чуулгын суурь = олдсон run-уудын сүүлийнх (M1a dev run энэ input-д алга).
+- **Kaggle квот (2026-10-28 ~02:10):** GPU 25:48 / 30 цаг ашигласан (~4.2 цаг үлдсэн; Бямба 10-31-нд шинэчлэгдэнэ).
+- **Version 23 унасан (1 мин):** bootstrap-ийн `apt-get update` — NVIDIA CUDA repo «Mirror sync in progress» (Kaggle-ийн гадаад алдаа). Засвар: `bootstrap.sh`-д `apt_update()` (3 оролдлого, гуравдагч repo алдаатай ч үргэлжилнэ).
+- **Version 24 эхэлсэн (~02:15):** text2sql v29, t2s-v8-output v3. Квотод багтаахаар MT_STEPS="rerank t2s ens", MT_T2S="M1rr" (~3.5 цаг; M1i4 дараагийн долоо хоногт). Чуулга = M1ks, M1g8, M1rr.
+- **Version 24 унасан (scriptVersionId 362927074, ~16 мин):** (1) reranker сургалт T4-д CUDA OOM (568M AdamW + batch 24 + BGE-M3 GPU-д); (2) чуулгын `ENSX=$(for …)` сүүлийн давталтын худал нөхцөл `set -e`-ээр скриптийг унагасан.
+  Засвар: word embedding хөлдөөх + gradient checkpointing + batch 16 + хайлтыг CPU-д (T2S_EMBED_DEVICE=cpu); `…; true)`. Локал smoke давсан. Чуулга input-ээс M1a M1ks M1g8 M1m-ийг олсон (t2s_results.zip-ээс сэргээгдсэн).
+- **Version 25 эхэлсэн (2026-10-28 ~02:55):** text2sql v30 (OOM ба чуулгын засвар), ижил төлөвлөгөө (rerank → M1rr dev → чуулга). Квот ~3.9 цаг.
+- **03:10 шалгалт:** Version 25 (scriptVersionId 362936314) reranker сургалт 850/2787 алхам (~0.6 с/алхам, OOM-гүй). Цэгцлэх: танилцуулгын 13-р слайдад M1a test (41.1% → 53.6%, p = 0.007) нэмж дахин үүсгэсэн (validate PASSED, render шалгасан).
+- **Version 25: сургасан reranker (bge-reranker-v2-m3, 540 жишээ / 14 862 хос, 3 эпох, T4 1672 с):** holdout (жишээний 95) recall 96.3%, бүгд олдсон 94.7%, дундаж 1.58 нэр томьёо (босго 0.02).
+  [2026-10-31 засвар (B8): эдгээр holdout тоо хөөрөгдсөн — эерэгийг holdout-ын нэр дэвшигчид ч оруулдаг байсан; локал BM25-ийн
+  дээд хязгаар 93.8% / 91.2%. Диплом/илтгэлд ашиглахгүй — доорх 2026-10-31-ний B8 бичлэг.]
+  **Dev (нэр томьёо шаарддаг 137, MADLAD орчуулгатай асуулт):** сургасан reranker recall **79.3%**, бүгд олдсон **75.9%**, дундаж **1.41** нэр томьёо — хайлтын top-4 (одоогийн): recall 77.2%, бүгд 71.5%, **4.0** нэр томьёо.
+  → Ижил/илүү хамралт ~3 дахин цөөн (илүү цэвэр) нэр томьёогоор. Сургаагүй bge (босго 0.5): recall 9.3% — fine-tune зайлшгүй. 19:31 UTC-ээс M1rr dev явж байна.
+- **03:45 шалгалт:** V25 M1rr dev 50/300 (37 зөв, нийт). Цэгцлэх: дипломын тайланд M1a test (tab:test мөр, H2 мөр, Дүгнэлт) нэмж PDF дахин хөрвүүлсэн.
+- **04:10 шалгалт:** V25 M1rr dev 125/300 (87 зөв нийт; M1a ижил цэгт 80). Цэгцлэх: Claude Docs тайланд (rev 14) M1a test (41.1% → 53.6%, p = 0.007) нэмсэн.
+- **04:40 шалгалт:** V25 M1rr dev 200/300 (126 зөв нийт; M1m/M1ks ижил цэгт 117/118) — ~40 мин үлдсэн, квотод багтана.
+- **05:10 шалгалт:** V25 M1rr dev 275/300 (158 зөв нийт; M1m ижил цэгт 154) — ~15 мин, дараа нь чуулга.
+- **Version 25 дууссан (scriptVersionId 362936314, 11166 с) — dev (хариулах боломжтой 224):**
+  - **M1rr (сургасан reranker-ийн нэр томьёо)**: нийт 164/300, хариулах **131 (58.5%)**; M1a-тай +18/−14 p = 0.60, M1ks-тэй +19/−18 p = 1.0 → нэр томьёоны хамралт сайжирсан ч SQL-д ялгаа батлагдаагүй.
+  - **M1ens (5 тохиргооны чуулга: M1rr суурь + M1ks, M1a, M1g8, M1m; дүрэмгүй)**: нийт 176/300, хариулах **137 (61.2%)**; M1a-тай **+11/−1, p = 0.006**, M1ks-тэй +12/−5 p = 0.14. 5-ын нэгдэл (pass@k) 155/224 (69.2%).
+  - **M1ensr (чуулга + dev-ийн дүрэм)**: нийт **197/300 (65.7%)**, хариулах 137, unanswerable 31/38, ambiguous 29/38 — dev-ийн хамгийн өндөр (дүрэм dev-ээс тул test-ээр л батална).
+  - Асуулт бүрийн дүн `results/runs/dev/{M1rr,M1ens}_answerable_correct.txt`. Квот бараг дууссан — шинэ сесс эхлүүлээгүй (Бямба 10-31).
+
+## 2026-10-28 — «пункт» → «хувь»; V25 үр дүн тайланд
+- Тайлан, ppt, TALK_NOTES, QA_DEFENSE-д «пункт»-ыг «хувь» болгов (хэрэглэгчийн хүсэлт).
+- Ch6 dev хүснэгтэд M1rr, M1ens, M1ensr мөр + reranker/чуулгын догол мөр нэмэв; PDF, pptx дахин бүтээв.
+
+## 2026-10-28 — Хамгаалалтын pptx: шүүмж засвар, CS-Thesis загварын бүтэц
+- Хэрэглэгчийн 11:08-ийн засвартай `Text2SQL_hamgaalalt.pptx` дээр шууд засав (build_pptx.py-аас дахин үүсгээгүй — тэр одоо хоцорсон).
+- Бүтэц `CS-Thesis-presentation-template.pptx`-ийн дагуу: Нүүр → Агуулга → Удиртгал (үндэслэл, зорилго, зорилтууд, ач холбогдол) →
+  Ижил төстэй системийн харьцуулсан судалгаа → Архитектур, загвар → Ашигласан загварууд → Таамаглал → Туршилтын өгөгдөл → Үр дүн (6 слайд)
+  → Studio → Дүгнэлт → Ашигласан материалууд → Цаашид хийгдэх ажлууд → Талархал (19 слайд). «Асуудал» слайд Удиртгалд нэгдсэн.
+- Шүүмж: «Засвар / 8 хувилбар / Дүрэм» шошгыг тодорхойлж, шинэ «Алхам бүр юу хийсэн бэ» хүснэгт нэмэв; «Хөгжүүлэлтийн / Шинэ асуулт» →
+  «Dev / Test олонлог»; p-ийн тайлбар ба McNemar exact томьёо; Studio-гийн тайлбар дэлгэрэв; Дүгнэлт ба Таамаглалын давхардсан тоог солив;
+  Цаашдын ажлын хуучирсан 1-р зүйлийг (сургасан орчуулагч test-д батлагдсан) ensemble-ээр солив; бүх слайдын speaker notes бүрэн болов.
+
+## 2026-10-29 — Зорилт 70%: test-ийн чуулга ба Arctic хос харьцуулалтыг бэлдэв (GPU-гүй)
+- `run_plan_l4.sh` mt: шинэ алхам `tens` (эцсийн test: M1ks/M1rr/M1g8/M1m test → M1r, M1ens, M1ensr test; dev-тэй ижил бүрэлдэхүүн),
+  `pick` (dev M1ensp/M1enspr; test-д PICK_TEST=1 үед л). `config/kaggle_overrides_next.env` = V26.
+- `src/mn_text2sql/eval/pick.py` + `reselect --pick/--pick-model/--pick-max-conf`; RunOptions.pick_pairs (M1ensp); flow-ийн vote node-д бүртгэв.
+  `tests/test_pick.py`; бүх тест давсан (локал PG 55432-тэй).
+- Chrome extension холбогдоогүй тул Kaggle гаралтыг татаагүй — M1r test-ийг V26-ийн `tens` алхамд оруулсан (татах шаардлагагүй).
+
+- 2026-10-29: `docs/SQL_QUALITY_AND_GAP.md`. Хийсэн зүйл: DB/test-ийн хэмжээ, гарсан SQL-ийг gold-той sqlglot-оор бүтцээр харьцуулсан хүснэгт, алдааны шалтгааны задаргаа, M1-ийг хүндрэл/домэйноор задалсан, 70%-ийн тооцоо (test 140/200; V26-ийн дараа ≈59–62%), ижил төстэй ажлын давуу/сул тал, судалгааны цоорхой.
+- 2026-10-29 (шөнө, agent-ууд):
+  - Судалгаа: `docs/RESEARCH_NEXT.md`, `research_refs.bib`.
+  - FK-bridge (`fk_bridge`, `M1fk`): dev-д gold хүснэгт prompt-д 97.3% → 99.1%. Gold хүснэгт аль хэдийн prompt-д байдаг тул EX-д бага нөлөөтэй гэж таамаглаж байна.
+  - Abstain v2 (`pipeline/abstain.py`, `--abstain-v2`): dev CV 154.5, хуучин дүрэм 159 (in-sample), дүрэм+v2 160.9.
+  - Studio-д 7 боломж (`service/analyst.py`, `docs/STUDIO_FEATURES.md`).
+  - Ch1/Ch6 шинэчилсэн (8 шинэ ишлэл, `sec:sql-quality`), хөрвүүлэлт алдаагүй.
+  - SQL_QUALITY шинжилгээг засав: CTE-ийн нэрийг хүснэгтээс хассан; хүснэгтийн алдаа 13–27%, шүүлт ~30%.
+  - Явж байгаа: M1cte (gen_style), synth_own, table_hints, QA шинэчлэл.
+- 2026-10-29 (шалгалтын дараах засвар):
+  - run_plan: `tens`-ийг `ens`/`pick`-ээс өмнө зөөсөн; reranker кэшийн нэгтгэл алдаа гарсан ч сессийг унагаахгүй, дахин ажиллуулж болно.
+  - Dev чуулгын жорыг test-тэй ижил болгож тогтоосон (M1rr + M1ks M1a M1g8 M1m).
+  - `pick.parse_choice`: зөвхөн `<answer>A|B</answer>` эсвэл ганц үсгийг хүлээн авна.
+  - Studio-гийн 👍 хосыг Fernet-ээр шифрлэнэ; T2S_AUDIT_KEY-гүй бол хадгалахгүй.
+  - M1th (table_hints) нэмэгдсэн. V27 env: `config/kaggle_overrides_v27.env`.
+- 2026-10-30 ~00:10:
+  - synth_own: хэллэгийн загварыг нэмсэн. Pattern тус бүр 10–48 загвартай, монгол дүрмийн алдааг зассан. Үр дүн 2 779 мөр, guard 100%.
+  - Ch5 «Аналистад зориулсан боломжууд», Дүгнэлтийн цаашдын ажил шинэчлэгдсэн.
+  - PDF 61 → 66 хуудас, хуучныг scratchpad-д нөөцөлсөн.
+  - pack_code: `build/synth_own/candidates.jsonl`-ийг кодын багцад оруулдаг болсон.
+  - Нийт тест: 167 давсан, 25 алгассан (PG шаардлагатай).
+- 2026-10-30: adaptive sampling (`eval/adaptive.py`): `beta:0.8:w4` → хувилбар −21%, EX −0.02%. Probe-ийн бэлтгэл (`scripts/probe/`, `pipeline/probe.py`); CV харьцуулалт хуучин дүнг яг давтсан.
+- 2026-10-30: `repair_workers` (засварын гинжийг зэрэг ажиллуулах; анхдагч 1 = хуучин үйлдэл). p95 ≈ 345 → 150–200 с нь хэмжээгүй таамаг.
+- 2026-10-30 (2-р шалгалтын засвар):
+  - `/analyst/candidates` нь тусдаа `T2S_ADMIN_KEY` (hmac.compare_digest) шаардана; тохируулаагүй бол 403. Тайлж чадаагүй мөр бүх татлагыг унагаахгүй.
+  - Давалгааны seed `(seed+1)*1000+i` (s0 нь s1–s3-тай давхцахгүй).
+  - `repair_workers` нь hash-д орохгүй.
+- 2026-10-30: `scripts/ingest/ingest_results.py` бэлэн (V26-ийн гаралт → results/runs, McNemar, Wilson CI, Ch6 LaTeX, PICK_TEST шийдвэр; docs/INGEST.md). tens нь M1a test-ийг гаралт руу хуулдаг болсон.
+- 2026-10-30: Studio дараагийн 7 боломжийн судалгаа/дизайн (docs/STUDIO_NEXT.md); хэрэгжүүлсэн: баталгаажсан асуулгын сан (`/analyst/verified*`, T2S_ADMIN_KEY), SQL засаж дахин ажиллуулах (`/analyst/rerun`, SQL guard → read-only, T2S_SQL_EDIT), template монгол хураангуй + дараагийн асуултын санал (LLM-гүй); tests/test_service_analyst_next.py (26).
+- 2026-10-30: T1/T2/T9b (docs/RESEARCH_TECH_2.md; бүгд анхдагч унтраалттай, opts_hash хэвээр): `implied_preds` (M1ip) — `knowledge/table_hints.yaml` `default_predicates` 4 дүрэм, ЗӨВХӨН dev gold-оор баталгаажуулсан (loan_payments POSTED 18/19, loans is_active_portfolio 47/76, disbursed → disbursement_date 10/10 идэвхжилт, deposits ACTIVE 16/21; MNT/collaterals/accounts сул тул хассан), `table_hints.implied_predicates()/predicate_support()`; `pick_diff` (M1enspd, `reselect --pick --pick-diff`) — `eval/pick.py::diff_clauses()` (sqlglot WHERE/HAVING/GROUP BY/агрегат/хүснэгт) + зөвхөн ялгааг асуух `SYSTEM_DIFF`; T9b — M1alt1/M1alt8 (MADLAD beam 1/8 кэш), ажиллуулах заавар docs/ACCURACY_PLAN.md. tests/test_implied_preds.py (8), test_pick.py (+4).
+- 2026-10-30: RESEARCH_TECH_2 (T1–T11), STUDIO_NEXT (+3 боломж), T1 M1ip / T2 pick_diff / T9b M1alt хэрэгжсэн (default-off). V27 t2s-д M1ip нэмэв (M1ip M1cte M1th M1dec), ensx-д M1ip сүүлд.
+- 2026-10-30: 7 судалгаа (docs/research/R1–R7, нэгтгэл SYNTHESIS.md). Ch6 дүгнэлтэд M1a 50.5% засав.
+- 2026-10-30: R7 #1/#2/#5 хэрэгжсэн (docs/research/R7_inference_efficiency.md):
+  - `rescue_truncated` (анхдагч false, `_LATE_DEFAULTS`-д тул хуучин opts_hash хэвээр; flow.py writer node): `finish_reason == "length"` бөгөөд SQL задлагдахгүй гаралтыг `…</think>\n<answer>\n```sql\n` prefill-ээр нэг удаа (t=0, max_tokens 512) үргэлжлүүлнэ (`orchestrator._chat_gen/_rescue_truncated`; эхний үүсгэлт ба adaptive давалгаанд, засварын дуудлагад биш). Сервер prefill-ийг хүлээж аваагүй/алдаа гарвал анхны гаралт хэвээр. Candidate.rescued, jsonl `rescued` (тоо). Dev-only тохиргоо `M1rt` (M1a + rescue).
+  - runner meta (hash-д ОРОХГҮЙ): `max_tokens`, `workers`, `serving` = {бодит vLLM аргумент (T2S_VLLM_ARGS__<нэр> → T2S_VLLM_ARGS → models.yaml), /v1/models (max_model_len, root), vLLM хувилбар (/version эсвэл pip metadata), nvidia-smi GPU}. Resume үед өмнөх .meta.json-ий max_tokens/workers/vllm_args_effective зөрвөл анхааруулга + meta-д `resume_runtime_mismatch`.
+  - T4 notebook: `T2S_VLLM_ARGS`-д `--enable-prefix-caching` тодорхой (arctic/D2; Qwen3.5 hybrid-ийн `__sqrl_9b/__qwen3_5_9b`-д нэмээгүй — models.yaml-тай адил). make_notebook.py → t2s_eval.ipynb дахин үүсгэсэн.
+  - tests/test_rescue_truncated.py (11). Бүх тест: 285 давсан, 25 алгассан (`--deselect tests/test_reselect.py`).
+- 2026-10-30: R4 аюулгүй байдлын засвар (service/, docs/research/R4 §3.7): `service/auth.py` — dev биш горимд T2S_WEB_KEY-гүй бол зөвхөн localhost-оос шууд (tunnel/proxy толгойтой бол 403; `serve()` 127.0.0.1-д; T2S_INSECURE_OPEN=1 гарц), түлхүүр `X-T2S-Key`/`X-T2S-Admin` толгойгоор (`?k=`/`?admin=` хэвээр), compare_digest; `/feedback` түлхүүртэй; `/flow/save|DELETE|logs` T2S_ADMIN_KEY (локал flow-ui нээлттэй); `/flow/run_job` shadow-д үр дүнгүй + audit log; `/ask_job`, `/flow/run_job` зэрэг ажиллах хязгаар (service.max_jobs/T2S_MAX_JOBS, анхдагч 4, 429); SqlGuard `fail_closed` (хоосон allow-list → татгалзах, dev биш горимд). JS толгойгоор илгээдэг. tests/test_service_security.py (20); нийт 285 давсан, 25 алгассан.
+- 2026-10-30: M1fs (R5 З1, хүснэгт мэдэх few-shot, анхдагч унтраалттай): `retrieval/fewshot_rerank.py` + `ExampleIndex.search(table_rerank=)` + `Retriever.retrieve(fewshot_rerank=)` + orchestrator (зөвхөн тохируулсан үед kwarg дамжуулна); `RunOptions.fewshot_rerank` (`_LATE_DEFAULTS` → хуучин opts_hash хэвээр), flow.py retrieve node; `M1fs` (base M1a) experiments.yaml; V27 run_plan_l4.sh t2s/ensx + kaggle_overrides_v27.env MT_T2S. Офлайн `scripts/rerank/fewshot_cover.py` (dev): cover 67.4 → 77.2% (R5-ын утгын маск) / 74.1% (run-ийн утга). tests/test_fewshot_rerank.py (9); нийт 295 давсан, 25 алгассан.
+- 2026-10-30: R1.2 орчуулгын шалгалт: `pipeline/translate_check.py` (`translation_check` — кирилл үлдэгдэл/хуурамч хашилт, [V] placeholder, тоо «5 сая»/«3-р сар»/«1-р улирал», алдагдсан утга), `translate_check: off|bilingual` (`_LATE_DEFAULTS`, хуучин hash хэвээр; flow.py translate node; `orchestrator.question_forms` тэмдэглэсэнд л bilingual, `retrieval.translate_check`), dev-only `M1tc` (M1a +). Офлайн `scripts/translate/check_report.py`: Qwen dev mn 21% тэмдэглэсэн, EX 21% vs 41%; H2 fallback-ийн симуляци 82 → 81 (ахицгүй; I3t-ийн ахиц нь маскын засвараас) — docs/ACCURACY_PLAN.md «M1tc». tests/test_translation_check.py (10); бүх тест давсан (`--deselect tests/test_reselect.py`).
+- 2026-10-30: tester review — M1rt өдөөгч засав (</think> хүрээгүй), V27 t2s эрэмбэ M1ip→M1fs→M1rt→…, M1rt ensx-ээс хасав, pick SYSTEM_DIFF үг засав; prompt/fingerprint default үед өөрчлөгдөөгүй (300/300, 93/93).
+- 2026-10-30: БҮРЭН ШАЛГАЛТ (7 шалгагч) → docs/review/FULL_REVIEW_2026-10-30.md. Засагдсан: V27 env CRLF, сэргээхэд .meta.json, reselect meta fallback + pick англи асуулт, vLLM d2 дахин ашиглах, MT_BUDGET_MIN/MT_RUN_MIN/MT_PICK_MIN + pick timeout, ensx ≥300 мөр, experiments.yaml vars A7/H4, адаптив seed, SQL_BLOCK regex. Дипломын дүгнэлтийг (орчуулга +7.7, D2→H4 хариулах боломжтой p=0.117, E4 dev-сонголт 45.0%, E4 dev-түлхүүр 86, M1a test-мэдрэмж p=0.047) засаж байна.
+- 2026-10-30: Сургалтын кодын review-ийн засвар (docs/TRAINING.md «2026-10-30 засвар»; одоо байгаа өгөгдөл/adapter хөндөөгүй). Зөв болгох засвар (дараагийн ажиллуулалтаас): B2 — C2-ийн gold-хуулбарын шүүлт completion бүхэлдээ (reasoning + `<answer>` хураангуй, sqrl бүх ээлж), `drop_phrases` + note/private/correct·provided·given query, үгийн эхнээс таарах, hint-гүй prompt-д байгаа хэллэгийг тооцохгүй, `dropped_by_reason` лог; B3/F9 — plain/rag prompt мөрийн id + family-тэй (RAG-д өөрийгөө few-shot-оор харахаа больсон; A7 prompt өөрчлөгдөхгүй); B4 — GRPO reward `Pipeline.process_sql`-ээр (A7 sqlite_transpile/postproc/guard, sampling-тай нэг `pg_correct`); L5 — dedup `question_mixed`. Анхдагч хэвээр: B5 GRPO жорын `init` (d4 → d2), B6 merge fp32 → bf16 (merge_lora.py `out_dtype`, `merge --dtype`), B9 `sample --prompt h4s --max-keep --max-keep-all --index-dir`, жорын `sample_prompt`/`eval_share`/`eval_steps`/`early_stopping_patience`, `sft --base --eval-file`, B10 t2s_meta.json-д code/libs/data_sha256/batch (`training/provenance.py`), B7 train_mt.py n_gpu/effective_batch meta + `--warmup-ratio` (M1: 2×T4 DataParallel → batch 64). tests/test_training_fixes.py (24), test_training_fixes_sft.py (11); бүх тест давсан, test_thesis_bench::test_compare_report-оос бусад (eval/report.py-ийн зэрэг явж буй `fmt_p` өөрчлөлт).
+- 2026-10-30: M1vf — FULL_REVIEW-ийн хайлтын засварууд шинэ сонголтоор (бүгд анхдагч унтраалттай, `_LATE_DEFAULTS` → хуучин fingerprint/opts_hash хэвээр; flow.py retrieve node): `value_match: strict` (F1, `indexes.strict_match` — кирилл түлхүүрт зөвхөн кирилл + дагавар/угтвар, linking-ийн өсгөлт exact/stem/prefix-д), `mask_mode: values` (F3, `indexes.mask_values` — эхний үгийг маскжуулахгүй, embedding ч ижил маскаар), `enum_codes: all` (F5, `render_ddl(enum_limit=None)`), `translit_vocab: no_eval` (L6, M1vf-д ороогүй), C8 `retrieval.select_raw`; F2 `term_hints(mode="lexicon2")` + `m0_translate.py --hints lexicon2` (V28). Dev-only `M1vf` (M1a + F1/F3/F5) experiments.yaml; V27 run_plan t2s/ensx + `MT_T2S` (M1ip M1fs M1vf M1rt M1cte M1th M1dec). Офлайн `scripts/rerank/vf_offline.py` (dev): хуурамч «Stored value» 113 мөр/87 асуулт хасагдсан, gold-оор баталгаажсан утга 0 алдагдсан (+1), few-shot cover 71.9 → 76.3%, эхний үгийн маск 209 → 48, F5 dev-ийн 8 gold; lexicon2 38 асуултын төөрөгдүүлэх зөвлөмжийг хасна (`lexicon` нь PYTHONHASHSEED-ээс хамаардаг — 8 асуулт) — docs/ACCURACY_PLAN.md «M1vf». Анхдагч prompt 36 тохиргоо × dev 12 000 hash засварын өмнө/дараа ижил; хадгалсан 21 meta: 13 нь resolve_run-ийн fingerprint ба opts_hash-тай яг, 8 нь өмнөх override/derived run (шинэ талбар оролцоогүй). tests/test_vf_options.py (14); нийт 426 давсан, 25 алгассан (`--deselect tests/test_reselect.py`).
+- 2026-10-30 (засвар — өмнөх бичлэгүүдэд): E4-ийн түлхүүр үгийг «dev-ээс гаргасан» гэсэн (§8.1 г.м.) нь бүрэн үнэн биш: «таамаг», «өрсөлдөгч» нь evalset/AUTHORING.md-ээс (dev 0, test 4). Мөн §6.13-ийн орчуулгын шинжилгээ test-ийг хамарсан бөгөөд BRIEF.md-ийн «урхи» (хураагдсан г.м.) M1-ийн өгөгдөлд орсон. Дэлгэрэнгүй ба мэдрэмжийн шинжилгээ: docs/review/FULL_REVIEW_2026-10-30.md; дипломын Ch6 «Үнэлгээний хүчинтэй байдлын эрсдэл». PDF 68 хуудас (дахин хөрвүүлсэн).
+
+## 2026-10-31 — V26 (эцсийн test) эхэлсэн
+- `config/kaggle_overrides.env` ← `kaggle_overrides_next.env` (V23-ийн хуучныг scratchpad-д нөөцөлсөн); `pack_code.py --slim`
+  (475 файл, 8.8 MB) → кодын dataset **text2sql v31** («V26 final test (tens ens pick) + review fixes»). Багцын хуулбар
+  scratchpad/t2s_code_v26.zip.
+- Notebook input: text2sql v30 → **v31**, notebook output **V16 → V25**, t2s-v8-output хэвээр (v3 = V22, шинэ хувилбаргүй).
+- **Version 26** («V26 final test tens ens pick»), GPU T4×2, Save & Run All — 2026-10-31 ~19:20 УБ (scriptVersionId 364207062).
+- Зэрэгцээ (5 agent; C7/S9-ээс бусад нь анхдагчаар унтраалттай; V26-ийн хөлдөөсөн багцад нөлөөгүй): C4 засварын давталт, C7/S9 executor
+  read-only, C8 нэр томьёо сонгогчийн parse, F6/F7 хувилбар pin + resume hash, B8 reranker-ийн эерэг жишээ.
+- B8 (reranker-ийн эерэг жишээ, `scripts/rerank/rr.py`): (1) эерэг нэр томьёог **holdout**-ын нэр дэвшигчдэд ч оруулдаг байсан →
+  V25-ийн holdout recall 96.3% / бүгд олдсон 94.7% хөөрөгдсөн (локал BM25-аар holdout-ын 81 эерэгийн 5 нь хайлтад байхгүй: бодит
+  дээд хязгаар recall 93.8%, бүгд олдсон 91.2%; v1 дээр 100%), босго ч тэр бохир дээр сонгогдсон; (2) pool дүүрэн үед `c[-1]`-ийг
+  солдог тул ≥2 эерэг дутуу эсвэл доод рангид эерэг байвал эерэг алга болно (локал BM25-д 0 тохиолдол, Kaggle-ийн hybrid-д шалгах
+  боломжгүй). Засвар: `rr.py train --data v2` (holdout = бодит хайлт, зөвхөн сөрөгийг сольж оруулна); анхдагч `v1` нь хуучинтай
+  яг ижил (635/635 нэр дэвшигч), select/M1rr inference өөрчлөгдөөгүй; meta-д `data`, `holdout_retrieval_ceiling`, `eval_overlap`.
+  Сургалтын 635 жишээ ↔ dev/test: id/family/асуулт/gold SQL давхцал 0 (сургалт эхлэхэд шалгаж, давхцвал зогсооно). tests/test_rr_data.py (13).
+- Бусад 4 засвар (C7/S9 нь үргэлж идэвхтэй — SELECT-ийн үр дүн өөрчлөгдөхгүй; бусад нь анхдагчаар унтраалттай; одоо байгаа run-уудын hash өөрчлөгдөөгүй): C4 `repair_strict` (tests/test_repair_strict.py 13), C7/S9 executor `set_session(readonly=True)` (tests/test_executor_readonly.py 6), C8 `select_parse: strict` + M1ksf (tests/test_select_parse.py 19), F6 `PIN_VERSIONS=1` (bootstrap.sh) ба F7 `code_digest`/`version_mismatch` (runner.py; tests/test_resume_version.py). Бүх тест: 482 давсан, 25 алгассан (tests/test_reselect.py-ийн PG шаарддаг 2-ыг хассан). Дэлгэрэнгүй: docs/review/FULL_REVIEW_2026-10-30.md §3.
+- V26 log (~11:21 UTC): `[override] … STAGE mt MT_STEPS "tens ens pick" MT_TENS "M1ks M1rr M1g8 M1m"` зөв; V25-ийн t2s_results.zip сэргээгдсэн; madlad_m1 adapter өмнөх сессээс; test орчуулгын кэш 800 мөр (+0) → tens эхэлсэн.
+- Хэрэглэгчийн хүсэлтээр бүх код ба баримт бичгийн хяналт (5 agent, зөвхөн уншина): өнөөдрийн засварууд, үндсэн pipeline/eval, сервис/сургалт/тест, скрипт/тохиргоо, баримт бичиг.
+
+## 2026-10-31 (орой) — бүх код ба баримт бичгийн хяналт (5 хяналт + 8 засварын agent)
+- Нэгдсэн тайлан: `docs/review/REVIEW_2026-10-31.md`. Засварууд V26-д нөлөөгүй (V26 хөлдөөсөн кодоор явж байна).
+- Баталгаажуулалт: 117 тохиргоо × 4 хослол = 468 fingerprint V26-ийн кодтой ижил (зориуд өөрчилсөн: WEB/WEBA →
+  `intent_rules: v2`; шинэ M1ksf, M1lx); хадгалсан 22 run-ийн оноо ижил (зөвхөн abstention curve зориуд); тест 825 давсан,
+  30 алгассан (PG); `bash -n` OK; .sh/.env CR 0.
+- Диплом (PDF 69 х., алдаа 0): I3t → M1a test-ийн ахиц загвар төстэй 6 ба 13 асуултыг хасахад p = 0.16 (батлагдахгүй; dev
+  p = 0.0054); H1 нь «Dev-д батлагдсан» (цэвэр H4 → I3; test 6-гүй p = 0.087); chrF++ MADLAD 53.5 → 74.8 (Qwen 58.0); LoRA ижил
+  кодоор 82 → 81 (p = 1.0); E4 dev-ийн үгээр 43.0%; шинэ хязгаарлалт (нэг seed, G1, D2-ийн prompt зөрүү, BIRD маск, L058).
+  Слайд (pptx-д шууд; generator синхрон биш), QA 40 асуулт, talk notes, docs-ийн 25 файл шинэчлэгдсэн.
+- Код: сервисийн C1 (замын сонголтоор файл унших) ба H1/H2 (ажлын хэмжээ, 5 MB үр дүн), guard (ts_stat, ts_rewrite,
+  crosstab*, connectby, xpath_table), intent_check v2 (L058 «Бүтэц өөрчилсөн зээл»-ийн буруу татгалзал), тохиргооны
+  түлхүүр/enum шалгалт, gold алдааг кэшлэхгүй + infra-ийн хязгаар, тасарсан JSONL, run бүрт timeout, test-ийн түгжээ
+  (`ALLOW_TEST=1`), хугацаа дууссан override → exit 2, ensx-ийн суурь M1ensx0, BIRD маск, сургалтын dev/test index хориг.
+- `docs/ADAPTIVE_SAMPLING.md`: симуляторын EX_нийт runner-тэй ижил дүрмээр (fixed8 48.47 → 52.62; бодит E4 53.00).
+- `config/kaggle_overrides.env` ← `kaggle_overrides_v27.env` (V26-ийн локал хуулбарыг scratchpad-д нөөцөлсөн);
+  `kaggle_overrides_next.env`-ийн KO_UNTIL 2026-10-31 (андуурч хуулбал exit 2).
+- Agent-ийн буруу замд үүсгэсэн `C:\c\...\zip_extract` (476 файл, 39 MB) Recycle Bin руу.
+- V26 (~20:40 УБ): M1ks test 100/200 (завсрын 58 зөв); ~33 с/асуулт → test-ийн 4 гишүүн ~03:00, чуулга ~03:15 (11/01).
+
+## 2026-11-01 — V26-ийн эцсийн test-ийн үр дүн
+- V26 (scriptVersionId 364207062): tens 11:39–18:18 UTC (M1ks 6 850 с, M1rr 5 908 с, M1g8 5 852 с, M1m 5 242 с), test-ийн
+  чуулга 18:18–18:19, dev `ens` (M1ensr dev 197/300 — V25-тай ижил), dev pick (M1ensp) 18:21 UTC-ээс хугацааны хязгаартай.
+- Асуулт бүрийн үр дүнг log-оос задалж (гаралтыг татаагүй) `results/runs/test/{M1ks,M1rr,M1g8,M1m,M1r,M1ens,M1ensr}_kaggle_q.txt`;
+  ангилал evalset-тэй, нийт тоо runner/JSON хураангуйтай таарсан. Дэлгэрэнгүй: `docs/RESULTS_V26.md`.
+- **Урьдчилан зарласан M1ens: test 110/200 (55.0%), хариулах 90/151 (59.6%)**; M1a → M1ens хариулах +10/−1, p = 0.012
+  (dev +11/−1, p = 0.006 давтагдсан); 13 + 6 асуултгүй +8/−1, p = 0.039. Гишүүд (M1ks 50.0, M1rr 50.0, M1g8 48.0, M1m 51.0%)
+  M1a-аас (50.5%) ялгаагүй. M1ensr 60.0% (хариулах 57.6%) нь test-ийн мэдээлэлтэй 4 түлхүүр үгээр оноо авсан (dev-ийн үгээр
+  ≈58.5%) тул гол дүн биш.
+- Диплом, слайд, QA-г шинэчлэх 2 agent ажиллаж байна.
+- Диплом (PDF 71 х., алдаа 0, хураангуй 1 х.): M1ens-ийг урьдчилан зарласан эцсийн систем (55.0%; хариулах 59.6%), M1a-г
+  хамгийн сайн ганц тохиргоо (50.5%) гэж; test-ийн хүснэгтэд 7 мөр, McNemar-ийн 12 мөр (dev/test хүснэгт тусдаа), хүчинтэй
+  байдлын хэсэгт M1r/M1ensr-ийн түлхүүр үгийн эрсдэл ба M1ens-ийн 13 + 6 мэдрэмж; H4 → «Хариулах боломжтой асуултад
+  батлагдсан (засваргүй p)». Слайд 11 (21.0% → 55.0%, M1ens багана), 14 (H4 «Батлагдсан», хариулах асуулт гэж тодорхой),
+  16, 18; QA 42 асуулт; talk notes шинэчлэгдсэн.
+- V27-ийн бэлтгэл: `config/kaggle_overrides.env` = v27 (KO 2026-11-14, `MT_STEPS="t2s ensx"`); `pack_code.py --slim` →
+  484 файл, 7.4 MB (CR 0; pptx/out/diplom ajluud хасагдсан) → кодын dataset **text2sql v32** («V27 dev (t2s ensx) + full
+  review fixes»; dist-ийн файл hard link-тэй байсан тул scratchpad/upload_v27-ийн хуулбарыг байршуулав). Хуулбар:
+  scratchpad/t2s_code_v27.zip. V26 дууссаны дараа input: text2sql v32, t2s-adapter-d2, notebook output → V26 (t2s-v8-output-ийг
+  хасна).
+- V26 дууссан (Successfully ran, 29 429 с). Dev pick M1ensp = M1ens бүх 300 асуултад (өөрчлөлт 0; parse_choice-ийн хуучин алдаа
+  байж магадгүй) → PICK_TEST = 0.
+- **Version 27 эхэлсэн (2026-11-01 ~04:25 УБ)** («V27 dev t2s ensx», GPU T4×2): input text2sql v32, t2s-adapter-d2,
+  notebook output V25 → **V26**; t2s-v8-output-ийг хассан (V26-ийн архив хуримтлагдсан). Хүлээгдэх ~11 ц.
+- **Version 27 унасан (scriptVersionId 364345597, 812 с):** bootstrap-ийн `t2s testsuite-build` → `generate_database` →
+  `load_t2s_layer`-д PostgreSQL `DeadlockDetected` (хоёр процесс нэг DB-д; нөгөө нь их хэмжээний ачааллын дараах
+  autovacuum/ANALYZE байх магадлалтай — DB-ийн код V26-тай ижил тул уралдааны (timing) алдаа). GPU ~14 мин үрэгдсэн.
+  Засвар: `db/loader.py _execute_retrying` (deadlock → rollback, 3 оролдлого; tests/test_loader_retry.py 3), `bootstrap.sh`-д
+  testsuite-build-ийг нэг удаа дахин оролдоно. Тест 828 давсан. Кодын dataset **text2sql v33** («V27 retry …»).
+- **Version 28 эхэлсэн (~04:50 УБ, scriptVersionId 364349653)** («V27 dev t2s ensx (retry)», GPU T4×2): input text2sql v33, t2s-adapter-d2, V26 output.
+- Дутуу зүйлсийг нөхөв (хэрэглэгчийн хүсэлт): (1) G1 — үүсгэгчийн кодоор шалгахад USD зээл зөвхөн BIZ_USD бүтээгдэхүүнээр
+  (SME 7%, корп 20% жин) бий; loan_writeoffs-д currency багана алга, collection_cases/loan_guarantors/collection_promises/
+  loan_charges нь зээлийн валютаар — эрсдэл бодит. DB-гүйгээр тоог мэдэх боломжгүй тул `scripts/dev/g1_currency_check.py`
+  (view-ийг MNT-ээр шүүсэн дэд асуулгаар сольж gold-ийг харьцуулна; 13 SQL-ийн хувиргалтыг локал дээр шалгасан) ба
+  run_plan-ийн `g1` алхам (MT_STEPS-д тодорхой бичвэл л; DB, загваргүй; log-д мөр бүр) — дараагийн сесст ажиллуулна.
+  (2) ensx-ийн шинэ гишүүд `MT_ENSX_NEW`-ээр (анхдагч V27-ийнх). (3) repair_strict үед rescue_truncated-ийн түр алдаа →
+  InfraError → «llm» нэр дэвшигч (runner дахин асууна); тест. (4) Слайд 5: «8 хувилбараас» → «олон хувилбараас»
+  (E-stack 8, M1ens 5 тохиргоо). (5) MT_TAIL_MIN=25 хангалттай: V26-ийн test/dev чуулга тус бүр ~1.5 мин. Тест 829 давсан.
+- V28 log: bootstrap давсан (test-suite DB 8/8, deadlock гараагүй), override зөв (`MT_STEPS "t2s ensx"`, 7 run эрэмбээр,
+  анхааруулга алга), vLLM d2 21:14 UTC (255 с), M1ip dev 21:15 UTC-д эхэлсэн (300 асуулт, timeout 615 мин).
+- **V26-ийн гаралтыг татав** (хэрэглэгчийн зөвшөөрлөөр; t2s_results.zip 21.6 MB → scratchpad/v26_output, zip-slip шалгалт).
+  `ingest_results.py` (python -I): 40 run-ийг results/runs-д хуулсан, тайлан `docs/RESULTS_V26_ingest.md` (гараар бичсэн
+  RESULTS_V26.md-г дарахгүйн тулд --out). Log-оос задалсан тоо бүгд таарсан. M1a-ийн бүтэн гаралтаар нийт зөвийн McNemar:
+  M1a → M1ens +11/−2, p = 0.023 (13 + 6 асуултгүй +9/−2, p = 0.065); I3t → M1a +37/−13, p = 0.0009 (13 + 6-гүй 0.034);
+  гишүүд нийтээр ч ялгаагүй. Ch6-ийн test McNemar хүснэгтийн «---» нүднүүдийг бөглөж footnote-ийг шинэчилсэн, PDF дахин
+  хөрвүүлсэн (71 х., алдаа 0). Слайд 11: «0.0009 / 0.007», «0.023 / 0.012» (+тэмдэглэл); QA, talk notes, build_pptx.py.
+- Pick: dev M1ensp-д 95 асуултад дуудагдаж 95 нь «keep», «swap» 0 → parse_choice-ийн хуучин алдаа хамгийн магадлалтай;
+  засварласан кодоор dev pick-ийг дахин ажиллуулна (дараагийн сесс, g1 шалгалттай хамт).
+- Pick-ийг оношлох боломжтой болгосон: `pick_pair(trace=)` → бичлэгт `reselect.pick_votes` (хоёр дарааллын хариу, «AA»/«BA»/«-»);
+  tests/test_pick.py; тест 830 давсан. V28-ийн тохиргоо `config/kaggle_overrides_v28.env` (dev: g1, lex2, M1lx, M1ksf, ens pick,
+  ensx = V27-ийн гишүүд + M1lx, M1ksf; KO 2026-11-21; ~7 ц); ACCURACY_PLAN-ийн Kaggle хүснэгтэд V28 мөр, synth → V29+.
+
+## 2026-11-01 — Log/үр дүнгээс алдаа ба нарийвчлал өсгөх тохиргоо (зөвхөн dev; test-ийг тааруулахад ашиглаагүй)
+- **Нөөц (dev хариулах 224):** M1ens 137, гишүүдийн оракл 155. Алдагдал 87: зөв хариу цөөнхөд 13, тэнцэлд ялагдсан 5, аль ч
+  гишүүн зөв биш 69 (үүнээс 10 нь degenerate → abstain, 7 нь бүгд exec/guard алдаа). Сул тал: hard 15/46, cross, cte, multi_currency,
+  ratio. Хайлт биш: алдаануудын 82/87-д table_recall = 1. M1a ба M1m 91% ижил SQL.
+- **Сонголтын загварчлал (family-group 5-fold CV ×20):** жин/тэнцэл таслах +1.6-аас хэтрэхгүй; **E2 (8 хувилбар) + I3t-ийг нэмэлт
+  санал өгөгч (ω 0.5)** — хариулах 149.7/224 (+12.7; +13/−0, p = 2.4·10⁻⁴), нийт 184.7 (+8.7). → M1ensE2-ийг test-ээс ӨМНӨ
+  урьдчилан бүртгэв (`docs/ACCURACY_PLAN.md` «M1ensE2»), V28-ийн `ense2` алхам (CPU, dev + test нэг удаа).
+- **Алдааны ангилал → 4 бодит алдаа** (бүгд анхдагч унтраалттай; офлайн дахин боловсруулалт 1697/1697 бичлэгийг яг давтсан):
+  `guard_scope` (CTE-ийн alias-ийг scope-гүй шалгадаг guard-ийн худал татгалзал; X032, X044, X013), `transpile_fix` (SQLite→PG
+  F1–F5: SELECT alias-ийг WHERE/HAVING-д, strftime/substr тоо, огноо substr, boolean AVG/MAX, strftime-ийн modifier),
+  `extract_fallback` (тасарсан сүүлийн ```sql блок → өмнөх бүтэн блок; C042, P047), `literal_fix` (postproc R6: DB-д байхгүй
+  англи литералыг энэ асуултын утгын hit-ээр; гишүүдийн 13 хариулт зөв болох нь батлагдсан). Тохиргоо **M1afx** (M1a + 4).
+  tests/test_err_fixes.py (17); тест 847; fingerprint (WEB/WEBA-аас бусад) өөрчлөгдөөгүй.
+- **Метрикийн сэжиг (шалгах):** `compare.norm_value` timestamptz-ийг UTC+8 руу хөрвүүлдэг, executor сессийн цагийн бүсийг
+  тохируулдаггүй (config-ийн `project.timezone` ашиглагдаагүй) → UTC сесст `date_trunc('month', DATE)` 08:00 болж gold-ийн
+  огноотой таарахгүй; гишүүдийн 23 гаралт ийм. g1 алхамд `db_timezone` хэвлэдэг болгосон — V28-д баталгаажвал бүх run-ийг
+  засвартай дахин оноолж мэдрэмж болгон мэдээлнэ.
+- Бусад: max_tokens (3072)-д гаралтын 12–16% тасардаг (тэдгээрт хариулах 31–50% vs 58–62%); E-бүлгийн засварын prompt-д
+  хөрвүүлсэн PG SQL-ийн алдааг SQLite SQL-тэй харуулдаг (сайжруулах боломж).
+- V28 (`kaggle_overrides_v28.env`): `g1 lex2 t2s(M1lx M1afx M1ksf) ens pick ensx ense2`; ALLOW_TEST=1 зөвхөн ense2-ийн test-д;
+  кодын багцад dev-ийн E2 (KEEP_FILES; 7.7 MB). Simulation-аар шалгасан.
+- V28 сесс (V27): M1ip dev дууссан 23:32 UTC (8 225 с ≈ 137 мин/run) — log-ийн хураангуй: нийт 164/300 (54.7%), хариулах
+  129/224 (57.6%) (M1a 160 / 127). Асуулт бүрийн McNemar-ыг гаралт татсаны дараа файлаас (log-ийн 300 тэмдэгтийг гараар хуулахад
+  2 алдаа гарсан тул тэр тооцоог хаясан — цаашид зөвхөн файлаас эсвэл JS доторх тооллогоор). M1fs 23:32 UTC-д эхэлсэн;
+  ~137 мин/run тул M1ip, M1fs, M1vf, M1rt багтаж M1cte/M1th/M1dec алгасагдах төлөвтэй.
+- Метрикийн цагийн бүсийн мэдрэмж: `compare.TZ_NAIVE` (`T2S_TZ_NAIVE=1` үед timestamptz-ийг сессийн цагаар, анхдагч хэвээр;
+  tests/test_tz_naive.py) ба run_plan-ийн `tzfix` алхам (M1a, M1ens: *_rs хяналт — анхны тоог давтах ёстой; *_tzn засвартай;
+  dev + test, CPU). V28-ийн тохиргоог квотод (энэ долоо хоногт ~10.5 ц үлдэнэ) тааруулж: MT_T2S="M1lx M1afx" (M1ksf хассан),
+  MT_BUDGET_MIN=480, MT_PICK_MIN=70, MT_STEPS="g1 lex2 t2s ens pick ensx ense2 tzfix". Simulation ~465 мин. Тест 849.
+- V27 (V28 сесс) ~09:20 УБ: M1fs dev 250/300 (явцын 146 зөв).
+- ~11:00 УБ: M1fs dev дууссан — 158/300, хариулах 124/224 (M1a 160 / 127); M1vf ажиллаж байна. V28-д бэлтгэж
+  `config/kaggle_overrides.env` ← v28 (V27-ийн локал хуулбарыг scratchpad-д), тест давсан, `pack_code.py --slim` (493 файл,
+  7.7 MB, dev E2 орсон, CR 0) → кодын dataset **text2sql v34** («V28 dev: g1 lex2 M1lx M1afx pick ensx ense2 tzfix»).
+  Хуулбар scratchpad/t2s_code_v28.zip. V27 дуусмагц input: text2sql v34, t2s-adapter-d2, notebook output → V27-ийн хувилбар.
+- ~12:40 УБ: M1vf dev — нийт 167/300, хариулах 132/224 (M1a 160 / 127; одоогийн хамгийн сайн ганц тохиргоо); M1rt ажиллаж байна.
+- ~14:30 УБ: **V27 (Kaggle Version 28, scriptVersionId 364349653) амжилттай** — 34 182 с (9.5 ц), log-д алдаа/timeout алга (pip ба
+  HF-ийн нэвтрэлтгүй анхааруулга л). M1rt 161/300, хариулах 129/224. M1cte/M1th/M1dec алгасагдсан (98 мин < MT_RUN_MIN 115).
+  Гаралт (23.2 MB, 256 файл) scratchpad/v27_output/ → `ingest_results.py --tag V27` → **docs/RESULTS_V27.md**; шинэ run-уудыг
+  results/runs/dev/-д хуулсан (байгаа файлыг дараагүй; test/H4 180 мөр тул хуулаагүй). Dev, хариулах 224 (McNemar, M1a-тай):
+  M1ip 129 (+13/−11, p 0.84), M1fs 124 (+19/−22, p 0.76), **M1vf 132** (+21/−16, p 0.51), M1rt 129 (+2/−0, p 0.5).
+  **M1ensx** (M1ens + M1ip M1fs M1vf) 142 vs M1ensx0 137: +8/−3, **p 0.227 → батлагдаагүй** (урьдчилан тогтоосон дүрмээр test-д
+  шинэ гишүүн нэмэхгүй). M1ensx0 = M1ens (V26-тай 0 ялгаа). M1ensxr 201/300 vs M1ensxr0 197/300; M1ensx-ийн pass@k 170/224.
+- ~14:38 УБ: **V28 эхэлсэн** (Kaggle Version 29, scriptVersionId **364454852**, «V28 g1 lex2 M1lx M1afx pick ensx ense2 tzfix»,
+  GPU T4×2). Input: text2sql **v34**, notebook output → Version 28 (V27), t2s-adapter-d2 (+ V27-д байсан t2s-adapters,
+  t2s-results, t2s-train-d3 — V27-тай ижил бүрэлдэхүүн). Анхааруулга: text2sql-ийн «Check for updates»-ийг 2 дахь удаа
+  дарахад menu-ийн байрлал шилжиж input хасагдсан — «Add Input»-ээр v34-ийг (493 файл, 8 MB) дахин нэмсэн. Квот 17:53/30 ц.
+  V28-ийн test-д хэрэгтэй гишүүд архивт бүрэн (test E2 h_H4, M1ks M1a M1g8 M1m M1rr I3t — 200 мөр); dev E2 кодын zip-д (300).
+- **M1ensE2r — урьдчилан бүртгэл** (V28-ийн test-ийн дүнгээс өмнө; docs/ACCURACY_PLAN.md): M1ensE2 + M1ensr-ийн дүрэм (нийт EX-д
+  боломжгүй/хоёрдмол асуултыг оноолно). run_plan-ийн `ense2` нь V29-өөс M1ensE2r-ийг бас тооцно, бүрэн гаралттай run-ийг
+  дахин тооцохгүй (`bash -n` OK, CR 0). V28-ийн override-ийн толгой тайлбарыг засав («test-ийг хөндөхгүй» → ense2/tzfix л).
+- Dev-ийн 2 шинжилгээг agent-аар эхлүүлэв (test-ийг уншихгүй): (1) V27-ийн шинэ гишүүдийг M1ensE2-д нэмэх (family CV);
+  (2) V27-ийн run-уудын алдаа — ялангуяа M1rt яагаад зөвхөн 3 асуултыг өөрчилсөн (тасралт 12–16% гэж тооцоолсон).
+- **Dev шинжилгээ (agent 1, scratchpad/dev_analysis_v27; test-ийг уншаагүй):** офлайн simulator бодит файлтай 0 зөрүүтэй
+  (M1ens 137, M1ensx 142, M1ensE2 in-sample 150/224). M1ensE2-д V27-ийн гишүүнийг (жин 2, төгсгөлд) нэмэхэд: +M1ip 149, +M1fs 151,
+  +M1vf 152 (+3/−1, p 0.63), +M1rt 147, гурвуулаа 149, бүгд 150 — аль нь ч p < 0.05 биш; сонголтын family CV 149.70 (−0.30).
+  **Шийдвэр: M1ensE2 хэвээр.** Шалтгаан: шинэ run-ууд M1a-ийн хувилбар (M1a-тай ижил үр дүн 222/189/201/297 асуултад) тул E2-ийн
+  8 саналын эсрэг M1a-ийн блокийг хүчирхэгжүүлнэ. M1ensx-ийн 28 алдагдал (нэгдэл 170 − 142): 27 нь саналаар дийлдсэн (зөв нь 1
+  санал — 16, 2–3 санал — 11), 1 нь тэнцээ (K038), шүүлтээр алдсан 0 → сонголтыг сайжруулах (pick/verifier) нь гол нөөц.
+  **M1rt-ийн аврах механизм dev-ийн 300 асуултын нэгд ч идэвхжээгүй** (rescued=None; 294/300 SQL M1a-тай ижил) — agent 2 шалгаж байна.
+- ~15:20 УБ: V28 bootstrap OK (8 test-suite DB, deadlock-гүй), override v28 уншигдсан, lex2 (M1 MADLAD dev, lexicon2) эхэлсэн.
+  **Далд алдаа олдов:** V27 ба V28-ийн log-д «[keep] t2s_code.zip олдсонгүй» — Kaggle кодын dataset-ийг ЗАДАЛЖ байршуулдаг
+  (notebook нь хавтсыг /tmp/t2s руу хуулдаг) тул `restore_keep_files` хэзээ ч ажиллаагүй (KEEP_FILES-ийг архивын хуучин хуулбар
+  дарж болох байсан). V28-д нөлөөгүй: dev E2 архивт алга тул кодын хуулбар хэвээр. Засвар (V29-өөс): zip алга бол
+  `scripts/notebook/pack_code.py`-тэй задалсан кодын хавтаснаас (өөрийн модноос бусад, хамгийн шинэ) хуулна; `T2S_KEEP_SEARCH`
+  (тестэд). tests/test_run_plan_static.py: heredoc-ийг бодитоор ажиллуулдаг 2 тест (задалсан dataset / zip / өөрийн мод) — 37 passed.
+- **Алдааны шинжилгээ (agent 2, scratchpad/err_v27; зөвхөн dev):** (1) M1rt-ийн аврах механизм хэзээ ч идэвхжээгүй — max_tokens
+  (3072)-д хүрсэн 36 гаралт бүгд `</think>`-ийн ДАРАА SQL-ээ давтсан (31) эсвэл тайлбараа давтсан (5); өмнөх «12–16% тасралт»
+  дүгнэлт буруу байсныг засав (давталт; SQL аль хэдийн бий). M1rt-ийн 3 ялгаа vLLM-ийн шуугиан → M1rt хасна. (2) **Шуугиан:** ижил
+  prompt-оор 29/300 гаралт өөр (~1% эргэлт), prompt-ийн өөрчлөлт хариулах асуултын 16–19%-ийг хоёр тийш эргүүлнэ (5 run: аль
+  нэгэнд зөв 162, бүгдэд 91) — ганц run-ий ±5 нь шуугиан. (3) **R7 `trunc_date`** (postproc, анхдагч off; `cast_date_trunc`;
+  tests/test_trunc_date.py 6): гаралтын DATE_TRUNC timestamptz → UTC сесст 08:00 → gold-ийн огноотой таарахгүй; dev-ийн 115 ийм
+  хариултын 0 нь зөв; хүлээгдэх +3 (K036 K040 P040). (4) M1vf-ийн бодит ялалт A032/D012 (`value_match: strict`, ~+2); M1ip-ийг
+  асуултад нэрлэгдсэн хүснэгтэд л (~+3, overfit эрсдэл дунд); M1fs — хадгалах хувилбаргүй. fp_dump: зөвхөн WEB/WEBA (+ шинэ M1afx,
+  M1ksf, M1lx) ялгаатай.
+- **reselect `--trunc-date`** (eval/reselect.py, cli.py — CRLF-ийг байтаар): хадгалсан хувилбарт R7-ийг guard-аас өмнө (pipeline-тай
+  ижил) — GPU-гүй, детерминист; tests/test_reselect_trunc_date.py (3). **R7 урьдчилан бүртгэл** (ACCURACY_PLAN «R7», V28-ийн
+  test/tzfix-ээс өмнө): M1ens_r7, M1ensE2r_r7 (dev + test, хоёрдогч). run_plan-д `r7` алхам (CPU; ALLOW_TEST хамгаалалттай).
+  **config/kaggle_overrides_v29.env**: MT_STEPS="ense2 r7", ALLOW_TEST=1 (зөвхөн урьдчилан бүртгэсэн CPU reselect), төсөв 90 мин.
+  tests/test_run_plan_static.py-д V29-ийн шалгалт. Бүх тест: **861 passed, 30 skipped**.
+- ~16:10 УБ (V28 3 718 с): lex2 — 600 орчуулга 620 с; chrF++ 74.3 (кирилл 74.9, латин 73.7), кирилл↔латин 93.5. **G1:**
+  `db_timezone = Etc/UTC`; 13 gold-ийг зөвхөн MNT мөрөөр — 13/13 ижил үр дүн → валютын сэжиг хаагдсан (FULL_REVIEW G1). M1lx ажиллаж байна.
+- lex2 ↔ M1 (ижил `baseline_dev.py`, M1-ийн кэшийг V27-ийн архиваас локал оноосон): chrF++ кирилл 74.9 vs 74.8, латин 73.7 vs 73.6,
+  chrF<45 3.3% vs 3.7%, curated нэр томьёо 176/255 (69.0%) ба 172/255 — **ижил**. lexicon2 зөвлөмж орчуулгыг бараг өөрчлөөгүй тул
+  M1lx-ийн dev ялгаа голдуу prompt-ийн шуугиан (16–19% эргэлт) байх төлөвтэй; шийдвэрийг McNemar-аар (p < 0.05) л гаргана.
+- Диплом (Ch6): tab:dev-full-д V27-ийн 5 мөр (M1ip M1fs M1vf M1rt M1ensx, § тайлбар — dev л, ач холбогдолгүй, test-д
+  аваачаагүй); tab:mcnemar-dev-д M1a → M1vf, M1ens → M1ensx; §6.4-т «Хэмжилтийн шуугиан ба бусад шалгалт» (vLLM-ийн ~1% /
+  prompt-ийн 16–19% эргэлт, M1rt идэвхжээгүй шалтгаан, G1 13/13). PDF scratchpad/pdfbuild6 → 72 хуудас, фатал алдаа 0,
+  тодорхойгүй reference 0; хуучныг scratchpad/Text2SQL_diplom_tailan_before_v27rows.pdf-д.
+- **DB түвшний REVOKE** (REVIEW §4-ийн нээлттэй зүйл): `db_t2s/110_roles_rls.sql`-д ts_stat (1, 2 арг.), ts_rewrite(tsquery, text),
+  table/schema/database/cursor_to_xml* (+xmlschema)-ийг PUBLIC-ээс хураах DO блок — PG-д байхгүй гарын үсгийг `to_regprocedure`
+  алгасна (DB үүсгэлтийг унагахгүй; локалд PG ажиллуулаагүй тул Kaggle дээр батална). `scripts/dev/db_revoke_check.py` + run_plan-ийн
+  `secdb` алхам (bot role-оор guard-гүй шууд дуудаж «permission denied»-ийг шалгана, хяналт SELECT амжилттай); V29-ийн
+  MT_STEPS="secdb ense2 r7". tests/test_db_revoke_static.py (3). SECURITY.md, REVIEW §4 шинэчлэгдсэн (G1 хаагдсан).
+- QA_DEFENSE_1.md **43-р асуулт** («үндсэн загвараас юугаар, хэдээр сайжруулсан бэ»): ижил өгөгдөл дээрх харьцуулалт — A7 2.3% →
+  M1ens 58.7% (dev, p < 10⁻⁴² хязгаар), A7-en (төгс англи, RAG-гүй) 21.3% → 58.7% (+126/−14, p = 1.0·10⁻²³; хариулах +94/−11,
+  p = 1.4·10⁻¹⁷ — dev-ийн файлаас шинээр бодсон), test D2 → M1ens +72/−4 (p = 3.6·10⁻¹⁷); бүрэлдэхүүн бүрийн хувь нэмэр
+  (Хүснэгт 4.4, 6.3-аас).
+- ~17:15 УБ: V28 M1lx dev 275/300 (154 зөв). Вэбийн server-side cursor-ийн бодит DB-ийн smoke тест (REVIEW §4): `db_revoke_check.py`
+  → `bounded_checks` (энгийн ба нэрлэсэн cursor-ийн зам ижил мөр, 2 KB төсөвт `too_large`, READ ONLY-д бичих хориотой) — V29-ийн
+  `secdb`-д; хуурамч Executor-оор main()-ийн тест (tests/test_db_revoke_static.py 4).
+- ~18:40 УБ: QA_DEFENSE_1.md **44-р асуулт** (Монгол хэлнээс гадна бусад ажлаас юугаараа ялгарах вэ): онцлог (хариулах
+  боломжгүй/хоёрдмол, хатуу үнэлгээ, аюулгүй байдал, хоёр бичиг, бага нөөц) ба бусад ажлын аргыг манай сан дээр давтсан
+  харьцуулалт (ерөнхий LLM орчуулагч, self-consistency, сонгогчгүй чуулга, E1, LoRA); SQL_QUALITY_AND_GAP.md-ийн V26 мөр шинэчлэгдсэн.
+- ~19:15 УБ: **45-р асуулт** (Arctic-ийн 68.5% хэрхэн гарсан нь ил үү): өгүүлэл, HF-ийн карт, GitHub `bird_eval/`-ийг шалгав —
+  BIRD dev (1 534, нээлттэй) ба үнэлгээний код ил, таамгийн файл нийтлээгүй, BIRD test нууц; greedy, OmniSQL prompt + BIRD
+  «evidence», EX = мөрийн олонлог, 10 с; сургалтын код нээгдээгүй. **Залруулга:** A7-ийн (монгол) асуулт бүрийн мөр V26/V27-ийн
+  Kaggle архивт байсан (өмнө «локалд алга» гэж хязгаар өгсөн) → `results/runs/dev/A7/arctic-r1-7b__mn__s0.*` хуулсан; 7/300 =
+  хариулах 5 + хоёрдмол 2; exact McNemar A7 → M1ens +170/−1, p = 1.2·10⁻⁴⁹ (хариулах +132/−0, p = 3.7·10⁻⁴⁰) — 43-р асуулт засагдсан.
+  B5 (tr-гүй)-ийн мөр архивт алга тул Ch6-ийн A7 → B5 хязгаар (p ≤ 2.1·10⁻⁷) хэвээр.
+- ~19:40 УБ: V28-ийн лог (5.3 ц): dev M1lx нийт 160/300, хариулах 128/224 (M1a 127 — lex2 орчуулга ≈ M1, хүлээгдсэнчлэн);
+  **M1afx хариулах 138/224** (нийт 171); ens алхам M1ens 176 (137/224), M1ensr 197 (137/224, боломжгүй 31/38, хоёрдмол 29/38);
+  11:36 UTC-ээс M1ensp (pick) dev. Дараа нь ensx, ense2 (dev + test M1ensE2), tzfix.
+- ~19:45 УБ: **`reselect --refix afx|none`** (eval/reselect.py `make_refixer`): M1afx-ийн 4 засварыг хадгалсан raw_output-д GPU-гүй —
+  гишүүн бүрийн SQL-ийг pipeline-ийн замаар (extract → SQLite→PG → postproc → guard → exec, extract_fallback) дахин гаргана;
+  goldcheck.make_guard(**kw) → scoped guard. **Олдвор:** runner raw_output-ийн сүүлийн 4000 тэмдэгтийг л хадгалдаг тул урт гаралтын
+  (10–14%) эхлэл тасарч, засваргүй дахин гаргалт ч өөр SQL (тайлбарын мөр) гаргана → засваргүй дахин гаргалт хадгалсан SQL-ийг яг
+  давтсан бичлэгт л засвар хэрэглэдэг болгосон (офлайн dev: тасраагүй бүх бичлэг яг давтагдсан — 263/263, 255/255, 252/252,
+  260/260, 261/261; засвар гишүүн бүрт 15–26 SQL өөрчилнө). tests/test_reselect_refix.py (5). run_plan `afx` алхам (M1a_rs/M1a_fx,
+  M1ensfx, M1ensfxr, M1ensE2rfx_r7; dev + test) → V29 (`MT_STEPS="secdb ense2 r7 afx"`); **урьдчилан бүртгэл** ACCURACY_PLAN «afx»
+  (~19:55 УБ, test-ийн afx дүнгээс ӨМНӨ). test_run_plan_static шинэчлэгдсэн.
+- ~19:55 УБ: бүх тест амжилттай; `config/kaggle_overrides.env` ← v29 (`MT_STEPS="secdb ense2 r7 afx"`), `pack_code.py --slim`
+  (500 файл, 7.8 MB) → кодын dataset **text2sql v35** («V29: secdb ense2 r7 afx»). V28 дууссаны дараа V29-ийн input: text2sql v35
+  ба ЗӨВХӨН V28-ийн Output.
+- ~21:40 УБ: V28 (7.0 ц) **M1ensp** (чуулга + Arctic-ийн хос харьцуулалт, dev) 13:22 UTC-д дууссан: нийт 176/300, хариулах
+  **137/224 — M1ens-тэй ижил** (pick нийт дүнд нэмэргүй; асуулт бүрийн эргэлтийг гаралт татсаны дараа). Төсвөөс 88 мин үлдсэн
+  (≥ MT_PICK_MIN 70) тул M1enspr (дүрэмтэй, timeout ≤ 73 мин) ажиллаж байна → дараа нь ensx, ense2, tzfix (CPU).
+- ~21:50 УБ: **afx-ийн ихэр суурь** (afx-ийн ямар ч дүнгээс ӨМНӨ): test-ийн M1ens/M1ensr нь V26-ийн кодоор, M1ensfx/M1ensfxr нь
+  V29-ийн кодоор тооцогдох тул кодын шилжилтийг засварын нөлөөнөөс салгахаар `afx` алхамд `M1ens_rs` (байвал дахин тооцохгүй) ба
+  `M1ensr_rs` (ижил жор, `--refix`-гүй) нэмэв; test_run_plan_static нь ихэр тушаал = засвартай тушаал − `--refix afx` гэдгийг шалгана.
+  ACCURACY_PLAN «afx»-д нэмэлт (бүртгэсэн 4 харьцуулалт ба Holm хэвээр). v28_analysis.py-д ижил жорын асуулт бүрийн тулгалт
+  (M1a~M1a_rs, M1ens~M1ens_rs, M1ens~M1ensx0, M1ensr~M1ensxr0). `pack_code.py --slim` (500 файл, 7.8 MB, CR 0) → кодын dataset
+  **text2sql v36** («V29: secdb ense2 r7 afx + twin baselines»). V29-ийн input: text2sql **v36** ба ЗӨВХӨН V28-ийн Output.
+- ~22:40 УБ: V28 (8.1 ц): **M1enspr** 73 мин-ийн timeout-д хүрч гаралтгүй («алдаа/хугацаа»; хоёрдогч — шийдвэрт нөлөөгүй).
+  **ensx (dev):** M1ensx0 137/224 (= M1ens, энэ сессийн кодоор давтагдсан), **M1ensx (+ M1ip M1fs M1vf M1lx M1afx) 145/224**
+  (нийт 183/300); M1ensxr0 137 (нийт 197), M1ensxr 145 (нийт 204); M1ensra 132 (нийт 201; in-sample, лавлагаа). M1cte/M1dec/M1th
+  бүрэн run алга тул ороогүй. McNemar-ыг гаралт татсаны дараа. 14:37 UTC-ээс M1ensE2 (dev → test), дараа нь tzfix.
+- **~23:15 УБ: V28 дууссан** (Successfully ran, 29 586 с; scriptVersionId 364454852 = notebook Version 29). Гаралт 25.7 MB →
+  scratchpad/v28_output (zip-slip шалгалт, 299 entry); `ingest_results.py --tag V27 --out docs/RESULTS_V28.md` (+ гараар дүгнэлт)
+  ба `--tag V26 --out docs/RESULTS_V28_test.md`. Шинэ run: dev M1lx M1afx M1ensE2 M1a_rs/tzn M1ens_rs/tzn; test M1ensE2
+  M1a_rs/tzn M1ens_rs/tzn; V28-ийн M1ensx/M1ensxr/M1ensp → `results/runs/dev/*_v28/` (V27-ийн ижил нэртэйг дарахгүй).
+  - **M1ensE2 (урьдчилан бүртгэсэн) test: 109/200, хариулах 90/151 — M1ens 110, 90; +9/−9, p = 1 → батлагдаагүй** (dev +14/−0).
+  - M1afx dev +11/−0 (p = 9.8·10⁻⁴; 8 нь raw_output ижил — засвар, 3 нь шуугиан; in-sample); M1lx +1/−0.
+  - M1ensx (+ M1lx M1afx) dev +10/−2, p = 0.0386 — ingest «ТИЙМ» гэсэн ч test-д аваачихгүй (2 дахь харалт → Bonferroni 0.077,
+    in-sample засвар, V28 «test-гүй», ~8–9 ц GPU; RESULTS_V28.md, ACCURACY_PLAN).
+  - Pick: M1ensp = M1ens (0 өөрчлөлт); 95 дуудлагын 87-д хоёр дарааллын хариу задлагдаагүй («--») → шүүгчийн хэлбэр ажиллаагүй;
+    M1enspr timeout.
+  - tzfix: dev +3/−0 (K036 K040 P040), test 0 → гол дүнд нөлөөгүй. Кодын шилжилт 0 (M1a, M1ens ≡ *_rs; dev ба test).
+- **~23:18 УБ: Version 30 (V29) эхэлсэн** («V29 secdb ense2 r7 afx (CPU reselect)», GPU T4×2, scriptVersionId **364587680**):
+  input text2sql **v36**, t2s-adapter-d2 (бусад dataset хэвээр), notebook output **Version 29 (V28)**. Override
+  `MT_STEPS="secdb ense2 r7 afx"`, ALLOW_TEST=1, MT_BUDGET_MIN=90. Хүлээгдэх ~0.7–1 ц.
+- ~23:25 УБ: **pick-ийн задлалт** (`eval/pick.py parse_choice`): V28-ийн 87/95 «--»-ийн магадлалтай шалтгаан — Arctic нь RL-ийн
+  сургалтын хэлбэрээрээ (Ch2: SQL `<answer>` доторх код блокт) A/B-ийн оронд SQL бичдэг. Нэмэлт: «Query B», «**A**», «A.»;
+  `_ask`/`_ask_diff` хоёр хувилбарын SQL-ийг дамжуулж, reasoning-ийн гаднах хаалттай `<answer>` доторх SQL нь хэвийн болгосноор
+  яг нэг хувилбартай ижил бол тэр үсэг (бусад үед None); задлагдаагүй хариуны сүүлийн 160 тэмдэгтийг INFO логт (дараагийн
+  оношлогоонд). tests/test_pick.py +2. GPU квотын улмаас дахин хэмжээгүй — Ch6-д «магадлалтай шалтгаан, хэмжээгүй» гэж.
+- Диплом Ch6: tab:dev-full-д V28-ийн 4 мөр (M1lx, M1afx, M1ensx2, M1ensE2; ¶ тайлбар — in-sample/2 дахь шалгалт), tab:test-д
+  M1ensE2 (урьдчилан бүртгэсэн, 109/200, 90/151), McNemar dev (+3 мөр) ба test (M1ens → M1ensE2 +9/−9, p = 1); §6.4-т «Dev-ээр
+  сонгосон ахиц test-д шилжих эсэх (V28)» (M1ensE2, M1afx/M1ensx2 in-sample, tzfix test 0, pick).
+- ~23:40 УБ: V29 (22 мин): **SECDB** — bot role-д ts_stat, ts_rewrite, table/query/database_to_xml, pg_sleep бүгд «permission
+  denied» (forbidden, ok), bounded_same_rows / bounded_too_large / write_blocked ok → DB түвшний REVOKE Kaggle-ийн PG дээр
+  батлагдсан. **M1ensE2r:** dev 209/300 (хариулах 151), **test 121/200 (60.5%), хариулах 88/151** (M1ensr 120, 87).
+  **R7:** M1ens_r7 dev 179 (140/224; +3), **test 110/200, 90/151 = M1ens** (0 өөрчлөлт); M1ensE2r_r7 dev 212 (154/224).
+  afx алхам ажиллаж байна.
+
+## 2026-11-02
+- **~00:15 УБ: V29 дууссан** (Successfully ran, 2 929 с; scriptVersionId 364587680). Гаралт 28.9 MB → scratchpad/v29_output
+  (zip-slip 0); `ingest_results.py --tag V26 --out docs/RESULTS_V29.md` (+ 10 хос). Урьдчилан бүртгэсэн дүн (ACCURACY_PLAN):
+  - **afx** (Holm 4): test хариулах M1a_fx +6/−0 (p 0.031), M1ensfx 95/151 +5/−0 (p 0.063), M1ensfxr +5/−0, M1ensE2rfx_r7 +2/−0;
+    нийт M1ensfx **116/200 (58.0%)** +6/−0 (p 0.031), M1ensfxr **125/200 (62.5%)**. Бүгд нэг чиглэлтэй, Holm-ийн дараа ≥ 0.063.
+  - **R7:** test 0 өөрчлөлт. **M1ensE2r:** test 121/200, M1ensr-ээс +9/−8 (p = 1). Ихэр суурь: кодын шилжилт 0.
+- ~00:00 УБ: хэрэглэгчийн хүсэлтээр **test-ийн алдааны шинжилгээ** (систем сайжруулах зорилготой дотоод ажил — тайланд
+  оруулахгүй, тайланд өөрчлөлт хийхгүй — хэрэглэгчийн шийдвэр): `docs/TEST_ERROR_ANALYSIS.md`. M1ens test-ийн 90 алдаа: хариулах
+  61 (утгын бичлэг 8 — `'Darkhan'` ↔ `'Дархан салбар'`; KPI-ийн тодорхойлолт ~19; хэцүү аналитик ~20; сонголт 25; хайлт асуудал
+  биш — 58/61-д table_recall = 1), боломжгүй 18/24 (non_sql 5/5, future 5/6, write 3/3, missing/external 5/5; pii 0/5), хоёрдмол
+  11/25. Dev-ийн хэв маяг ижил. Утга prompt-д байсан ч (C034: «Stored value 'Дархан салбар'») загвар англиар бичсэн.
+  Хэцүү аналитикийн судалгааны agent ажиллаж байна.
+- ~00:30 УБ: **Систем сайжруулалт (тайланд оруулахгүй — хэрэглэгчийн шийдвэр):**
+  - **Rules v2** (`pipeline/selection.py rule_decision_v2`, `RunOptions.rules_version` анхдагч "v1" — fingerprint өөрчлөгдөхгүй;
+    `reselect --rules v2`, flow builder-ийн rules node): AUTHORING-ийн 5 ангилал (non_sql, future, write_operation,
+    external_knowledge, missing_data) — монгол үйл үгийн хэлбэр («бичиж өгөөч», «сунгаад … болгоорой», «ирэх … хүрэх вэ») + англи
+    орчуулга (write/draft, forecast, imperative change/close/waive); v1-ийн хуурамч татгалзлыг засав («хэд болох вэ» хөрвүүлэлт,
+    «цалингийн зээл», «хуулийн этгээд», «Монголбанкны ханш», «өндөр эрсдэлтэй», «X нь хамгийн том»). Офлайн (төлөв л солигдоно,
+    runner.score_answer-тэй ижил дүрэм): M1ensfx + v2 dev **210/300**, test **140/200 (70.0%)**; хариулах асуултад хуурамч
+    татгалзал 0 (dev 224 + test 151). tests/test_rules_v2.py (33).
+  - **value_list_max** (хэрэглэгчийн санаа; `RunOptions.value_list_max`, анхдагч 0): утгын индексийн ≤N утгатай текст баганын
+    БҮХ утга DDL-д («values: 'Дархан салбар', …») + «утгыг орчуулалгүй хуул» заавар (VALUE_NOTE). Индексийн 141 баганын 140 нь
+    ≤100 утгатай (нийт 954). Шалтгаан: C034/C029/P016-д зөв утга prompt-д («Stored value 'Дархан салбар'») байсан ч загвар
+    'Darkhan'/'Teacher' гэж орчуулсан; L033-д хайлт олоогүй. Тохиргоо `M1vl` (M1afx + 100) — GPU-тэй dev run (квот 11-07-ноос).
+    tests/test_value_list.py (3); flow builder-т бүртгэсэн.
+  - Сонголтоос өмнөх шүүлт аль хэдийн бий (хэрэглэгчийн асуулт): хувилбар бүр guard → exec; алдаатай нь саналд орохгүй;
+    vote_filter-ээр хоосон/0/NULL ба DB-д байхгүй литералтай хувилбар хасагдана (бүгд ийм бол татгалзана).
+- ~00:40 УБ: судалгааны agent (хэцүү аналитик): судалгааны системүүдэд fan-out/top-k/PoP-ийн тусгай механизм алга (ерөнхий
+  задлалт + сонголт); BI-ийн систем (Cortex Analyst, Looker, MetricFlow, Cube) бүтцээр шийддэг — семантик давхарга (KPI-г нэг
+  удаа), cardinality-ийн граф (fan/chasm trap-ыг хориглох/засуулах), lint-ээр өдөөгдсөн засвар. → **vote_lint**
+  (`pipeline/sql_lint.py`, `RunOptions.vote_lint`, `reselect --lint`, flow-д бүртгэсэн): JOIN-ий бодит холбоос + semantic_model-ийн FK-ээр
+  chasm/fan, NPL-ийг тоогоор, «багц»/NPL-д is_active_portfolio алга → унаагүй хувилбар байвал саналаас хасна. Офлайн (хувилбарын
+  зөв/буруугаар): dev M1ensfx +4/−0, test +3/−0 (L037, X022, X010). tests/test_sql_lint.py (5).
+- ~00:45 УБ: rules v2-ийг өргөтгөв (dev+test-ийн бүх асуултаар хуурамч татгалзал/тодруулга 0/375): missing_data — «шалтгаан»
+  (татгалзлаас бусад; схемд зөвхөн rejection_reason), «төлөвлөгөө», АТМ-ийн байршил/үлдэгдэл; хоёрдмол нэр томьёо тодотголгүй —
+  «хугацаа хэтэрсэн зээл» (хоног/DPD-гүй), «идэвхтэй зээл» (багцгүй), «зээлгүй харилцагч», «барьцааны үнэ цэнэ» (үнэлгээний
+  төрөлгүй), «оноо өндөр» (тоогүй), суурьгүй «хэдэн хувиар өссөн». **Нийлмэл офлайн (M1ensfx + rules v2 + lint): dev 220/300
+  (73.3%), test 146/200 (73.0%)**; боломжгүй 38/38 ба 24/24. Үлдсэн хариулах асуултын 128 алдааг (dev 75, test 53) 4 agent
+  домэйнээр гүнзгий шинжилж байна (scratchpad/err_deep).
+- ~01:25 УБ: **Үлдсэн алдааны гүнзгий шинжилгээ** (хэрэглэгчийн хүсэлт; 4 agent домэйнээр — scratchpad/err_deep/analysis_{A,B,C,D}.md):
+  хариулах асуултын 128 үлдсэн алдаа (dev 75, test 53) — gold буруу 0; шалтгаан: AGG (fan/chasm, бүлэг доторх top-1, PoP/LAG) ~30,
+  SCHEMA ~29, KPI/конвенц ~20, орчуулга ~14 үндсэн (+ туслах 20+), DATE ~13, VALUE ~10, SHAPE ~9; сонголтын алдагдал ~29 (зөв нь
+  ихэвчлэн merge-ийн хамгийн сүүлийн M1rr). **CPU засвар (хэрэгжүүлсэн):**
+  - `pipeline/kpi_fix.py` (`RunOptions.kpi_fix`, `reselect --kpi-fix`; асуулт thread-local): NPL-ийг үлдэгдлээр, loan_payments-д
+    POSTED, ID-г зөв баганад (LN-→loans.loan_number), «багц»/NPL/DPD-д is_active_portfolio, «хаагдаагүй» кейс = NOT IN (RESOLVED,
+    CLOSED, WRITTEN_OFF), «хэдэн доллар» → анхны валютын багана, «төгрөгийн зээл/хадгаламж» → currency_code='MNT', «сүүлийн N хоног»
+    `>=`→`>`, «дараагийн төлөлт» → `> CURRENT_DATE`, «батлагдсан» = APPROVED/CONTRACTED/EXPIRED, татгалзлын хувийн хуваагч = шийдвэр
+    гарсан хүсэлт, шийдвэрийн хугацаа → decided_date, үгүйсгэсэн төлөв («гараагүй») → `<>`, «бүтээгдэхүүн» → product_name. Хадгалсан
+    хувилбар дээр: буруу хувилбар засагдах асуулт dev 36, test 24; зөв хувилбарт хүрэх 6 (L010 L021 X030 P003 P038 P028) — бүгдийн
+    gold-д ижил нөхцөл бий. tests/test_kpi_fix.py (9).
+  - vote_lint өргөтгөл: domain_mismatch, unrequested_active, label_mismatch (semantic_model-ийн enum нэр → код; ерөнхий нэр ба GL
+    код хасагдсан), anti-join-ийг fan гэж тооцохгүй, fan = эцгийн хэмжүүрийг шууд SUM. Офлайн (хувилбарын зөв/буруугаар):
+    dev +6/−0, test +3/−0; gold SQL-ийн 375-аас 1 (X028) л тэмдэглэгдэнэ. tests/test_sql_lint.py (6).
+  - Нийлмэл офлайн (afx + rules v2 + lint; kpi_fix-гүй — SQL өөрчлөгдөх тул DB хэрэгтэй): **dev 222/300 (74.0%), test 146/200 (73.0%)**.
+  - run_plan `v2l` + 4 дэх хувилбар M1ensfxv2lk (afx + v2 + lint + kpi_fix + R7); `config/kaggle_overrides_v30.env`
+    (`MT_STEPS="v2l"`); `pack_code.py --slim` (511 файл) → **text2sql v37**; **Version 31 (V30) эхэлсэн** (scriptVersionId
+    **364620065**, GPU T4×2; input text2sql v37, notebook output Version 30).
+- **~02:05 УБ: V30 дууссан** (Successfully ran, 1 966 с; scriptVersionId 364620065). Гаралт 30.2 MB → scratchpad/v30_output (zip-slip 0);
+  `ingest_results.py --tag V26 --out docs/RESULTS_V30.md`. Бодит DB-тэй (vote_filter-тэй) дүн — систем сайжруулалт (тайланд оруулахгүй):
+
+  | Тохиргоо | dev нийт | dev хариулах | test нийт | test хариулах |
+  |---|---|---|---|---|
+  | M1ens (урьдчилан зарласан гол) | 176 (58.7%) | 137 | 110 (55.0%) | 90 |
+  | M1ensfxv2 (afx + rules v2) | 217 (72.3%) | 146 | 143 (71.5%) | 95 |
+  | M1ensfxv2l (+ vote_lint) | 222 (74.0%) | 151 | 147 (73.5%) | 99 |
+  | **M1ensfxv2lk (+ kpi_fix + R7)** | **241 (80.3%)** | **170 (75.9%)** | **156 (78.0%)** | **108 (71.5%)** |
+
+  M1ens → M1ensfxv2lk: dev +65/−0, test +46/−0 (асуулт бүрээр; алдагдал 0). kpi_fix + R7-ийн нөлөө: dev +19/−0, test +10/−1
+  (X010 — kpi_fix-ийн дараа «×100» давхар өсгөсөн 2 буруу хувилбар ижил болж зөвтэй 2–2 тэнцэж, merge-ийн эхнийх ялсан).
+  Офлайн загварчлал бодит дүнтэй таарсан (M1ensfxv2l dev 222 = 222; test 146 → 147, vote_filter-ийн ялгаа). Боломжгүй асуулт
+  38/38, 24/24. WEB2-т kpi_fix + trunc_date нэмэв. Анхааруулга: дүрмүүдийг dev ба test-ийн алдааг харж боловсруулсан тул шинэ
+  асуултад ахиц үүнээс бага байж болно.
+- **~02:50 УБ: системийн дараалал ба шинэ 400 асуулт (ерөнхийлөлтийн шалгалт; тайланд оруулахгүй).**
+  - `docs/SYSTEM_JOURNEY.md` — системийн бүрэн дараалал алхам бүрээр: A7 (Arctic шууд, dev 2.3%) → RAG B5 (14.3%, +12.0) →
+    LoRA D2 (15.7%) → boolean засвар (19.3%) → англи орчуулга (27.0%) → H4 (36.7%) → E2 санал хураалт (41.0%) → I3t (44.0%) →
+    MADLAD M1a (53.3%) → M1ens (58.7%; test 55.0%) → afx → rules v2 → lint → kpi_fix + R7 (dev 80.3%, test 78.0%). RAG-ийн 4 эх
+    сурвалж (semantic_model, values.json, glossary, few-shot) ба BM25 + bge-m3 хайлт, орчуулагчийн сургалт, чуулга, засвар
+    бүрийн ажиллах зарчим.
+  - **Шинэ (fresh) 400 асуулт:** 4 агент (хүсэлт+харилцагч NA/NC, хадгаламж+төлбөр ND/NP, зээл+барагдуулалт NL/NK, GL+чиг
+    хандлага+холимог NG/NX) `evalset/AUTHORING.md`-ээр, **системийн код, үр дүн, docs, dev/test, жишээний санг харалгүй**
+    зохиож байна (25-аар; домэйн тус бүр 50). Батч бүр `evalset/fresh_parts/`-д → эцэст нь `evalset/fresh.jsonl`.
+    Статик шалгалт (scratchpad `fresh/validate.py`): бүтэц, t2s view/багана, кирилл литерал values.json-д, dev/test ба
+    хоорондоо ойролцоо (асуултын trigram ≥ 0.55, эсвэл SQL-ийн «гарын үсэг» ≥ 0.80 ба асуулт ≥ 0.30). Эхний 50-аас 10 нь
+    dev/test-ийн асуулттай ижил санаатай гарсан (NA02, NA06, NA09, NC02, NC11, NC13, NL01, NL03, NK01, NK09) → солиулж байна;
+    агентууд дараагийн батчаа энэ шалгалтаар (dev/test-ийн текстийг харалгүй) шүүнэ.
+  - Код: `config/default.yaml` `eval.fresh_file`; `runner.split_files` ба `reselect._split_file` нь нэрлэсэн хуваалтыг
+    (`fresh`) config-оос; `m0_translate.py`, `rr.py` `--split fresh` (`--final-test` шаардана — test шиг нэг удаа).
+    run_plan: `fgold` (check-gold, CPU) ба `fens` (ALLOW_TEST=1: M1 MADLAD орчуулга (энгийн ба утга тэмдэглэсэн) →
+    reranker-ийн сонголт → 5 гишүүн, квотоор тасарвал дараагийн сесст үргэлжилнэ → M1a_rs, M1a_fxv2k, M1ens, M1ensfxv2lk).
+    Тест: `tests/test_fresh_split.py`, `test_run_plan_static.py::test_fresh_steps_guarded_and_resumable`.
+  - **Урьдчилан бүртгэв (fresh-ийг харахаас өмнө):** гол дүн = **M1ensfxv2lk** (нийт ба хариулах EX), суурь = M1ens (ижил
+    гишүүд, засваргүй), M1a_rs / M1a_fxv2k = нэг гишүүний хувилбар; асуулт бүрээр McNemar. Дүрэм, засвар, гишүүдийг fresh-ийн
+    дүнг харсны дараа өөрчлөхгүй. Дараалал: 400 бэлэн → `fgold` → алдаатай gold засах → 11-07-ны квотоор `fens` (~18 GPU цаг).
+- **~03:05 УБ: fresh-ийн 1-р батч (100 ноорог) — давхардлын хяналт.** Утгаар нь (хамгийн ойр dev/test/жишээний сангийн асуулттай
+  нь) хянахад **~50 нь хуучин санааг давтсан** (огноо/утга л өөр; NP03 = dev P003 үгчлэн). Бодлогыг чангатгав: шинэ асуулт нь
+  хэмжүүр, бүлэглэлт/гаралтын хэлбэр эсвэл объектын ядаж нэгээр ялгаатай байна. Зохиогчдод dev + test + жишээний сангийн 1 135
+  асуултын англи текстийг домэйноор өгөв (давтахгүйн тулд; SQL-гүй). Солигдох 49 ноорог ба бодлого: `docs/FRESH_EVAL.md`.
+  `scripts/dev/build_fresh.py` (батчуудыг нэгтгэнэ; ижил id-ийн сүүлийнх орлоно); run_plan `fens`-д `f_prune` (асуулт нь
+  өөрчлөгдсөн бичлэгийг хаяж дахин үүсгэнэ) ба `MT_FENS` шалгалт; `config/kaggle_overrides_v31.env` (fgold + fens, бэлдсэн).
+- **~03:55 УБ: fresh — 3-р шат дууссан.** 287 бичлэг (NA/NC 75, ND/NP 69, NL/NK 75, NG/NX 68) статик шалгалт ба давхардлын
+  бодлогыг давсан; зохиогчид dev/test/pool-ын 1 135 асуултын жагсаалтаар өөрсдөө шүүж, өөрийн өмнөх ноорогоос 50 гаруйг сольсон
+  (жагсаалт `docs/FRESH_EVAL.md`). `validate.py` нь PowerShell-ийн stdin BOM-ыг алгасаж эхний мөрийг дуугүй хаядаг байсныг
+  зассан (зохиогч илрүүлсэн). Сүүлийн шат (нийт 113) бичигдэж байна → дараа нь бүх gold-ийн жигд хяналт (системийн гаралтыг
+  харахаас өмнө; `scratchpad/fresh/REVIEW_BRIEF.md`).
+- **~05:00 УБ: fresh 400 бэлэн → Kaggle Version 32 (V31) эхэлсэн.** 4 зохиогч (8 домэйн × 50) + 4 бие даасан gold хянагч
+  (ERROR 11, WARN 52 → 56 бичлэг засварласан; `docs/FRESH_EVAL.md`). `evalset/fresh.jsonl`: 304 хариулах (easy 75 / medium 166 /
+  hard 63), 48 боломжгүй, 48 хоёрдмол. `scripts/dev/build_fresh.py` (fresh_parts → fresh.jsonl, сүүлийн хувилбар орлоно).
+  Бүх тест OK (tests/test_trunc_date.py: WEB2 trunc_date-ийг тодорхой асаасан run гэж тооцдог болгов). override = v31
+  (`MT_STEPS="fgold fens"`, ALLOW_TEST=1, MT_BUDGET_MIN=110); pack_code --slim (539 файл, 8.1 MB) → **text2sql v38**.
+  Notebook input: text2sql v37→v38, notebook output — V26-г сонгох (pin) боломж UI-д олдсонгүй, хамгийн сүүлийн (V30) нэмэгдсэн:
+  madlad_m1 ба M1 кэш бий, **rr_bge_ft алга** → энэ сесст M1rr алгасагдана (квот зөвхөн M1a-д хүрнэ). Дараагийн долоо хоногт
+  M1rr-д rr_bge_ft-ийг (V26 Output) өөр замаар өгөх. GPU T4×2, квот 27:28/30 ц. **Version 32 эхэлсэн** (Save & Run All; scriptVersionId **364667334**). Мөн V26 Output-аас
+  хувийн `t2s-v8-output` dataset-ийн шинэ хувилбар (rr_bge_ft, madlad_m1; «New dataset version») үүсгэв — дараагийн долоо
+  хоногт input болгож M1rr-ийг ажиллуулна.
+- **~05:05 УБ: Version 32 унасан (fgold-ийн дараа, ~11 мин).** check-gold: 400-аас алдаа 97 — **96 нь** хариулах бус асуултын
+  difficulty = null (eval/dataset.py бүх асуултад easy/medium/hard шаарддаг; dev/test-д боломжгүй easy/medium, хоёрдмол голдуу
+  medium) → `build_fresh.py` дүрмээр бөглөнө (non_sql/write/future/pii → easy, missing_data/external → medium, хоёрдмол →
+  medium); **жинхэнэ 1**: ND44 statement_timeout (20 с) → MATERIALIZED CTE; анхааруулга 2: NK06, NK08 үр дүн degenerate (0) —
+  vote_filter зөв хариултыг хасах тул солив (хянагч NK06-г урьдчилан сэрэмжлүүлсэн). Уналтын шалтгаан миний `fgold`-ийн
+  `tail -c 2000` — UTF-8 тэмдэгтийн дундуур тасалж notebook UnicodeDecodeError → python-оор товч дүн хэвлэдэг болгов.
+  MT_BUDGET_MIN 105 (квот ~2.3 ц).
+- **~05:18 УБ: Version 33 (V31b) эхэлсэн** (scriptVersionId **364672093**): text2sql **v39** (difficulty, ND44/NK06/NK08, fgold
+  хэвлэлтийн засвар), **t2s-v8-output v4** (= V26 Output: rr_bge_ft, madlad_m1) нэмэгдсэн → M1rr-ийн reranker сонголт энэ
+  сесст хийгдэнэ; notebook output (V30) хэвээр. MT_BUDGET_MIN 105.
+- **~05:33 УБ: V33 — fgold 400 асуулт, алдаа 0**, анхааруулга 1 (NK08-ийн солих хувилбар ч degenerate) → NK08-ийг дахин
+  солив (эхлээд priority-аар — pool KZ011-тэй ижил гарсан тул → харилцагчийн сегментээр үргэлжилж буй кейсийн тоо;
+  `ZZ_review_fgold2.jsonl`). V33 нь хуучин NK08-тай
+  ажиллаж байгаа тул дараагийн сесст `f_prune` тэр асуултыг дахин үүсгэнэ. fens: M1 MADLAD fresh орчуулга эхэлсэн.
+- **~06:00 УБ: V33 явц.** MADLAD M1 fresh орчуулга 400 + 400 (энгийн, утга тэмдэглэсэн; тус бүр ~9 мин) → кэшид нэгтгэв. Сургасан
+  reranker-ийн fresh сонголт: нэр томьёо шаарддаг 111 асуултад recall **80.1%**, бүгд олдсон **76.6%**, дундаж 1.42 нэр томьёо
+  (dev: 79.3% / 75.9% / 1.41 — шинэ асуултад ерөнхийлөгдөж байна). vLLM (d2 merged) асаж M1a fresh эхэлсэн (~41 мин-д).
+- **~07:15 УБ: V33 дууссан** (Successfully ran, 6 304 с; scriptVersionId 364672093). fgold 0 алдаа; MADLAD fresh орчуулга 400+400
+  ба reranker-ийн fresh сонголт кэшид; **M1a fresh 107/400** (33 с/асуулт; timeout-оор зогсож хадгалагдсан); M1rr — төсөв
+  дууссан; чуулга алгасагдсан (гишүүд дутуу). Хэсэгчилсэн зөв/буруу тоог харахгүй (урьдчилан бүртгэсэн — дүнг бүх гишүүн
+  ба чуулга дууссаны дараа `scripts/dev/fresh_report.py`-оор). Үлдсэн: M1a 293 + M1rr/M1ks/M1g8/M1m 4×400 ≈ 1 893 × 33 с ≈ 17.4
+  GPU цаг → 11-07-ны квотоор 2 сесс: `config/kaggle_overrides_v32.env` (MT_BUDGET_MIN 690), notebook input-ийн notebook Output-ыг
+  V33 болгож (Check for updates), t2s-v8-output v4 хэвээр, text2sql-ийн шинэ хувилбар (зөвхөн NK08 солигдсон fresh.jsonl;
+  pipeline-ийн кодыг fresh дуустал өөрчлөхгүй).

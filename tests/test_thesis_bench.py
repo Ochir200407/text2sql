@@ -53,4 +53,21 @@ def test_compare_report(tmp_path):
     assert not out["reference_missing"]
     assert "| G1 | arctic-r1-7b | 100.0 (n=3) | 100.0 |" in text           # gold хоосон-гүй багана
     assert "83.34 (n=3, 2 seed)" in text                                    # seed-үүдийн дундаж
-    assert "| B5-fs_traindev |" in text and "(1.0, 2)" in text               # tag + n_pairs
+    assert "| B5-fs_traindev |" in text and "(1, 2)" in text                 # tag + n_pairs (p-ийг metrics.fmt_p-ээр)
+
+
+def test_compare_report_multi_seed_breakdown_uses_seed_mean(tmp_path):
+    """L8: олон seed-тэй run-ий «gold хоосон-гүй», хүндрэл, гүйцэтгэгдсэн % нь EX шиг seed-үүдийн дундаж (өмнө нь хамгийн
+    бага seed-ийнх: 50.0 | 100.0 / — / 0.0 | 100.0)."""
+    from mn_text2sql.config import load_config
+    cfg = load_config("config/thesis.yaml", overrides={"eval": {"results_dir": str(tmp_path)}})
+    runs = tmp_path / "runs" / "test"
+    _write(runs / "EXT-thesis-agent" / "thesis-agent__mn__s0.jsonl", [_rec("q1", True), _rec("q2", False)])
+    _write(runs / "E2" / "arctic-r1-7b__mn__s1.jsonl", [_rec("q1", True), dict(_rec("q2", False), difficulty="hard")])
+    _write(runs / "E2" / "arctic-r1-7b__mn__s2.jsonl", [dict(_rec("q1", False), exec_ok=False),
+                                                        dict(_rec("q2", True, tags=["gold_empty"]), difficulty="hard")])
+    compare_report(cfg, splits=("test",), out=str(tmp_path / "C.md"))
+    text = (tmp_path / "C.md").read_text(encoding="utf-8")
+    # EX 50 / 50; gold хоосон-гүй 50 / 0; хялбар 100 / 0, хүнд 0 / 100; гүйцэтгэгдсэн 100 / 50
+    assert "| E2 | arctic-r1-7b | 50.0 (n=2, 2 seed) | 25.0 | 50.0 / — / 50.0 | 75.0 |" in text
+    assert "| EXT-thesis-agent | thesis-agent | 50.0 (n=2) | 50.0 | 50.0 / — / — | 100.0 |" in text   # нэг seed — хэвээр

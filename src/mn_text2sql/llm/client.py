@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -16,6 +17,37 @@ from typing import Callable, Protocol
 import httpx
 
 log = logging.getLogger(__name__)
+
+# C4 (L3): дахин ажиллуулахад засагдахгүй (тогтвортой) HTTP алдаа — хүсэлт өөрөө буруу/хэт урт (context-ийн урт,
+# алга болсон зам, хэт том бие, задлагдахгүй). Бусад нь (429, 5xx, timeout, холболт, 401/403 г.м.) дэд бүтцийнх.
+PERMANENT_HTTP = frozenset({400, 404, 413, 422})
+
+
+class LLMCallError(RuntimeError):
+    """OpenAICompatLLM-ийн давталтын дараах эцсийн алдаа. status = сүүлийн HTTP код (сүлжээ/timeout бол None).
+    RuntimeError-оос удамшина — `except RuntimeError` хэвээр барина; мессеж нь өмнөхтэй ижил."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
+def error_status(e: BaseException) -> int | None:
+    """Алдааны HTTP код: .status (LLMCallError) → httpx-ийн response.status_code → мессежийн «Client/Server error
+    'NNN» (өөр client-ийн RuntimeError); олдохгүй бол None (сүлжээ, timeout)."""
+    s = getattr(e, "status", None)
+    if isinstance(s, int):
+        return s
+    code = getattr(getattr(e, "response", None), "status_code", None)
+    if isinstance(code, int):
+        return code
+    m = re.search(r"(?:Client|Server) error '(\d{3})", str(e))
+    return int(m.group(1)) if m else None
+
+
+def is_transient(e: BaseException) -> bool:
+    """Дахин ажиллуулахад засагдаж болох (дэд бүтцийн) алдаа уу: PERMANENT_HTTP-ээс бусад бүх код ба кодгүй алдаа."""
+    return error_status(e) not in PERMANENT_HTTP
 
 
 @dataclass
@@ -70,7 +102,7 @@ class OpenAICompatLLM:
             body["add_generation_prompt"] = False
         body.update(self.extra_body)
         delay = 2.0
-        last_err = None
+        last_err = last_status = None
         for attempt in range(self.max_retries + 1):
             t0 = time.perf_counter()
             try:
@@ -102,12 +134,13 @@ class OpenAICompatLLM:
             except (httpx.TransportError, httpx.HTTPStatusError) as e:
                 last_err = e
                 status = getattr(getattr(e, "response", None), "status_code", None)
+                last_status = status
                 if status is not None and 400 <= status < 500 and status != 429:
                     break
                 log.warning("LLM алдаа (%s), %d-р оролдлого: %s", self.name, attempt + 1, e)
                 time.sleep(delay)
                 delay *= 2
-        raise RuntimeError(f"LLM дуудлага амжилтгүй: {last_err}")
+        raise LLMCallError(f"LLM дуудлага амжилтгүй: {last_err}", status=last_status)
 
 
 def _fit_max_tokens(error_text: str, current: int) -> int | None:

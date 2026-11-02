@@ -29,6 +29,22 @@ DEFAULT_FORBIDDEN = {
     "current_user", "session_user", "inet_server_addr", "inet_client_addr", "pg_backend_pid",
     "current_version",  # sqlglot: version() → CurrentVersion
 }
+# PostgreSQL-ийн XML mapping функцүүд (table_/query_/cursor_/schema_/database_ + to_xml | to_xmlschema |
+# to_xml_and_xmlschema): хүснэгт/схемийг нэрээр нь (текст, regclass) авдаг тул хүснэгтийн allow-list-ийг тойрч, бүтэн
+# хүснэгт/схем/DB-г НЭГ нүдэнд буцаана (2-р аудит S3). Нэрэнд "_to_xml" агуулсан бүх функцийг хориглоно.
+XML_MAPPING_FUNCS = {f"{src}_to_{kind}" for src in ("table", "query", "cursor", "schema", "database")
+                     for kind in ("xml", "xmlschema", "xml_and_xmlschema")}
+DEFAULT_FORBIDDEN |= XML_MAPPING_FUNCS
+FORBIDDEN_INFIXES = ("_to_xml",)
+# SQL-ийг ТЕКСТЭЭР авч серверт гүйцэтгэдэг функцүүд (3-р аудит, guard M1): дотор нь бичсэн асуулга allow-list, хориотой
+# функц, as-of дахин бичилт, EXPLAIN өртгийн шалгалтыг бүгдийг тойрно. ts_stat('SELECT …'), ts_rewrite(q, 'SELECT …')
+# — PostgreSQL-ийн үндсэн функц; crosstab*/connectby (tablefunc), xpath_table (xml2) — суулгасан бол хүснэгтийн нэр/
+# асуулгыг текстээр авна. query_to_xml*, dblink* аль хэдийн хориотой (FORBIDDEN_PREFIXES, XML_MAPPING_FUNCS).
+# Gold/таамаглалд хэрэглэгдээгүй (evalset/, results/, build/ — grep) тул үнэлгээнд нөлөөгүй.
+QUERY_STRING_FUNCS = {"ts_stat", "ts_rewrite", "crosstab", "crosstab2", "crosstab3", "crosstab4", "connectby",
+                      "xpath_table"}
+DEFAULT_FORBIDDEN |= QUERY_STRING_FUNCS
+FORBIDDEN_PREFIXES += ("crosstab",)   # crosstab_hash г.м. хувилбарууд
 # t2s доторх аюулгүй туслах функцүүд
 ALLOWED_QUALIFIED_FUNCS = {"t2s.business_date", "t2s.fx_to_mnt"}
 NOW_FUNCS = {"now", "transaction_timestamp", "statement_timestamp", "clock_timestamp"}
@@ -50,8 +66,14 @@ class GuardResult:
 class SqlGuard:
     def __init__(self, allowed_tables: dict[str, set[str]] | None = None, schema: str = "t2s",
                  forbidden_functions: set[str] | None = None, as_of_date: str | None = None,
-                 enforce_limit: int | None = None, max_length: int = 20000, check_columns: bool = True):
-        """allowed_tables: {view нэр: {баганууд}}; as_of_date: CURRENT_DATE/now()-ийг солих огноо (YYYY-MM-DD)."""
+                 enforce_limit: int | None = None, max_length: int = 20000, check_columns: bool = True,
+                 fail_closed: bool = False, scoped_columns: bool = False):
+        """allowed_tables: {view нэр: {баганууд}}; as_of_date: CURRENT_DATE/now()-ийг солих огноо (YYYY-MM-DD).
+        fail_closed: allow-list хоосон бол бүх хүснэгтийг татгалзана (production/shadow/pilot; R4 G2). False (анхдагч,
+        тест/dev) бол хоосон allow-list → хүснэгтийн шалгалтгүй (хуучин зан төлөв).
+        scoped_columns (RunOptions.guard_scope, анхдагч False = хуучин): баганын шалгалтад alias-ийг SELECT бүрийн
+        хүрээгээр (sqlglot scope) тайлна — CTE дотор `loan_payments AS lp`, гадна `loan_portfolio AS lp` (CTE) гэх мэт
+        давхардсан alias-тай хүчинтэй SQL-ийг «lp.portfolio_mnt нь loan_payments-д байхгүй» гэж буруу татгалздаг байв."""
         self.allowed = {k.lower(): {c.lower() for c in v} for k, v in (allowed_tables or {}).items()}
         self.schema = schema
         self.forbidden = {f.lower() for f in (forbidden_functions or set())} | DEFAULT_FORBIDDEN
@@ -59,6 +81,8 @@ class SqlGuard:
         self.enforce_limit = enforce_limit
         self.max_length = max_length
         self.check_columns = check_columns
+        self.fail_closed = fail_closed
+        self.scoped_columns = scoped_columns
 
     # ------------------------------------------------------------------
     def check(self, sql: str, rewrite: bool = True) -> GuardResult:
@@ -102,6 +126,9 @@ class SqlGuard:
                                                f"Only {self.schema}.* views are allowed.", "forbidden_table")
             if not db and name in cte_names:
                 continue
+            if not self.allowed and self.fail_closed:
+                return GuardResult(False, sql, f"Зөвшөөрсөн хүснэгтийн жагсаалт хоосон — {name} хориотой. "
+                                               "Table allow-list is empty (fail-closed).", "forbidden_table")
             if self.allowed and name not in self.allowed:
                 return GuardResult(False, sql, f"Үл мэдэгдэх хүснэгт: {name}. Unknown table: {name}. "
                                                f"Ашиглах боломжтой: {', '.join(sorted(self.allowed))[:400]}", "unknown_table")
@@ -135,6 +162,8 @@ class SqlGuard:
                 return qualified
             if name in self.forbidden or name.startswith(FORBIDDEN_PREFIXES) and name not in ("xmlagg",):
                 return name
+            if any(s in name for s in FORBIDDEN_INFIXES):   # *_to_xml* (S3)
+                return name
         return None
 
     def _check_columns(self, tree: exp.Expression, cte_names: set[str]) -> str | None:
@@ -145,6 +174,11 @@ class SqlGuard:
             if name and name not in cte_names:
                 alias_map[(t.alias_or_name or name).lower()] = name
                 alias_map.setdefault(name, name)
+        if self.scoped_columns:
+            try:
+                return self._check_columns_scoped(tree, alias_map, cte_names)
+            except Exception:  # noqa: BLE001 — sqlglot scope-ийн ер бусын бүтэц: хуучин (глобал alias) шалгалт
+                pass
         for col in tree.find_all(exp.Column):
             qual = (col.table or "").lower()
             cname = (col.name or "").lower()
@@ -152,9 +186,38 @@ class SqlGuard:
                 continue
             base = alias_map.get(qual)
             if base and base in self.allowed and cname not in self.allowed[base]:
-                hint = ", ".join(sorted(self.allowed[base]))[:500]
-                return (f"'{base}' хүснэгтэд '{cname}' багана байхгүй. Column {qual}.{cname} does not exist "
-                        f"in {base}. Боломжит баганууд: {hint}")
+                return self._column_error(base, qual, cname)
+        return None
+
+    def _column_error(self, base: str, qual: str, cname: str) -> str:
+        hint = ", ".join(sorted(self.allowed[base]))[:500]
+        return (f"'{base}' хүснэгтэд '{cname}' багана байхгүй. Column {qual}.{cname} does not exist "
+                f"in {base}. Боломжит баганууд: {hint}")
+
+    def _check_columns_scoped(self, tree: exp.Expression, alias_map: dict[str, str],
+                              cte_names: set[str]) -> str | None:
+        """guard_scope: багана бүрийн alias-ийг өөрийн SELECT-ийн хүрээнд (олдохгүй бол гадна талын хүрээнд — correlated
+        дэд асуулга) тайлна. Эх нь CTE / дэд асуулга (Scope) бол шалгахгүй (тэдгээрийн багана allow-list-д байхгүй);
+        аль ч хүрээнд олдоогүй alias-ийг хуучин глобал alias_map-аар шалгана (зан төлөв хуучинтай ижил)."""
+        from sqlglot.optimizer.scope import traverse_scope
+        for scope in traverse_scope(tree):
+            for col in scope.columns:
+                qual = (col.table or "").lower()
+                cname = (col.name or "").lower()
+                if not qual or not cname or isinstance(col.this, exp.Star):
+                    continue
+                src, s = None, scope
+                while s is not None and src is None:
+                    src = next((v for k, v in s.sources.items() if k.lower() == qual), None)
+                    s = s.parent
+                if src is None:
+                    base = alias_map.get(qual)
+                elif isinstance(src, exp.Table) and not (not src.db and (src.name or "").lower() in cte_names):
+                    base = (src.name or "").lower()
+                else:
+                    continue                      # CTE эсвэл дэд асуулгын багана
+                if base and base in self.allowed and cname not in self.allowed[base]:
+                    return self._column_error(base, qual, cname)
         return None
 
     # ------------------------------------------------------------------
@@ -198,7 +261,16 @@ class SqlGuard:
             tree = tree.transform(_swap)
         if self.enforce_limit:
             limit = tree.args.get("limit")
-            if limit is None:
+            if isinstance(limit, exp.Fetch):
+                # S4: `FETCH FIRST n ROWS ONLY | WITH TIES` — n-ийг уншиж min(n, хязгаар) болгоно; WITH TIES, NEXT, OFFSET
+                # хэвээр. n тоо биш (илэрхийлэл, параметр) эсвэл PERCENT бол дахин бичихгүй — мөрийн тоог Executor-ийн
+                # max_rows (= enforce_limit) хязгаарлана. (Өмнө нь Fetch-ийг `LIMIT enforce_limit`-ээр сольдог байв.)
+                opts = limit.args.get("limit_options")
+                count = limit.args.get("count")
+                n = 1 if count is None else _int_literal(count)
+                if n is not None and n > self.enforce_limit and not (opts is not None and opts.args.get("percent")):
+                    limit.set("count", exp.Literal.number(int(self.enforce_limit)))
+            elif limit is None:
                 tree = tree.limit(self.enforce_limit)
             else:
                 try:
@@ -210,7 +282,18 @@ class SqlGuard:
         return tree
 
 
-SQL_BLOCK = re.compile(r"```(?:sql|postgresql|postgres|sqlite)?\s*(.*?)```", re.S | re.I)
+def _int_literal(node) -> int | None:
+    """Бүхэл тооны literal (`5`, `'5'`) → int; бусад (илэрхийлэл, параметр, бутархай) → None."""
+    if not isinstance(node, exp.Literal):
+        return None
+    try:
+        return int(node.this)
+    except (TypeError, ValueError):
+        return None
+
+
+# Урт шошгыг эхэнд + \b: «```sqlite» нь «sql»-д таарч «ite\nSELECT…» болдог байв (Arctic үргэлж ```sql — нөлөөгүй)
+SQL_BLOCK = re.compile(r"```(?:(?:postgresql|postgres|plpgsql|pgsql|sqlite|mysql|sql)\b)?\s*(.*?)```", re.S | re.I)
 
 
 def extract_sql(text: str) -> str | None:
@@ -230,6 +313,29 @@ def extract_sql(text: str) -> str | None:
     m2 = re.search(r"((?:WITH|SELECT)\b.*)", text, re.S | re.I)
     if m2:
         return m2.group(1).strip().split("\n\n")[0].strip() or None
+    return None
+
+
+def _norm_sql(s: str | None) -> str:
+    return " ".join((s or "").replace(";", " ").split()).lower()
+
+
+def extended_block(text: str | None, sql: str | None) -> str | None:
+    """RunOptions.extract_fallback: extract_sql-ийн буцаасан (сүүлийн) SQL нь мөн гаралтын өмнөх ```sql блокийн эхний хэсэг
+    (тасарсан хуулбар) бол тэр бүтэн блокийг буцаана. Давталтад орсон гаралтын сүүлийн блок дундуураа тасарч хаагдсан
+    тохиолдол (dev C042: «… ON o.customer_id = c.customer```», P047: «… < CURRENT```» — өмнөх блокууд бүтэн, ижил).
+    Дуудагч зөвхөн алдаатай (guard/exec) хувилбарт ашиглана. Олдохгүй бол None."""
+    if not text or not sql:
+        return None
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    want = _norm_sql(sql)
+    if not want:
+        return None
+    for block in reversed(SQL_BLOCK.findall(text)):
+        nb = _norm_sql(block)
+        if len(nb) > len(want) and nb.startswith(want):
+            return block.strip()
     return None
 
 

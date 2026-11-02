@@ -4,10 +4,17 @@
                   shadow горимд хариултыг хэрэглэгчид буцаахгүй (зөвхөн audit-д), pilot/live горимд буцаана.
 * POST /feedback  {request_id, correct, corrected_sql?, comment?} → шинжээчийн үнэлгээ (жишээний сан руу
                   хянаж нэмэх feedback loop; docs/SECURITY.md).
-* GET  /health
+* GET  /health    {ok}; горим, туршилт, загварын нэрийг зөвхөн хандах эрхтэй (check_key) хүсэлтэд (3-р аудит L5).
+* /analyst/*      CSV/XLSX экспорт, 👍/👎 (service/analyst.py; хариултын "analyst" талбар — LLM-гүй нэмэлт мэдээлэл).
+Алдааны дэлгэрэнгүй (exception-ий текст) клиентэд очихгүй — request id-тай ерөнхий мессеж, дэлгэрэнгүй нь лог/audit-д.
+Хүсэлтийн бие ≤ service.max_body_bytes (413), SQL-ийн үр дүн ≤ service.max_result_bytes (Executor, too_large).
 Audit log: асуулт бүр (хугацаа, хэрэглэгчийн hash, SQL, төлөв, хүснэгт, мөрийн тоо, хугацаа). Асуултын текст ба
 feedback-ийг T2S_AUDIT_KEY (Fernet) түлхүүрээр шифрлэнэ; түлхүүргүй бол текстийг хадгалахгүй (зөвхөн hash).
 Хадгалах хугацаа: security.audit_retention_days — эхлэхэд ба өдөр бүр хуучин мөрийг устгана.
+Хандалт (service/auth.py): түлхүүр `X-T2S-Key` толгой эсвэл `?k=`; dev биш горимд T2S_WEB_KEY-гүй бол зөвхөн
+localhost-оос шууд, итгэмжлэгдсэн Host-оор (serve() 127.0.0.1-д холбогдоно). /ask, /ask_job, /flow/run_job,
+/analyst/rerun, /analyst/verified/{id}/run нэг хуваалцсан зэрэг ажиллах хязгаартай (service.max_jobs, 429).
+dev биш горимд /docs, /redoc, /openapi.json хаалттай. Хариултын мөр/нүдний хэмжээ хязгаартай (analyst.cap_rows).
 """
 
 from __future__ import annotations
@@ -95,16 +102,17 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 class AskIn(BaseModel):
     question: str = Field(min_length=2, max_length=1000)
-    variant: str | None = None
-    user: str | None = None
+    variant: str | None = Field(default=None, max_length=16)
+    user: str | None = Field(default=None, max_length=200)
 
 
 class FeedbackIn(BaseModel):
-    request_id: str
+    # L6: бүх текст талбар урттай (audit/feedback log-ийг дүүргэхгүй); /feedback нь хурдны хязгаартай
+    request_id: str = Field(min_length=1, max_length=64)
     correct: bool
-    corrected_sql: str | None = None
+    corrected_sql: str | None = Field(default=None, max_length=8000)
     comment: str | None = Field(default=None, max_length=2000)
-    user: str | None = None
+    user: str | None = Field(default=None, max_length=200)
 
 
 def _user_hash(user: str | None) -> str | None:
@@ -123,17 +131,27 @@ def create_app(cfg: Config, run_id: str | None = None):
     from ..pipeline.options import resolve_run
     from ..pipeline.orchestrator import Pipeline
     from ..security.sql_guard import SqlGuard
+    from . import auth
 
     svc = cfg.get("service") or {}
-    mode = svc.get("mode", "shadow")
+    mode = auth.service_mode(cfg)   # S5: нэг удаа нормчилно ('Shadow ' → 'shadow'); харьцуулалт бүр auth.is_shadow/is_dev
+    shadow = auth.is_shadow(mode)
     run_id = run_id or svc.get("run_id", "E1")
     model_name = svc.get("model") or cfg["llm"]["model"]
     opts = resolve_run(run_id, overrides={"intent_check": bool(cfg["pipeline"].get("intent_check", True))})
     model = cached_model(cfg["knowledge"]["semantic_model"])
-    guard = SqlGuard(model.allowed(), model.schema, set(cfg["security"]["forbid_functions"]),
-                     str(cfg["project"]["as_of_date"]), enforce_limit=int(cfg["security"]["enforce_limit"]))
+    dev = auth.is_dev(mode)
+    allowed = model.allowed()
+    if not allowed and not dev:   # R4 G2: хоосон allow-list → guard бүх хүснэгтийг татгалзана (fail-closed)
+        log.error("Semantic model-д зөвшөөрсөн хүснэгт алга ('%s' горим) — SQL guard бүх хүснэгтийг татгалзана.", mode)
+    guard = SqlGuard(allowed, model.schema, set(cfg["security"]["forbid_functions"]),
+                     str(cfg["project"]["as_of_date"]), enforce_limit=int(cfg["security"]["enforce_limit"]),
+                     fail_closed=not dev)
+    # H2: вэбийн бүх SQL (/ask, /flow/run_job, /analyst/rerun) энэ Executor-оор — үр дүнгийн санах ойн төсөвтэй
+    # (service.max_result_bytes; server-side cursor). Үнэлгээ өөрийн Executor-тэй (төсөвгүй, хуучин зан төлөв).
     executor = Executor(bot_dsn(cfg), statement_timeout_ms=cfg["db"]["statement_timeout_ms"],
-                        max_rows=int(cfg["security"]["enforce_limit"]), max_cost=float(cfg["db"]["max_explain_cost"]))
+                        max_rows=int(cfg["security"]["enforce_limit"]), max_cost=float(cfg["db"]["max_explain_cost"]),
+                        max_result_bytes=auth.max_result_bytes(cfg))
     # Вэб (локал CPU, LM Studio г.м. OpenAI-тэй нийцтэй сервер): T2S_WEB_MODEL = SQL загварын нэр (сервер дээрх),
     # T2S_WEB_TRANSLATOR = орчуулагч загварын нэр (байхгүй бол орчуулгагүй, монгол асуултаар)
     llm = translator = None
@@ -159,57 +177,89 @@ def create_app(cfg: Config, run_id: str | None = None):
                      int(cfg["security"]["audit_retention_days"]))
     feedback = AuditLog(resolve_path(cfg["security"]["audit_log"]).with_name("feedback.jsonl"),
                         cfg["security"]["audit_encrypt_key_env"], int(cfg["security"]["audit_retention_days"]))
-    app = FastAPI(title="mn-text2sql", version="1.0")
-
-    @app.get("/health")
-    def health():
-        return {"ok": True, "mode": mode, "run": run_id, "model": model_name}
+    # auth.capture_dependency: X-T2S-Key / X-T2S-Admin толгой ба клиентийн хаягийг check_key-д дамжуулна.
+    # S7: dev биш горимд OpenAPI схем ба /docs, /redoc-ийг (түлхүүргүй нээлттэй байсан) унтраана
+    no_docs = {} if dev else {"openapi_url": None, "docs_url": None, "redoc_url": None}
+    app = FastAPI(title="mn-text2sql", version="1.0", dependencies=[auth.capture_dependency()], **no_docs)
+    app.add_middleware(auth.BodySizeLimit, max_bytes=auth.max_body_bytes(cfg))   # H1: хүсэлтийн биеийн хэмжээ (413)
 
     web_key = os.environ.get("T2S_WEB_KEY")
+    # R4 A1/A3: dev биш горимд түлхүүргүй бол зөвхөн localhost-оос шууд, итгэмжлэгдсэн Host-оор (S2); header эсвэл ?k=
+    check_key = auth.make_check_key(web_key, mode, svc.get("trusted_hosts"))
 
-    def check_key(k: str | None) -> None:
-        if web_key and k != web_key:
-            raise HTTPException(status_code=403, detail="Холбоосны түлхүүр буруу (URL-ийн ?k=... хэсгийг бүтнээр нь нээнэ үү)")
+    @app.get("/health")
+    def health(k: str | None = None):
+        # L5: горим/туршилт/загварын нэрийг зөвхөн хандах эрхтэй (check_key) хүсэлтэд; бусдад зөвхөн амьд эсэх
+        try:
+            check_key(k)
+        except HTTPException:
+            return {"ok": True}
+        return {"ok": True, "mode": mode, "run": run_id, "model": model_name}
+
+    # S1 (R4 R1): pipeline/SQL ажиллуулдаг БҮХ endpoint (/ask, /ask_job, /flow/run_job, /analyst/rerun,
+    # /analyst/verified/{id}/run) нэг хуваалцсан хязгаартай — хэтэрвэл 429
+    max_jobs = int(svc.get("max_jobs") or os.environ.get("T2S_MAX_JOBS") or 4)
+    slots = auth.WorkSlots(max_jobs)
 
     # Flow builder (/builder): pipeline-ийг node-оор угсарч, энэ серверийн загвар/DB-ээр нэг асуултаар турших
     from .flow import FlowRunner, make_router
-    app.include_router(make_router(FlowRunner(cfg, model_name, pipe.llm, executor, guard, translator, entity_keys_web),
-                                   check_key))
+    app.include_router(make_router(FlowRunner(cfg, model_name, pipe.llm, executor, guard, translator, entity_keys_web,
+                                              dataset=opts.dataset),
+                                   check_key, audit=audit.write, mode=mode, require_admin=not dev, max_jobs=max_jobs,
+                                   slots=slots))
+    served_model = getattr(pipe.llm, "name", None) or model_name   # M1: audit-д бодитоор үйлчилсэн загвар
+    feedback_rate = auth.RateLimit(rate_per_s=2, burst=20)          # L6: /feedback
 
     @app.post("/ask")
     def ask(inp: AskIn, k: str | None = None):
         check_key(k)
-        return answer(inp)
+        with slots.hold():   # S1: синхрон /ask ч хязгаарт орно (өмнө нь хязгааргүй байв)
+            return answer(inp)
 
     # Вэб (Cloudflare tunnel ~100 с-ээс урт хүсэлтийг тасалдаг): POST /ask_job → {job}, GET /job/{job} → {done, result|error}
     jobs: dict[str, dict] = {}
+    jobs_lock = threading.Lock()
 
     @app.post("/ask_job")
     def ask_job(inp: AskIn, k: str | None = None):
         check_key(k)
-        import threading
+        slots.acquire_or_429()   # S1: ажлын thread-ийн finally-д чөлөөлнө
         jid = uuid.uuid4().hex[:12]
-        jobs[jid] = {"done": False, "t0": time.time()}
+        job_rec = {"done": False, "t0": time.time()}
+        with jobs_lock:   # S8: түгжээн дор, хуулбар жагсаалтаар цэвэрлэнэ — дууссан job: 1 цагаас хуучин эсвэл 200-аас илүү
+            now = time.time()
+            for j, v in list(jobs.items()):   # оруулсан дарааллаар (хуучин нь эхэнд)
+                if v["done"] and (now - v["t0"] > 3600 or len(jobs) > 200):
+                    jobs.pop(j, None)
+            jobs[jid] = job_rec
 
         def work():
             try:
-                jobs[jid].update(result=answer(inp))
+                job_rec["result"] = answer(inp)
             except HTTPException as e:
-                jobs[jid].update(error=e.detail)
-            except Exception as e:  # pragma: no cover
-                jobs[jid].update(error=f"{type(e).__name__}: {e}"[:800])
-            jobs[jid]["done"] = True
-        threading.Thread(target=work, daemon=True).start()
-        for old in [j for j, v in jobs.items() if time.time() - v["t0"] > 3600]:
-            jobs.pop(old, None)
+                job_rec["error"] = e.detail
+            except Exception as e:  # pragma: no cover — L5: дэлгэрэнгүй нь серверийн лог-д
+                log.exception("ask_job %s амжилтгүй", jid)
+                job_rec["error"] = f"Түр алдаа гарлаа ({type(e).__name__}; job {jid}). Дахин оролдоно уу."
+            finally:
+                slots.release()          # дууссан гэж харагдахаас өмнө чөлөөлнө (дараагийн хүсэлт 429 авахгүй)
+                job_rec["done"] = True
+        try:
+            threading.Thread(target=work, daemon=True).start()
+        except Exception:   # thread үүсгэж чадаагүй — slot-ийг буцааж өгнө
+            slots.release()
+            with jobs_lock:
+                jobs.pop(jid, None)
+            raise
         return {"job": jid}
 
     @app.get("/job/{jid}")
     def job(jid: str, k: str | None = None):
         check_key(k)
-        if jid not in jobs:
+        with jobs_lock:
+            v = jobs.get(jid)
+        if v is None:
             raise HTTPException(status_code=404, detail="Ажил олдсонгүй (сервер дахин эхэлсэн байж магадгүй)")
-        v = jobs[jid]
         return {"done": v["done"], "elapsed_s": round(time.time() - v["t0"]), "result": v.get("result"),
                 "error": v.get("error")}
 
@@ -231,11 +281,11 @@ def create_app(cfg: Config, run_id: str | None = None):
             ans = pipe.ask(inp.question.strip(), inp.variant, item_id=item_id)
         except Exception as e:  # LLM/DB тасалдал
             audit.write({"request_id": rid, "user": _user_hash(inp.user), "question": inp.question, "status": "failed",
-                         "error": str(e)[:300]})
+                         "error": str(e)[:300], "model": served_model})
             log.exception("ask %s амжилтгүй", rid)
-            # түлхүүртэй вэб (зөвхөн эзэмшигч) бол шалтгааныг харуулна
-            why = f" ({type(e).__name__}: {str(e)[:400]})" if web_key else ""
-            raise HTTPException(status_code=503, detail="Түр алдаа гарлаа. Дахин оролдоно уу." + why) from e
+            # L5: алдааны текст (DB хаяг, дотоод зам г.м.) аль ч горимд клиентэд очихгүй — request id-аар лог/audit-аас
+            raise HTTPException(status_code=503, detail=f"Түр алдаа гарлаа ({type(e).__name__}; request id: {rid}). "
+                                                        "Дахин оролдоно уу.") from e
         out = ans.to_dict(rows=200)
         if ans.chosen_index is not None and ans.chosen_index < len(ans.candidates):
             chosen = ans.candidates[ans.chosen_index]
@@ -244,7 +294,7 @@ def create_app(cfg: Config, run_id: str | None = None):
                           ans.candidates[0] if ans.candidates else None)
         tables = chosen.tables if chosen else []
         audit.write({"request_id": rid, "user": _user_hash(inp.user), "question": inp.question, "mode": mode,
-                     "status": ans.status, "sql": ans.sql, "tables": tables,
+                     "model": served_model, "status": ans.status, "sql": ans.sql, "tables": tables,
                      "guard": {"stage": chosen.error_stage if chosen else None,
                                "error": (chosen.error or "")[:200] if chosen and chosen.error else None},
                      "retrieval": {"tables": (ans.retrieval or {}).get("linked_tables"),
@@ -252,10 +302,18 @@ def create_app(cfg: Config, run_id: str | None = None):
                                    "glossary": (ans.retrieval or {}).get("glossary")},
                      "row_count": out.get("row_count"), "confidence": ans.confidence,
                      "latency_ms": round((time.perf_counter() - t0) * 1000, 1)})
-        if mode == "shadow":
+        if shadow:   # shadow: үр дүнг кэшлэхгүй, экспортгүй (хэрэглэгчид юу ч буцаахгүй)
             return {"request_id": rid, "status": "shadow_logged"}
+        # SQL тайлбар, итгэлийн шалтгаан, хязгаар, график, CSV/XLSX — LLM-гүй
+        from .analyst import MAX_SHOWN_BYTES, build_extras, cap_rows, size_notice
+        extras = build_extras(ans, cfg=cfg, model=model, shown=200, question=inp.question.strip())
+        # S3: json_agg/string_agg нэг нүдэнд бүхэл view буцааж болно — нүд ба нийт хэмжээг хязгаарлана
+        rows, cap = cap_rows(out.get("rows"), max_bytes=MAX_SHOWN_BYTES)
+        if cap["capped"] and isinstance(extras, dict) and isinstance(extras.get("notices"), list):
+            extras["notices"].append(size_notice(cap, shown=True))
         return {"request_id": rid, "status": ans.status, "sql": ans.sql, "columns": out.get("columns"),
-                "rows": out.get("rows"), "row_count": out.get("row_count"),
+                "analyst": extras,
+                "rows": rows if out.get("rows") is not None else None, "row_count": out.get("row_count"),
                 "tables": tables, "explanation_mn": ans.explanation_mn,
                 "confidence": ans.confidence, "question_en": question_en, "term_hints": term_hints,
                 "linked_tables": (ans.retrieval or {}).get("linked_tables"),
@@ -270,7 +328,9 @@ def create_app(cfg: Config, run_id: str | None = None):
         return HTMLResponse((Path(__file__).with_name("static") / "index.html").read_text(encoding="utf-8"))
 
     @app.post("/feedback")
-    def give_feedback(inp: FeedbackIn):
+    def give_feedback(inp: FeedbackIn, k: str | None = None):
+        check_key(k)   # R4 A4
+        feedback_rate.check_or_429()   # L6: feedback.jsonl-ийг дүүргэхгүй
         if inp.corrected_sql:
             g = guard.check(inp.corrected_sql)
             if not g.ok:
@@ -284,4 +344,7 @@ def create_app(cfg: Config, run_id: str | None = None):
 
 def serve(cfg: Config, host: str = "0.0.0.0", port: int = 8080, run_id: str | None = None) -> None:
     import uvicorn
+
+    from .auth import safe_bind_host, service_mode
+    host = safe_bind_host(host, service_mode(cfg), os.environ.get("T2S_WEB_KEY"))
     uvicorn.run(create_app(cfg, run_id), host=host, port=port, log_level="info")

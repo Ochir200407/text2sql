@@ -101,26 +101,74 @@ MN_FEWSHOT = [("How many schools in [V1] have more than 500 students?",
                "[V1]-д данс нээлгэсэн харилцагчдын нэрийг жагсаа.")]
 
 
+# H3 (2026-10-31): өмнөх _protect нь литерал бүрийг энгийн substring-ээр (урт нь эхэлж, set-ийн эрэмбээр) дараалан
+# сольдог байв — богино литерал өөр үгийн дотор ('F' → "Find" → "[V2]ind") болон өмнөх placeholder-ийн дотор ('1' →
+# "[V1]" → "[V[V2]]" → сэргээсэн асуултад "[V1]" үлдэнэ) солигдож, дугаар нь PYTHONHASHSEED-ээс хамаардаг байв.
+# Одоо: зөвхөн бүтэн токен (үгийн хил), НЭГ удаагийн regex солилт (placeholder дахин маскжихгүй), литералын эрэмбэ
+# (-урт, литерал), дугаар нь текст дэх анхны байрлалаар; богино литерал (_is_short) зөвхөн бие даасан токен бол.
+_WORD = re.compile(r"\w")
+# орчуулагчийн гаралт дахь placeholder: [V1], кирилл В-тэй ([В1]), жижиг үсэг, хаалтын доторх зай — бүгдийг таньна
+_PLACEHOLDER = re.compile(r"\[\s*[VvВв]\s*(\d+)\s*\]")
+# богино литералын бие даасан токен: өмнө нь мөрийн эхлэл / зай / хашилт / нээх хаалт / =, хойно нь мөрийн төгсгөл /
+# зай / хашилт / хаах хаалт / цэг таслал; "F-score", "1.5", "1,000", "F's", "don't"-ын хэсэг биш
+_SHORT_PRE = r"(?<![^\s'\"`(\[{=])(?<!\w')"
+_SHORT_POST = r"(?![^\s'\"`)\]},;:?!.])(?![.,]\w)(?!'\w)"
+
+
+def _is_short(s: str) -> bool:
+    """Өөр үгийн дотор андуурагдах эрсдэлтэй литерал: 1 тэмдэгт, эсвэл 1–2 оронтой тоо."""
+    return len(s) < 2 or (s.isdigit() and len(s) < 3)
+
+
+def _literal_re(s: str) -> str:
+    """Литералын бүтэн токен тааралт (regex). Үсэг/тоогоор эхэлсэн/төгссөн талд үгийн хил (мөн аравтын бутархайн
+    хэсэг биш: "12.5"-ийн "12" үгүй); `backtick` ба хашилт/хаалтаар эхэлсэн тал нь өөрөө хил. Богино литерал —
+    зөвхөн бие даасан токен (_SHORT_PRE/_SHORT_POST)."""
+    body = re.escape(s)
+    if _is_short(s):
+        return _SHORT_PRE + body + _SHORT_POST
+    pre = r"(?<!\w)(?<!\d[.,])" if _WORD.match(s[0]) else ""
+    post = r"(?!\w)(?![.,]\d)" if _WORD.match(s[-1]) else ""
+    return pre + body + post
+
+
 def _protect(text: str, sql: str) -> tuple[str, dict[str, str]]:
-    spans = set(re.findall(r"`[^`]+`", text)) | set(re.findall(r"'([^']{1,80})'", sql))
+    """Орчуулахаас өмнө хамгаалах хэсгийг [V1], [V2] ... болгоно: текстийн `backtick` нэр ба "давхар хашилт"-ын
+    агуулга, gold SQL-ийн 'текст литерал' ('' escape-ийг тайлна). Буцаах: (маскжсан текст, {placeholder: эх хэсэг})."""
+    spans = set(re.findall(r"`[^`]+`", text))
+    spans |= {s.replace("''", "'") for s in re.findall(r"'((?:[^']|''){1,80})'", sql or "")}
     spans |= set(re.findall(r'"([^"]{1,80})"', text))
-    spans = {s for s in spans if s and s in text}
-    mapping = {}
-    for i, s in enumerate(sorted(spans, key=len, reverse=True), 1):
-        key = f"[V{i}]"
-        text = text.replace(s, key)
-        mapping[key] = s
-    return text, mapping
+    order = sorted((s for s in spans if s.strip() and s in text), key=lambda s: (-len(s), s))
+    if not order:
+        return text, {}
+    rx = re.compile("|".join(f"(?:{_literal_re(s)})" for s in order))
+    keys: dict[str, str] = {}
+
+    def sub(m: re.Match) -> str:
+        lit = m.group(0)
+        if lit not in keys:
+            keys[lit] = f"[V{len(keys) + 1}]"
+        return keys[lit]
+
+    masked = rx.sub(sub, text)
+    return masked, {k: lit for lit, k in keys.items()}
 
 
 def _restore(text: str, mapping: dict[str, str]) -> tuple[str, bool]:
-    ok = True
-    for k, v in mapping.items():
-        if k in text:
-            text = text.replace(k, v)
-        else:
-            ok = False
-    return text.strip(), ok
+    """Placeholder-ийг нэг удаагийн солилтоор буцаана. ok = mapping-ийн бүх placeholder гаралтад байсан БА танигдаагүй
+    placeholder үлдээгүй (жишээ нь орчуулагч зохиосон [V9])."""
+    found: set[str] = set()
+
+    def sub(m: re.Match) -> str:
+        key = f"[V{int(m.group(1))}]"
+        if key in mapping:
+            found.add(key)
+            return mapping[key]
+        return m.group(0)
+
+    out = _PLACEHOLDER.sub(sub, text)
+    ok = found == set(mapping) and not _PLACEHOLDER.search(out)
+    return out.strip(), ok
 
 
 def latin_variant(text_mn: str, rng: random.Random) -> str:
@@ -178,8 +226,12 @@ def translate(cfg: Config, model_name: str | None = None, base_url: str | None =
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(work, rows))
-    n = sum(1 for x in out_path.read_text(encoding="utf-8").splitlines() if x.strip())
-    return {"file": str(out_path), "translated": n, "total": len(rows)}
+    recs = [json.loads(x) for x in out_path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    bad = sum(1 for d in recs if d.get("placeholders_ok") is False)
+    if bad:
+        log.warning("F1: %d/%d мөрөнд placeholder сэргээгдээгүй (placeholders_ok=false) — bird-review-export-оор засна; "
+                    "засаагүй бол load_bird_mn хасна", bad, len(recs))
+    return {"file": str(out_path), "translated": len(recs), "total": len(rows), "placeholders_bad": bad}
 
 
 def review_export(cfg: Config) -> dict:
@@ -188,10 +240,13 @@ def review_export(cfg: Config) -> dict:
     path = root / "bird_mn_review.csv"
     with open(path, "w", encoding="utf-8-sig", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["question_id", "db_id", "question_en", "question_mn", "evidence_en", "evidence_mn", "reviewed"])
+        # placeholders_ok (H3): "0" = орчуулгад [V…] сэргээгдээгүй — эхэлж засах мөр (review_import уншихгүй)
+        w.writerow(["question_id", "db_id", "question_en", "question_mn", "evidence_en", "evidence_mn", "reviewed",
+                    "placeholders_ok"])
         for d in rows:
             w.writerow([d["question_id"], d["db_id"], d["question_en"], d["question_mn"], d["evidence_en"],
-                        d["evidence_mn"], "1" if d.get("reviewed") else ""])
+                        d["evidence_mn"], "1" if d.get("reviewed") else "",
+                        "0" if d.get("placeholders_ok") is False else "1"])
     return {"csv": str(path), "rows": len(rows), "howto": "question_mn/evidence_mn-ийг засаад reviewed=1 тавина"}
 
 
@@ -216,9 +271,24 @@ def review_import(cfg: Config, csv_path: str | None = None) -> dict:
     return {"reviewed_now": n, "reviewed_total": sum(1 for d in rows.values() if d.get("reviewed"))}
 
 
-def load_bird_mn(cfg: Config, reviewed_only: bool = False) -> list[dict]:
+def placeholders_bad(d: dict) -> bool:
+    """H3: орчуулгад placeholder сэргээгдээгүй (асуулт/evidence-д "[V1]" үлдсэн эсвэл литерал алга), хүн засаагүй мөр.
+    Талбаргүй (хуучин) мөр — сайн гэж тооцно."""
+    return d.get("placeholders_ok") is False and not d.get("reviewed")
+
+
+def load_bird_mn(cfg: Config, reviewed_only: bool = False, stats: dict | None = None) -> list[dict]:
+    """bird_mn.jsonl-ийн мөрүүд. H3: placeholders_bad мөрийг хасна (тоог log ба stats["dropped_placeholders"]-д —
+    run_bird_experiment үүнийг meta.json-ийн eval_set-д бичнэ)."""
     path = bird_dir(cfg) / "bird_mn.jsonl"
     if not path.exists():
         raise FileNotFoundError("F1: data/bird/bird_mn.jsonl алга. Эхлээд: bird-prepare, bird-translate")
     rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
-    return [d for d in rows if d.get("reviewed") or not reviewed_only]
+    rows = [d for d in rows if d.get("reviewed") or not reviewed_only]
+    bad = sum(1 for d in rows if placeholders_bad(d))
+    if bad:
+        log.warning("F1: placeholder сэргээгдээгүй, хянагдаагүй %d мөрийг хасав (placeholders_ok=false; "
+                    "bird-review-export → засаад reviewed=1)", bad)
+    if stats is not None:
+        stats["dropped_placeholders"] = bad
+    return [d for d in rows if not placeholders_bad(d)]

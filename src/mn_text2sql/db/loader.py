@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from pathlib import Path
+
+import psycopg2.errors
 
 from ..config import ROOT, Config
 from .conn import connection, with_dbname
@@ -85,9 +88,24 @@ def load_t2s_layer(cfg: Config, dbname: str, root: Path = ROOT) -> None:
             log.info("ачаалж байна: %s", path.relative_to(root))
             sql = strip_psql_meta(path.read_text(encoding="utf-8"))
             sql = sql.replace("{{BOT_PASSWORD}}", cfg["db"]["bot_password"].replace("'", "''"))
+            _execute_retrying(conn, sql, path.name)
+
+
+def _execute_retrying(conn, sql: str, label: str, tries: int = 3) -> None:
+    """Файлыг нэг transaction-оор гүйцэтгэнэ; deadlock гарвал (их хэмжээний ачааллын дараах autovacuum/ANALYZE-тай
+    уралдаан — V27 bootstrap 2026-11-01) rollback хийж дахин оролдоно. Transaction бүтнээрээ буцдаг тул аюулгүй."""
+    for attempt in range(1, tries + 1):
+        try:
             with conn.cursor() as cur:
                 cur.execute(sql)
             conn.commit()
+            return
+        except psycopg2.errors.DeadlockDetected:
+            conn.rollback()
+            if attempt == tries:
+                raise
+            log.warning("deadlock (%s) — дахин оролдоно (%d/%d)", label, attempt, tries)
+            time.sleep(2 * attempt)
 
 
 def run_validation(cfg: Config, dbname: str, root: Path = ROOT) -> list[tuple]:

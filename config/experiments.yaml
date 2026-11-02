@@ -7,9 +7,9 @@
 #   best_config — A–D-ийн шилдэг тохиргоо (E бүлгийн суурь)
 #   best_sft    — C бүлгийн шилдэг SFT run (C6, D1, F6-ийн суурь); best_sft_adapter — түүний LoRA нэр
 # =====================================================================
-vars:
-  best_a: A6
-  best_config: B5
+vars:   # бүх тайлагнасан run A7 (sqlite_transpile) ба H4 (E-ийн суурь) дээр (Kaggle: --var); анхдагч нь тэдэнтэй ижил байх ёстой
+  best_a: A7
+  best_config: H4
   best_sft: C3
   best_sft_adapter: c3
 
@@ -102,6 +102,9 @@ runs:
   E3c: {base: E2, abstain_threshold: 0.5, low_conf_action: clarify, desc: "Санал нийлэлт < 0.5 (олонх үгүй) бол тодруулга асуух (хоёр тайлбарыг харуулна)", group: E}
   E4: {base: E2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "E2 + хоосон/0/DB-д байхгүй утгатай хувилбар хасах + %q засвар + AUTHORING ангиллын дүрмийн татгалзал/тодруулга (reselect, загваргүй)", group: E}
   E4f: {base: E2, vote_filter: true, desc: "E2 + зөвхөн хувилбарын шүүлт ба %q засвар (дүрэмгүй)", group: E}
+  # Abstain v2 (pipeline/abstain.py): гар дүрмийн оронд асуултын ерөнхий шинж + 2 жижиг LR (dev-ийн family CV-ээр үнэлсэн)
+  E4a: {base: E4f, abstain_v2: true, desc: "E4f + Abstain v2 (дүрмийн оронд; reselect --no-refuse --no-clarify --abstain-v2)", group: E}
+  E4ra: {base: E4, abstain_v2: true, desc: "E4 + Abstain v2 (дүрэм эхэлж, үлдсэнд v2; reselect --abstain-v2)", group: E}
 
   # ---------------- H: ерөнхий засвар (2026-10-17; dev-ийн алдааны ангиллаас, асуулт тус бүрд тааруулаагүй — test-ээр баталгаажуулна)
   H1: {base: D2, postproc: true, intent_check: true, intent_refuse_only: true, abstain_on_error: true, desc: "+ схемээс гаргасан SQL засвар, хувийн мэдээлэл/бичих хүсэлтээс татгалзах, алдаатай SQL-ээс татгалзах", group: H}
@@ -132,11 +135,75 @@ runs:
   M1e4: {base: M1e2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1e2 + E4-ийн дүрэм (reselect)", group: M}
   # M1m: M1 + DB-ийн утгыг «» тэмдэглэсэн орчуулга (m0_translate --mark-values db; сургалтын формат) — M1-ийн утга хадгалалт 13.6%-ийг засах
   M1m: {base: M1a, translation_cache: m1_madlad_marked, desc: "I3 + MADLAD M1 орчуулга, DB-ийн утга «» тэмдэглэгээтэй", group: M}
+  M1i4: {base: M1a, index_dir: build/index_plus2_dev, desc: "M1a + 2-р шатны 280 шинэ жишээ (examples_plus_all = 475; eval-тэй давхардлыг хассан) — хэцүү хэв маягийн (LAG, валют, is_active_portfolio, CTE) жишээ RAG-д", group: M}
+  # S — хуваарилагч (хэрэглэгчийн санаа, 2026-10-27): нэр томьёоны хайлт top-4 нь dev-д хэрэгтэй нэр томьёоны 79%-ийг л олдог (BM25; k=12 96%).
+  M1g8: {base: M1a, glossary_k: 8, desc: "M1a + нэр томьёо 8 (хуваарилагчгүй хяналт)", group: S}
+  M1ks: {base: M1a, knowledge_select: true, select_pool: 12, desc: "M1a + хуваарилагч: 12 нэр томьёог хайгаад Arctic өөрөө хэрэгтэйг (≤6) сонгож prompt-д өгнө", group: S}
+  M1ksf: {base: M1ks, select_parse: strict, desc: "M1ks + C8 засвар: хуваарилагчийн хариунаас зөвхөн <answer>/сүүлийн мөрийн бие даасан дугаар (PAR30 г.м. тоо, бодлын текст үгүй)", group: S}
+  M1rr: {base: M1a, glossary_select_cache: build/rerank/bge_ft_dev.json, desc: "M1a + сургасан reranker (bge-reranker-v2-m3, өөрийн жишээний шошгоор) — нэр томьёог урьдчилан сонгосон кэшээр", group: S}
+  M1ens: {base: M1a, vote_filter: true, desc: "Чуулга: M1a + M1ks/M1rr/M1i4/M1g8/M1m-ийн SQL-ийг үр дүнгээр санал хураана (reselect --extra, загваргүй; дүрэмгүй)", group: S}
+  M1ensr: {base: M1ens, rule_refuse: true, rule_clarify: true, desc: "M1ens + E4-ийн дүрэм", group: S}
+  M1ensp: {base: M1ens, pick_pairs: true, desc: "M1ens + санал зөрвөл шилдэг 2 бүлгийг Arctic-аар хос харьцуулж сонгох (CHASE-SQL маяг, eval/pick.py; reselect --pick)", group: S}
+  M1enspr: {base: M1ensp, rule_refuse: true, rule_clarify: true, desc: "M1ensp + E4-ийн дүрэм", group: S}
+  M1ensa: {base: M1ens, abstain_v2: true, desc: "M1ens + Abstain v2 (дүрмийн оронд; reselect --extra ... --no-refuse --no-clarify --abstain-v2)", group: S}
+  M1ensra: {base: M1ensr, abstain_v2: true, desc: "M1ensr + Abstain v2 (E4 дүрэм эхэлж, үлдсэнд v2)", group: S}
+  # M1ensx / M1ensxr (run_plan алхам ensx, dev): M1ens / M1ensr-ийн тохиргоотой ижил, зөвхөн reselect --extra-д шинэ гишүүд
+  #   (M1cte M1dec M1th) сүүлд нэмэгдэнэ — тохиргоо ижил тул энд тусад нь бүртгэхгүй (test_text_options_metrics).
   M1mr: {base: M1m, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1m + E4-ийн дүрэм (reselect)", group: M}
   M1me2: {base: M1e2, translation_cache: m1_madlad_marked, desc: "M1e2-той ижил, утгын тэмдэглэгээтэй орчуулга", group: M}
   M1me4: {base: M1me2, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "M1me2 + E4-ийн дүрэм (reselect)", group: M}
+  # M1fk: FK-гүүр — салангид linked хүснэгтийн завсрын (loans ← loan_collaterals → collaterals) + 1 алхмын FK хүснэгт (≤2 нэмэлт).
+  # dev офлайн (H4-ийн linked_tables): gold хүснэгтийн бүрэн хамралт 97.3 → 99.1%, дунджаар +0.58 хүснэгт (docs/ACCURACY_PLAN.md)
+  M1fk: {base: M1a, fk_bridge: true, desc: "M1a + FK-гүүр schema linking (retrieval/fk_bridge.py; ≤2 нэмэлт хүснэгт)", group: M}
+  # M1cte / M1dec: чуулгын олон төрөлт 2-р үүсгэгч (docs/RESEARCH_NEXT.md зөвлөмж 4; DIN-SQL, CHASE-SQL divide-and-conquer).
+  # Prompt-ын загвар (D2-ийн сургалтын Figure C.1) хэвээр — Instructions-д дэд алхам/CTE, харьцааг NULLIF-тэй тоо/хуваарийн CTE-ээр
+  # бичих 3 мөр нэмнэ (llm/prompts.py GEN_STYLE_HINTS). Ганцаараа M1a-аас бага байж болно — зорилго нь чуулгад шинэ зөв SQL нэмэх.
+  # Чуулгын жор (docs/ACCURACY_PLAN.md «M1cte»): reselect --from M1rr --to M1ensc --split dev --no-refuse --no-clarify
+  #   --extra M1ks M1a M1g8 M1m M1cte  (M1ens-тэй ижил, зөвхөн M1cte-г СҮҮЛД нэмнэ — тэнцвэл өмнөх гишүүд ялна)
+  M1cte: {base: M1a, gen_style: cte, desc: "M1a + CTE үүсгэгч: дэд алхмаар төлөвлөж WITH step1 .. stepN, харьцааг тоо/хуваарийн CTE + NULLIF (чуулгын 2-р үүсгэгч)", group: S}
+  M1dec: {base: M1a, gen_style: decompose, desc: "M1cte + олон домэйны асуултыг хэсэг бүрийг join түлхүүрээр нь тусад нь нэгтгээд холбох (fan-out-аас сэргийлэх)", group: S}
+  # M1th: андуурагддаг хүснэгтийн хос (loans ↔ loan_applications, loan_writeoffs ↔ loan_payments ...)-ыг ялгах ≤5 англи мөр evidence-д
+  # (knowledge/table_hints.yaml — агуулга нь semantic_model.yaml-аас; prompt-д байгаа + linked хүснэгтэд л). docs/ACCURACY_PLAN.md «M1th»
+  M1th: {base: M1a, table_hints: true, desc: "M1a + хүснэгтийн ялгах зөвлөмж (андуурагддаг хосын тайлбар ≤5 мөр; knowledge/table_hints.py)", group: S}
+  # M1ip (T1, зөвхөн dev): хүснэгтийн далд нөхцөл (loan_payments POSTED 18/19, loans is_active_portfolio 47/76, disbursed →
+  # disbursement_date IS NOT NULL, deposits ACTIVE 16/21 — dev gold-ын дэмжлэг knowledge/table_hints.yaml default_predicates).
+  # docs/ACCURACY_PLAN.md «M1ip». Test-д зөвхөн dev-ээр ахиц баталгаажсаны дараа.
+  M1ip: {base: M1a, implied_preds: true, desc: "M1a + далд нөхцөлийн сануулга (POSTED, идэвхтэй багц, олгосон, идэвхтэй хадгаламж; ≤4 мөр; knowledge/table_hints.py)", group: S}
+  # M1fs (R5 З1, зөвхөн dev): хүснэгт мэдэх few-shot — жишээний pool 20-ийг SQL-ийн хүснэгт ↔ linked[:3]-ийн Jaccard-аар дахин
+  # эрэмбэлж, linked-д байхгүй андуурагддаг хамтрагчтай жишээг торгоно (retrieval/fewshot_rerank.py). Офлайн gold-хүснэгтийн
+  # cover (scripts/rerank/fewshot_cover.py, dev): docs/ACCURACY_PLAN.md «M1fs». Test-д зөвхөн dev-ээр ахиц баталгаажсаны дараа.
+  M1fs: {base: M1a, fewshot_rerank: table_jaccard, desc: "M1a + хүснэгт мэдэх few-shot сонголт (pool 20 → 0.5·оноо + 0.5·Jaccard(жишээний хүснэгт, linked[:3]) − андуурагддаг хамтрагч)", group: S}
+  # T2 (pick_diff): M1ensp-ийн хос харьцуулалтыг sqlglot-оор олсон ялгаатай нөхцөлөөр (≤2 төрөл) асууна — reselect --pick --pick-diff
+  M1enspd: {base: M1ensp, pick_diff: true, desc: "M1ensp + нөхцөлийн түвшний pick (WHERE/GROUP BY/агрегат/хүснэгтийн ялгааг л асууна; eval/pick.py diff_clauses)", group: S}
+  # T9b (зөвхөн dev): MADLAD M1-ийн өөр орчуулга (beam 1 = greedy, beam 8) → чуулгын шинэ гишүүн (reselect --extra M1alt1 M1alt8).
+  # Кэш: scripts/mt/m0_translate.py ... --beams 1|8 --tag m1_madlad_alt_b1|m1_madlad_alt_b8 (docs/ACCURACY_PLAN.md «T9b»)
+  M1alt1: {base: M1a, translation_cache: m1_madlad_alt_b1, desc: "M1a, MADLAD M1 орчуулга greedy (beam 1) — орчуулгын олон янз байдлын чуулгын гишүүн (T9b)", group: S}
+  M1alt8: {base: M1a, translation_cache: m1_madlad_alt_b8, desc: "M1a, MADLAD M1 орчуулга beam 8 — орчуулгын олон янз байдлын чуулгын гишүүн (T9b)", group: S}
+  # M1tc (R1.2, зөвхөн dev): орчуулгын дараах шалгалт (кирилл үлдэгдэл, [V] placeholder, тоо «5 сая»/«3-р сар», алдагдсан утга;
+  # pipeline/translate_check.py) → тэмдэглэсэн асуултад л монгол + англи (H2 хэлбэр). Офлайн: scripts/translate/check_report.py
+  # (docs/ACCURACY_PLAN.md «M1tc»). Qwen кэш дээр H2-оор симуляц хийхэд ахицгүй (+2/−3) — MADLAD M1-д GPU-гээр батлах.
+  M1tc: {base: M1a, translate_check: bilingual, desc: "M1a + орчуулгын шалгалт → сэжигтэй орчуулгад монгол + англи асуулт (R1.2 bilingual fallback)", group: S}
+  # M1lx (V28 F2, зөвхөн dev): M1a-тай ижил prompt, зөвхөн орчуулгын кэш — M1 MADLAD-ийг --hints lexicon2-оор дахин орчуулсан
+  # (run_plan_l4.sh mt алхам «lex2» → build/translations/m1_madlad_lex2.jsonl; docs/ACCURACY_PLAN.md «F2»). M1a-тай McNemar.
+  M1lx: {base: M1a, translation_cache: m1_madlad_lex2, desc: "M1a + MADLAD M1 орчуулга lexicon2 нэр томьёоны зөвлөмжтэй («-гүй» үгүйсгэл, эсрэг нэр томьёо нэгтгэхгүй, тоо хадгална; F2)", group: M}
+  # M1afx (2026-11-01, dev алдааны шинжилгээ): M1a + 4 засвар — guard-ийн scope (CTE alias), SQLite→PG хөрвүүлэлтийн F1–F5, тасарсан SQL блокийн fallback, DB-д байхгүй литералыг энэ асуултын утгын hit-ээр солих (R6). Офлайн дахин боловсруулалтаар гишүүдийн 13 хариулт зөв болох нь батлагдсан.
+  M1afx: {base: M1a, guard_scope: true, transpile_fix: true, extract_fallback: true, literal_fix: true, desc: "M1a + алдааны 4 засвар (guard_scope, transpile_fix, extract_fallback, literal_fix) — dev", group: M}
+  # M1vl (2026-11-02, систем сайжруулалт): M1afx + утгын индексийн ≤100 утгатай текст баганын БҮХ утга DDL-д («values: ...»)
+  # + «утгыг орчуулахгүй» заавар. Утга prompt-д байсан ч загвар англиар бичсэн ('Darkhan', 'Teacher'); хайлт олоогүй үед
+  # ('Чойбалсан салбар') бүрэн жагсаалт тусална. GPU шаардана (prompt өөрчлөгдөнө).
+  M1vl: {base: M1afx, value_list_max: 100, desc: "M1afx + ≤100 утгатай баганын бүх утга + утгыг орчуулахгүй заавар", group: M}
+  # M1rt (R7 #5, зөвхөн dev): budget forcing — max_tokens-д тасарсан (finish_reason=length), SQL-гүй гаралтыг
+  # «</think><answer>```sql» prefill-ээр нэг удаа (t=0, ≤512 токен) үргэлжлүүлнэ (pipeline/orchestrator.py _rescue_truncated).
+  # H4-д 52/300 тасарсан (docs/research/R7_inference_efficiency.md §0.2). Prompt M1a-тай ижил; зөвхөн тасарсан мөр өөрчлөгдөнө.
+  M1rt: {base: M1a, rescue_truncated: true, desc: "M1a + тасарсан reasoning-ийг аврах (budget forcing: </think><answer>```sql, ≤512 токен, t=0)", group: S}
+  # M1vf (зөвхөн dev, V27): 2026-10-30 шалгалтын хайлтын засварууд (docs/review/FULL_REVIEW_2026-10-30.md; бүгд анхдагчаар
+  # унтраалттай — бусад run-ийн prompt, fingerprint ижил). F1 value_match=strict: кирилл түлхүүрийг зөвхөн кириллээр + дагавар/
+  # угтвар (сул латин түлхүүрийн «байсан → Баасан», «хувьд → Ховд» үгүй), linking-ийн өсгөлт зөвхөн баттай тааралтад; F3
+  # mask_mode=values: few-shot хайлтад өгүүлбэрийн эхний үгийг маскжуулахгүй (зөвхөн утга, оноосон нэр, regex), embedding ч ижил
+  # маскаар; F5 enum_codes=all: enum-ийн бүх код (gl_entries.account_code 4100–5400). Офлайн dev: docs/ACCURACY_PLAN.md «M1vf».
+  M1vf: {base: M1a, value_match: strict, mask_mode: values, enum_codes: all, desc: "M1a + хайлтын засвар: кирилл утгын тааралт (F1), эхний үгийг маскжуулахгүй few-shot (F3), enum-ийн бүх код (F5)", group: S}
   I3t2: {base: I3, translation_cache: qwen3.5-9b.t2, desc: "I3 + T2 орчуулга: маскыг DB-ийн оноосон нэрээр шүүх, semantic_model/glossary-аас нэр томьёоны RAG (translate_terms.py; eval set-ээс үг аваагүй)", group: I}
-  WEB: {base: I3t, index_dir: build/index_web, schema_linking: true, desc: "Вэб үйлчилгээ: I3t (англи prompt, жишээний сан 160 + 475 + dev, орчуулгыг шууд) + schema linking (T4-д богино prompt), 1 хувилбар", group: I}
+  WEB: {base: I3t, index_dir: build/index_web, schema_linking: true, intent_rules: v2, desc: "Вэб үйлчилгээ: I3t (англи prompt, жишээний сан 160 + 475 + dev, орчуулгыг шууд) + schema linking (T4-д богино prompt), 1 хувилбар; intent_check v2 (домэйны нэр томьёонд буруу татгалзахгүй — 2026-10-31)", group: I}
   I3tr: {base: I3t, vote_filter: true, rule_refuse: true, rule_clarify: true, desc: "I3t + E4-ийн дүрэм (reselect)", group: I}
   H4t: {base: H4, translation_cache: qwen3.5-9b.fix, desc: "H4 + орчуулгын masking засвар", group: I}
   J1: {base: I3t, glossary_en: true, glossary_file: knowledge/glossary_plus.yaml, index_dir: build/index_plus_dev_j, desc: "I3t + нэр томьёо англиар (definition_en, «Use exactly: SQL») ба 7 шинэ нэр томьёо (knowledge/glossary_plus.yaml; бусад тохиргоонд нөлөөлөхгүй)", group: J}
@@ -145,6 +212,10 @@ runs:
   K1: {base: I3t2, agent: true, desc: "I3t2 + agent: гүйцэтгэл ба литерал шалгах tool → Arctic self-critic → засах (≤2); санал хураалтын ялагч дээр", group: K}
   K2: {base: K1, agent_critic: false, desc: "K1 − LLM critic (зөвхөн детерминист tool-ийн олдвороор засна; critic-ийн нэмэр = K1 − K2)", group: K}
   K3: {base: K1, agent_plan: true, desc: "K1 + planner (SQL-ээс өмнө англи төлөвлөгөө)", group: K}
+  # WEB2 (2026-11-02, систем сайжруулалт): WEB + afx-ийн 4 засвар (dev M1a +11/−0, test +6/−0) + татгалзал/тодруулгын rules v2
+# + kpi_fix (KPI/схемийн детерминист засвар) + R7 (V30: чуулгад dev +19 kpi_fix+R7-аар)
+  # (AUTHORING-ийн 5 ангилал; офлайн хуурамч татгалзал 0/375). Вэбийг шилжүүлэх: config/web.yaml-ийн service.run_id: WEB2.
+  WEB2: {base: WEB, guard_scope: true, transpile_fix: true, extract_fallback: true, literal_fix: true, rule_refuse: true, rule_clarify: true, rules_version: v2, kpi_fix: true, trunc_date: true, desc: "WEB + алдааны 4 засвар + татгалзал/тодруулгын дүрэм v2 + KPI/схемийн засвар + R7", group: I}
   WEBA: {base: WEB, agent: true, desc: "Вэб + agent (tool + critic, ≤2 засвар). config/web.yaml-ийн run_id: WEBA; асуултад 1–5 нэмэлт LLM дуудлага", group: K}
 
   # ---------------- F: шинэлэг санаа

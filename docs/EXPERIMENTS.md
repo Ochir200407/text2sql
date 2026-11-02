@@ -5,6 +5,12 @@
 асаалттай байна (`scripts/server/serve_model.sh`). `results/REPORT.md` нь ID бүрийг `base`-тай нь McNemar-аар
 харьцуулна.
 
+Нэмэлтээр `--set key=value` (RunOptions-ийн талбар; давтагдана) ба `--var name=value` (experiments.yaml-ийн `vars`, жишээ нь
+`best_a=A7`). 2026-10-31-ээс `resolve_run` нь үл мэдэгдэх `--set` түлхүүр (мөн experiments.yaml/flows.yaml-ийн), үл мэдэгдэх
+`--var` нэр, enum-ийн зөвшөөрөгдөөгүй утга, bool сонголтын true/false биш утга (жишээ нь `--set intent_check=1`)-д **алдаа**
+(ValueError) өгч зогсооно; `=`-гүй `--set`/`--var` ч алдаа. Өмнө нь чимээгүй алгасагддаг байв — үсгийн алдаатай `--set` нь
+суурь run-ийн файлыг (ижил hash) үргэлжлүүлж, хувилбар гэж мэдээлэгдэж болзошгүй байсан.
+
 ## A — суурь загвар, шууд
 
 | ID | Тохиргоо | Тэмдэглэл |
@@ -59,7 +65,7 @@ served-model-name-ээр ажиллана (`scripts/server/eval_adapters.sh`).
 | ID | Тохиргоо |
 |---|---|
 | E1 | Алдааны мессежээр 2 удаа засна (хоосон үр дүнд нэг удаа дахин бодуулна) |
-| E2 | 8 хувилбар (загварын sampling: Arctic T = 0.8, sqrl T = 0.7 top_p = 0.95), үр дүнгийн hash-аар санал хураана. Seed 1, 2, 3 |
+| E2 | 8 хувилбар (загварын sampling: Arctic T = 0.8, sqrl T = 0.7 top_p = 0.95), үр дүнгийн hash-аар санал хураана. Seed 1, 2, 3 (төлөвлөгөө; бодитоор E2–E5-д зөвхөн seed 1 ажилласан) |
 | E3 | Санал нэгдлийн босгоор татгалзана. Шинээр ажиллуулахгүй: E2-ийн бичлэгээс гаргана — `t2s derive-abstain --from E2 --to E3 --threshold <t>`. Босгыг dev дээрх E2-ийн муруйгаас (тайлангийн «Санал хураалт» хэсэг) сонгоно |
 
 ## F — шинэлэг санаа
@@ -94,6 +100,22 @@ text2sql-thesis-ийн Planner → Writer → Critic санаа. Детерми�
 text2sql-thesis-ийн кейс (цахим худалдааны DB) дээр ижил ID-уудыг `--config config/thesis.yaml`-аар ажиллуулж, thesis-ийн
 agent системтэй (ижил vLLM дээр дахин ажиллуулсан) ижил шалгуураар харьцуулна:
 `STAGE=thesis BEST_A=… BEST_CONFIG=… bash scripts/server/run_plan_l4.sh` → `results/thesis/COMPARE.md`.
+
+## Дараа нэмэгдсэн бүлгүүд (H, I, M, S, J, K, T)
+
+Тохиргоо, тайлбар нь `config/experiments.yaml`-д (`group:`, `desc`), үр дүн `report_diplom/Chapters/Ch6_Results.tex`-д.
+
+| Бүлэг | ID | Агуулга | Дэлгэрэнгүй |
+|---|---|---|---|
+| E (нэмэлт) | E3c, E4, E4f, E4a, E4ra | E2-ийн хувилбараас GPU-гүй дахин сонголт (тодруулга, шүүлт + дүрэм, abstain v2) | docs/IMPROVE_80_PLAN.md |
+| H | H1–H4 | D2 + засвар, татгалзал, орчуулга (H4 = `vars.best_config`) | docs/IMPROVE_40_PLAN.md |
+| I | I1–I4, I1r–I3r, I3t, I3t2, I3tr, H4t, WEB | Жишээний сан, орчуулгын маскын засвар, вэб тохиргоо | docs/IMPROVE_80_PLAN.md |
+| D (нэмэлт) | H4s, D3s, I3s3, I3s3t, M1s2, M1s3 | D3: богино prompt + өөрийн DB-ийн жишээгээр сургах | docs/IMPROVE_80_PLAN.md |
+| M | M0a, M1a, M1q, M1r, M1e2, M1e4, M1m, M1i4, M1mr, M1me2, M1me4, M1fk | Сургасан орчуулагчийн кэш (MADLAD M0/M1, Qwen) + хослол | docs/MT_INVARIANT_PLAN.md §5.6 |
+| S | M1g8, M1ks(f), M1rr, M1ens…, M1cte, M1dec, M1th, M1ip, M1fs, M1alt1/8, M1tc, M1rt, M1vf | Нэр томьёо сонгох, чуулга, хос харьцуулалт, 2-р үүсгэгч, хайлтын засвар | docs/ACCURACY_PLAN.md |
+| J | J1, J1r | Нэр томьёо англиар + glossary_plus | docs/IMPROVE_80_PLAN.md |
+| K | K1–K3, WEBA | Agentic горим I3t2 / WEB дээр | docs/AGENT.md |
+| T | T1, T1n | t2s_inv1 adapter (тогтмол мэдлэг) | docs/MT_INVARIANT_PLAN.md §6.4 |
 
 ## Test (200)
 

@@ -10,7 +10,11 @@
 
 ## Notebook (Kaggle / Colab)
 
-1. Локал: `python scripts/notebook/pack_code.py` → `dist/t2s_code.zip`.
+1. Локал: `python scripts/notebook/pack_code.py --slim` → `dist/t2s_code.zip`. Kaggle-д үргэлж `--slim`: түүнгүй zip нь
+   browser-оор байршуулах 10 MB-ын хязгаараас хэтэрнэ (`--slim` нь thesis-ийн SQLite — зөвхөн STAGE=thesis-д хэрэгтэй —,
+   MT-ийн ноорог/хяналтын файл, хуучин v1 өгөгдлийг хасна). `--out <zip>` — архивын өөр зам (анхдагч `dist/t2s_code.zip`).
+   Нууц байж болох файлыг хэзээ ч оруулахгүй: `.env*` ба `*.env` (`config/kaggle_overrides*.env`-ээс бусад), `*.pem`,
+   `*.key`, `kaggle.json`, `.netrc`, `id_*`; мөн `report*/out/`, `*.pptx`, «diplom ajluud» хавтсыг алгасна.
 2. Kaggle: zip-ийг Dataset болгож, `notebooks/t2s_eval.ipynb`-ийг импортлон Add Input хийнэ. Accelerator = GPU T4 x2, Internet = On.
    Colab: zip-ийг `MyDrive/t2s/`-д хуулна, Runtime-ийг L4/A100 болгоно.
 3. ТОХИРГОО нүдэнд эхлээд `MODE="smoke"` (10 асуулт), дараа нь `MODE="stage"`, `STAGE="A"`, `MODELS="arctic-r1-7b"`.
@@ -18,7 +22,8 @@
 4. Бүх үр дүн нэг файлд байна: `t2s_results.zip` (results/ + build/; 15 мин тутам). Дараагийн сесс:
    - Kaggle: өмнөх version-ий Output-ыг Add Input хийнэ.
    - Colab: Drive-д байгаа файлаас автоматаар үргэлжилнэ.
-5. Локалд задлаад `python -m mn_text2sql report` ба `report-latex` → `report/build.sh` ажиллуулна.
+5. Локалд задлаад `python -m mn_text2sql report` ажиллуулна. Дипломын тайлан: `report_diplom/build.sh` (`report-latex` нь
+   зөвхөн хуучин ноорог `report/`-д хүснэгт үүсгэнэ → `report/build.sh`).
 
 **T4-ийн хязгаарлалт.** T4 нь BF16/FP8 дэмждэггүй тул notebook загварыг `--dtype half --tensor-parallel-size 2`-оор ажиллуулна
 (`T2S_VLLM_ARGS`, `scripts/server/serve_model.sh`). Тайланд «T4, fp16» гэж тэмдэглэнэ.

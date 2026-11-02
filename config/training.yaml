@@ -22,10 +22,16 @@ sampling:                      # C1
   top_p: 0.95
   max_tokens: 3072
   workers: 32
+  max_keep: 4                  # асуулт бүрээс хадгалах ялгаатай зөв гаргалт (`sample --max-keep`)
+  max_keep_all_correct: null   # n/n зөв асуултаас (null = max_keep; R2-A: 0–1, `sample --max-keep-all`)
 cot:                           # C2: шийдэгдээгүй асуултад gold SQL-ээр чиглүүлсэн reasoning
   temperature: 0.7
   attempts: 2
-  drop_phrases: ["given sql", "provided sql", "reference sql", "the hint", "өгөгдсөн sql", "gold"]
+  # B2: hint нь "Private note … a correct query is …" — completion БҮХЭЛДЭЭ (reasoning + <answer>-ийн хураангуй)
+  # шалгагдана; хэллэг үгийн эхнээс таарна, hint-гүй prompt-д (асуулт/схем) байгаа хэллэгийг тооцохгүй (sampling.copy_reason)
+  drop_phrases: ["given sql", "provided sql", "reference sql", "the hint", "өгөгдсөн sql", "gold",
+                 "note", "private", "correct query", "provided query", "given query", "reference query",
+                 "тэмдэглэл", "өгөгдсөн асуулга"]
 
 sft_defaults:
   lora_r: 32
@@ -49,6 +55,12 @@ sft_defaults:
   completion_logits_only: false
   optim: null                   # null = Trainer-ийн анхдагч AdamW; санах ой дутвал жишээ нь paged_adamw_8bit
   logging_steps: 10
+  # B9 (R2-A, сонголттой; анхдагч = eval-гүй): build нь family-ийн eval_share хувийг <recipe>__<model>.eval.jsonl-д
+  # тусгаарлана; sft нь eval_steps (null = save_steps) тутам validation loss, early_stopping_patience бол хамгийн
+  # бага eval_loss-тай checkpoint. Жорын бусад сонголт: sample_prompt (h4s — шууд түүвэрлэсэн гаргалт), sft --base.
+  eval_share: 0
+  eval_steps: null
+  early_stopping_patience: null
 
 grpo_defaults:
   learning_rate: 1.0e-6
@@ -91,6 +103,7 @@ recipes:
        per_device_batch_size: 1, gradient_accumulation: 8, learning_rate: 2.0e-4,
        quantize_4bit: true, fp16: true, bf16: false, gradient_checkpointing: true, completion_logits_only: true,
        logging_steps: 1, desc: "H4s-ийн богино prompt-оор өөрийн DB + BIRD 600 (QLoRA, T4 fp16)"}
+  # init: `grpo --init` өгөөгүй бол adapters/<init>__<model>__merged (best_sft → training.yaml best_sft) — B5
   d4: {kind: grpo, init: d2, prompt: rag, desc: "D2 + GRPO (RAG-тай prompt)"}
   # MT (docs/MT_INVARIANT_PLAN.md §5.5): scripts/mt/train_mt.py --backend causal — өгөгдлийг өөрөө угсарна (build хэрэггүй).
   # MADLAD (seq2seq) нь train_mt.py-ийн өөрийн тохиргоотой (Seq2SeqTrainer, QLoRA, fp32 тооцоолол).

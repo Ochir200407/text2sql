@@ -10,6 +10,7 @@ Backend:
 
 Латин оролт: --translit improved = `Transliterator(improved=True)`-аар кирилл болгоод орчуул (латин замын (b) сонголт, §5.2); `none` = латиныг шууд орчуулна (a).
 --hints lexicon = translate_terms.term_hints() (кирилл эхээс; латин бол хөрвүүлсэн кириллээс).
+--hints lexicon2 = term_hints(mode="lexicon2"): F2 засвар («-гүй» үгүйсгэл, эсрэг нэр томьёо нэгтгэхгүй, тоог хасахгүй) — V28.
 dev ЗӨВХӨН; test нь --final-test-тэй (нэг удаа). Ажиллуулсан тохиргоо `<tag>.meta.json`-д.
 
 Жишээ (Colab/Kaggle):
@@ -165,10 +166,10 @@ def main() -> None:
     ap.add_argument("--model", default="")
     ap.add_argument("--base-url", default="http://127.0.0.1:8000/v1")
     ap.add_argument("--tag", required=True)
-    ap.add_argument("--split", default="dev", choices=["dev", "test"])
+    ap.add_argument("--split", default="dev", choices=["dev", "test", "fresh"])
     ap.add_argument("--final-test", action="store_true", help="test-д нэг удаа хүрэх зөвшөөрөл")
     ap.add_argument("--variants", default="mn,latin")
-    ap.add_argument("--hints", default="none", choices=["none", "lexicon"])
+    ap.add_argument("--hints", default="none", choices=["none", "lexicon", "lexicon2"])
     ap.add_argument("--translit", default="none", choices=["none", "improved"])
     ap.add_argument("--mark-values", default="none", choices=["none", "db"],
                     help="db: DB-ийн оноосон нэр/код/огноог «каноник» болгож тэмдэглээд (M1-ийн сургалтын формат, prepare_v2) "
@@ -183,14 +184,14 @@ def main() -> None:
     ap.add_argument("--prompt", default="pipeline", choices=["pipeline", "sft"],
                     help="hf_causal: pipeline = translate_messages (zero-shot), sft = render_sft-ийн формат (fine-tune хийсэн загвар)")
     args = ap.parse_args()
-    if args.split == "test" and not args.final_test:
-        sys.exit("test-д зөвхөн эцэст нэг удаа: --final-test өг (WORKLOG: test нь давтаж хэмжигдэхгүй)")
+    if args.split in ("test", "fresh") and not args.final_test:   # fresh (2026-11-02) — test шиг нэг удаа
+        sys.exit("test/fresh-д зөвхөн эцэст нэг удаа: --final-test өг (WORKLOG: test нь давтаж хэмжигдэхгүй)")
 
     items = read_jsonl(ROOT / f"evalset/{args.split}.jsonl")
     if args.limit:
         items = items[:args.limit]
     translit = Transliterator(vocabulary(), improved=True) if args.translit == "improved" else None
-    hint_translit = translit or (Transliterator(vocabulary(), improved=True) if args.hints == "lexicon" else None)
+    hint_translit = translit or (Transliterator(vocabulary(), improved=True) if args.hints != "none" else None)
     keys = None
     if args.mark_values == "db":
         from mn_text2sql.config import load_config
@@ -210,9 +211,9 @@ def main() -> None:
                 continue
             sent = translit.sentence(src) if (v == "latin" and translit is not None) else src
             # сургалтад (render_sft) латин мөрийн hint-ийг кирилл эхээс гаргадаг — inference-д кирилл рүү хөрвүүлсэн хэлбэрээс
-            # hint_translit нь зөвхөн --hints lexicon үед бий (hint хэрэггүй бол cyr ашиглагдахгүй)
+            # hint_translit нь зөвхөн --hints lexicon|lexicon2 үед бий (hint хэрэггүй бол cyr ашиглагдахгүй)
             cyr = sent if (v != "latin" or translit is not None) else (hint_translit.sentence(src) if hint_translit else src)
-            hints = term_hints(cyr) if args.hints == "lexicon" else []
+            hints = term_hints(cyr, mode=args.hints) if args.hints != "none" else []
             direction = "mn(latin)→en" if (v == "latin" and translit is None) else "mn(cyrillic)→en"
             mapping: dict[str, str] = {}
             if keys is not None:   # prepare_v2-тэй ижил: span илрүүлэх → DB-ээр шүүх → «каноник»

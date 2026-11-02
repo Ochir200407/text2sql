@@ -43,26 +43,38 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--model")
         p.add_argument("--base-url")
         p.add_argument("--workers", type=int, default=16)
+        if name == "synth":
+            # L1: загвар (жишээний сан) dedup-тай ижил шүүлтээр — eval-тэй давхардсаныг загвар болгохгүй
+            p.add_argument("--no-embed", action="store_true", help="загварын давхардлын шүүлт embedding-гүй (dedup "
+                                                                   "--no-embed-тэй ижил)")
     p = sub.add_parser("dedup")
     p.add_argument("--no-embed", action="store_true")
     p = sub.add_parser("sample")
     p.add_argument("--model", required=True)
     p.add_argument("--source", required=True, help="bird_mn.jsonl | own_synth_clean.jsonl | human.jsonl")
-    # h4s нь зөвхөн build-ийн prompt (D3: plain гаргалтыг H4s-ээр дахин угсарна) — h4s-ээр sample хийсэн __h4s__
-    # файлыг build_sft цуглуулдаггүй тул энд зөвшөөрөхгүй
-    p.add_argument("--prompt", default="plain", choices=["plain", "rag"])
+    # h4s: R2-A — зорилтот (H4s) prompt-оор шууд түүвэрлэнэ (__h4s__ файл); build_sft нь жорын sample_prompt: h4s
+    # үед л цуглуулна (анхдагч жорууд plain гаргалтыг цуглуулж prompt-ыг дахин угсарна — D2/D3)
+    p.add_argument("--prompt", default="plain", choices=["plain", "rag", "h4s"])
     p.add_argument("--variants", help="жишээ нь en (C4-ийн англи гаргалт)")
     p.add_argument("--tool", action="store_true", help="F10: search_values tool-той (sqrl, --prompt rag)")
     p.add_argument("--pivot", action="store_true")
     p.add_argument("--limit", type=int)
     p.add_argument("--base-url")
+    p.add_argument("--index-dir", help="rag/h4s-ийн жишээний сан (анхдагч: run-ийн; H4s = build/index_plus). "
+                                       "dev/test агуулсан индекс (include_dev) татгалзана")
+    p.add_argument("--max-keep", type=int, help="асуулт бүрээс хадгалах ялгаатай зөв гаргалт (анхдагч: "
+                                                "training.yaml sampling.max_keep = 4)")
+    p.add_argument("--max-keep-all", type=int, help="n/n зөв асуултаас хадгалах дээд тоо (R2-A: 0–1; анхдагч: "
+                                                    "sampling.max_keep_all_correct, null = --max-keep)")
     p = sub.add_parser("cot")
     p.add_argument("--model", required=True)
     p.add_argument("--source", required=True)
-    # h4s нь зөвхөн build-ийн prompt (D3: plain гаргалтыг H4s-ээр дахин угсарна) — h4s-ээр sample хийсэн __h4s__
-    # файлыг build_sft цуглуулдаггүй тул энд зөвшөөрөхгүй
-    p.add_argument("--prompt", default="plain", choices=["plain", "rag"])
+    p.add_argument("--prompt", default="plain", choices=["plain", "rag", "h4s"])
     p.add_argument("--base-url")
+    p.add_argument("--index-dir", help="sample-тэй ижил жишээний сан")
+    # L7: sample-тай ижил сонголт — tool-той sampling-ийн stats/гаргалтын нэр __tool (sample --tool → cot --tool)
+    p.add_argument("--tool", action="store_true", help="F10: sample --tool-ийн stats-аас, search_values tool-той")
+    p.add_argument("--pivot", action="store_true")
     p = sub.add_parser("build")
     p.add_argument("--recipe", required=True)
     p.add_argument("--model", required=True)
@@ -74,15 +86,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--output-dir", help="adapter ба checkpoint-ийн хавтас (анхдагч: adapters/<recipe>__<model>; "
                                         "Kaggle: /kaggle/working/... — сесс тасарсан ч үлдэнэ)")
     p.add_argument("--data-file", help="SFT мөрийн JSONL (анхдагч: data/train/sft/<recipe>__<model>.jsonl)")
+    p.add_argument("--base", help="суурь жин (HF id эсвэл хавтас, жишээ нь D2-ийг нэгтгэсэн загвар — R2-A); "
+                                  "анхдагч: models.yaml-ийн hf_id")
+    p.add_argument("--eval-file", help="validation JSONL (анхдагч: жорын eval_share > 0 бол <data>.eval.jsonl)")
     p = sub.add_parser("merge")
     p.add_argument("--model", required=True)
     p.add_argument("--base", help="суурь жин (GRPO-ийн эхлэл болсон нэгтгэсэн загварын хавтас); анхдагч: HF суурь")
     p.add_argument("--adapter", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--dtype", default="bf16", choices=["bf16", "fp16", "fp32"],
+                   help="гаралтын dtype (нэгтгэлт fp32-оор; анхдагч bf16 = өмнөх гаралт, T4/vLLM-д fp16)")
     p = sub.add_parser("grpo")
     p.add_argument("--recipe", required=True)
     p.add_argument("--model", required=True)
-    p.add_argument("--init", help="эхлэх (SFT нэгтгэсэн) загварын хавтас")
+    p.add_argument("--init", help="эхлэх (SFT нэгтгэсэн) загварын хавтас; анхдагч: жорын init "
+                                  "(adapters/<init|best_sft>__<model>__merged)")
     p.add_argument("--max-steps", type=int)
     p.add_argument("--force", action="store_true", help="дууссан adapter-ийг дахин сургах")
     p = sub.add_parser("general-eval")
@@ -109,7 +127,8 @@ def main(argv: list[str] | None = None) -> int:
         _print(translate_items(cfg, tcfg, model_name=args.model, base_url=args.base_url, workers=args.workers))
     elif args.cmd == "synth":
         from .synth import synthesize
-        _print(synthesize(cfg, tcfg, args.model, args.base_url, workers=args.workers))
+        _print(synthesize(cfg, tcfg, args.model, args.base_url, workers=args.workers,
+                          use_embeddings=not args.no_embed))
     elif args.cmd == "dedup":
         from .data import dedup_against_eval, human_items, read_items, train_dir, write_items
         d = train_dir(tcfg)
@@ -134,20 +153,23 @@ def main(argv: list[str] | None = None) -> int:
         from .sampling import sample_file
         variants = [v for v in args.variants.split(",")] if args.variants else None
         _print(sample_file(cfg, tcfg, args.model, args.source, args.prompt, variants, args.base_url, args.limit,
-                           args.pivot, args.tool))
+                           args.pivot, args.tool, max_keep=args.max_keep, max_keep_all=args.max_keep_all,
+                           index_dir=args.index_dir))
     elif args.cmd == "cot":
         from .sampling import cot_file
-        _print(cot_file(cfg, tcfg, args.model, args.source, args.prompt, args.base_url))
+        flags = {k: True for k in ("tool", "pivot") if getattr(args, k)}      # өгсөн үед л (анхдагч дуудлага хэвээр)
+        _print(cot_file(cfg, tcfg, args.model, args.source, args.prompt, args.base_url, index_dir=args.index_dir,
+                        **flags))
     elif args.cmd == "build":
         from .formats import build_sft
         _print(build_sft(cfg, tcfg, args.recipe, args.model))
     elif args.cmd == "sft":
         from .sft import run_sft
         _print(run_sft(cfg, tcfg, args.recipe, args.model, data_file=args.data_file, output_dir=args.output_dir,
-                       max_steps=args.max_steps, force=args.force))
+                       max_steps=args.max_steps, force=args.force, base=args.base, eval_file=args.eval_file))
     elif args.cmd == "merge":
         from .sft import merge_adapter
-        _print({"merged": merge_adapter(args.model, args.adapter, args.out, base=args.base)})
+        _print({"merged": merge_adapter(args.model, args.adapter, args.out, base=args.base, dtype=args.dtype)})
     elif args.cmd == "grpo":
         from .grpo import run_grpo
         _print(run_grpo(cfg, tcfg, args.recipe, args.model, args.init, max_steps=args.max_steps,

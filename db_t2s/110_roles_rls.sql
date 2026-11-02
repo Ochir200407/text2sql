@@ -186,3 +186,31 @@ REVOKE EXECUTE ON FUNCTION
     pg_catalog.pg_advisory_lock(BIGINT),
     pg_catalog.pg_advisory_xact_lock(BIGINT)
 FROM PUBLIC;
+
+-- 2026-11-01 (REVIEW_2026-10-31 §4): SQL-ийг ТЕКСТЭЭР авч гүйцэтгэдэг (ts_stat, ts_rewrite(tsquery, text)) ба хүснэгт/схем/DB-г
+-- нэг нүдэнд буцаадаг *_to_xml* функцийг ч PUBLIC-ээс хураана (guard-ын FORBIDDEN_INFIXES / QUERY_STRING_FUNCS-ийн DB-ийн хос).
+-- PG-ийн хувилбарт байхгүй гарын үсгийг (to_regprocedure IS NULL) алгасна — DB үүсгэлтийг унагахгүй.
+DO $$
+DECLARE
+    f TEXT;
+    funcs TEXT[] := ARRAY['pg_catalog.ts_stat(text)', 'pg_catalog.ts_stat(text, text)',
+                          'pg_catalog.ts_rewrite(tsquery, text)',
+                          'pg_catalog.table_to_xml(regclass, boolean, boolean, text)',
+                          'pg_catalog.table_to_xmlschema(regclass, boolean, boolean, text)',
+                          'pg_catalog.table_to_xml_and_xmlschema(regclass, boolean, boolean, text)',
+                          'pg_catalog.schema_to_xml(name, boolean, boolean, text)',
+                          'pg_catalog.schema_to_xmlschema(name, boolean, boolean, text)',
+                          'pg_catalog.schema_to_xml_and_xmlschema(name, boolean, boolean, text)',
+                          'pg_catalog.database_to_xml(boolean, boolean, text)',
+                          'pg_catalog.database_to_xmlschema(boolean, boolean, text)',
+                          'pg_catalog.database_to_xml_and_xmlschema(boolean, boolean, text)',
+                          'pg_catalog.cursor_to_xml(refcursor, integer, boolean, boolean, text)',
+                          'pg_catalog.cursor_to_xmlschema(refcursor, boolean, boolean, text)'];
+BEGIN
+    FOREACH f IN ARRAY funcs LOOP
+        IF to_regprocedure(f) IS NOT NULL THEN
+            EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', to_regprocedure(f));
+        END IF;
+    END LOOP;
+END;
+$$;

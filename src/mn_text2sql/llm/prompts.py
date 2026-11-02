@@ -19,6 +19,9 @@ from ..knowledge.semantic import SemanticModel
 ENGINE_LABEL = {"sqlite_native": "SQLite", "postgres_prompt": "PostgreSQL", "sqlite_transpile": "SQLite"}
 PG_NOTE = ("Use PostgreSQL syntax: date_trunc('month', d), EXTRACT(YEAR FROM d), d::date, INTERVAL '30 days', "
            "COUNT(*) FILTER (WHERE ...), ROUND(x::numeric, 2), || for string concatenation.")
+# RunOptions.value_list_max (2026-11-02, test-ийн алдаа: утга prompt-д байсан ч «'Darkhan'», «'Teacher'» гэж орчуулсан)
+VALUE_NOTE = ("Text values are stored in Mongolian (Cyrillic): copy filter values exactly as listed in the schema "
+              "('values: ...') or in the evidence; never translate or transliterate them.")
 
 
 @dataclass
@@ -38,6 +41,8 @@ class PromptContext:
     relevant_tables: list[str] = field(default_factory=list)  # тайлбарын эрэмбэ (токены төсөвт багтаах)
     # schema linking (H4s): хүснэгт бүрийн БҮХ багана DDL-д байна; тайлбар (comment)-ыг зөвхөн эдгээр баганад өгнө
     describe_columns: dict[str, set[str]] | None = None
+    gen_style: str = "default"                        # чуулгын 2-р үүсгэгч: "cte" | "decompose" (GEN_STYLE_HINTS)
+    value_note: bool = False                          # value_list_max > 0: DB-ийн утгыг орчуулалгүй яг хуулах заавар
 
 
 # ---------------------------------------------------------------------------
@@ -61,8 +66,14 @@ def est_tokens(text: str) -> int:
     return int(ascii_n / 4 + (len(text) - ascii_n) / 2.6) + 1
 
 
-def _col_comment(model: SemanticModel, table: str, col: str, examples: dict, typ: str = "TEXT") -> str:
-    """Товч тайлбар: монгол тайлбар; enum утга (КОД=нэр) эсвэл синоним (≤2); enum-гүй текст баганад жишээ утга."""
+ENUM_CODE_MODES = ("first9", "all")   # RunOptions.enum_codes (F5): "all" = render_ddl(enum_limit=None)
+
+
+def _col_comment(model: SemanticModel, table: str, col: str, examples: dict, typ: str = "TEXT",
+                 enum_limit: int | None = 9, full_values: dict | None = None) -> str:
+    """Товч тайлбар: монгол тайлбар; enum утга (КОД=нэр) эсвэл синоним (≤2); enum-гүй текст баганад жишээ утга.
+    enum_limit: enum кодын тоо (анхдагч YAML-ийн эхний 9; None = бүгд — F5, gl_entries.account_code 20 код).
+    full_values: {хүснэгт: {багана: [утга]}} (value_list_max) — өгвөл «e.g.»-ийн оронд бүх утга."""
     c = model.tables[table].columns[col]
     text = c.mn or c.en
     if c.mn and c.en:
@@ -71,25 +82,31 @@ def _col_comment(model: SemanticModel, table: str, col: str, examples: dict, typ
         if len(new_words) >= 2:
             text += f" ({c.en})"
     if c.values:
-        text += "; " + ", ".join(f"{k}={v}" for k, v in list(c.values.items())[:9])
+        text += "; " + ", ".join(f"{k}={v}" for k, v in list(c.values.items())[:enum_limit])
     else:
         syn = [s for s in c.syn if s.lower() not in text.lower()][:2]
         if syn:
             text += "; " + ", ".join(syn)
     ex = (examples.get(table) or {}).get(col)
-    if ex and typ == "TEXT" and not c.pii and not c.values and not col.endswith("_id") and col not in TRIVIAL_COLS:
+    fv = (full_values or {}).get(table, {}).get(col)
+    plain_text = typ == "TEXT" and not c.pii and not c.values and not col.endswith("_id") and col not in TRIVIAL_COLS
+    if fv and plain_text:   # value_list_max: цөөн утгатай баганын БҮХ утга (DB-д бичигдсэнээр)
+        text += "; values: " + ", ".join(f"'{x}'" for x in fv)
+    elif ex and plain_text:
         text += "; e.g. " + ", ".join(str(x) for x in ex[:2])
     return text.replace("\n", " ")
 
 
 def render_ddl(model: SemanticModel, tables: list[str], types: dict, examples: dict, describe: bool,
                columns: dict[str, list[str]] | None = None, describe_tables: set[str] | None = None,
-               describe_columns: dict[str, set[str]] | None = None) -> str:
+               describe_columns: dict[str, set[str]] | None = None, enum_limit: int | None = 9,
+               full_values: dict | None = None) -> str:
     """OmniSQL/sqrl-д: CREATE TABLE жагсаалт. describe=True бол багана бүрт SQL comment (B1).
 
     describe_tables өгвөл зөвхөн тэдгээр хүснэгтийн баганыг тайлбарлаж, бусад хүснэгтэд зөвхөн нэг мөр гарчиг
     үлдээнэ (токены төсөв — Pipeline.schema_text). describe_columns өгвөл (schema linking) тухайн хүснэгтийн бүх
-    багана DDL-д байх боловч тайлбарыг зөвхөн жагсаасан баганад өгнө. FK багана, техникийн багана тайлбаргүй."""
+    багана DDL-д байх боловч тайлбарыг зөвхөн жагсаасан баганад өгнө. FK багана, техникийн багана тайлбаргүй.
+    enum_limit: _col_comment-ийн enum кодын тоо (анхдагч 9 = хуучин prompt; None = бүгд, F5 / enum_codes="all")."""
     out = []
     tset = set(tables)
     for t in tables:
@@ -105,7 +122,7 @@ def render_ddl(model: SemanticModel, tables: list[str], types: dict, examples: d
             typ = _pg_type(types.get(f"{t}.{c}", ""))
             comment = ""
             if detailed and not tab.columns[c].fk and c not in TRIVIAL_COLS and (only is None or c in only):
-                comment = _col_comment(model, t, c, examples, typ)
+                comment = _col_comment(model, t, c, examples, typ, enum_limit, full_values)
             decls.append((f"  {c} {typ}", comment))
         tail = []
         if tab.pk:
@@ -346,6 +363,34 @@ def _pivot_instruction() -> str:
             "database values (names, codes) exactly as written in the question.")
 
 
+# Чуулгын олон төрөлт үүсгэгч (docs/RESEARCH_NEXT.md зөвлөмж 4: DIN-SQL, CHASE-SQL divide-and-conquer, Chain-of-CTEs).
+# D2 LoRA нь Figure C.1-ийн prompt-оор сурсан тул загварыг өөрчлөхгүй — Instructions-ийн төгсгөлд хэдэн мөр л нэмнэ.
+# "default" үед юу ч нэмэхгүй (prompt байт-байтаар ижил; tests/test_gen_style.py).
+_CTE_HINT = (
+    "\n- Plan the query as a few small named sub-steps (e.g. filter -> aggregate -> combine) before writing SQL."
+    "\n- Write the final SQL as a chain of CTEs, one per sub-step: WITH step1 AS (...), step2 AS (...) "
+    "SELECT ... FROM step2; the final SELECT only combines the steps. A single step is fine for a simple lookup."
+    "\n- For a ratio, share or rate, compute the numerator and the denominator in their own CTEs (or columns), "
+    "then divide as numerator::numeric / NULLIF(denominator, 0); a percentage is 100.0 * numerator / "
+    "NULLIF(denominator, 0).")
+GEN_STYLE_HINTS = {
+    "default": "",
+    "cte": _CTE_HINT,
+    # Олон домэйн (зээл + хадгаламж г.м.): хэсэг бүрийг join түлхүүрээр нь тусад нь нэгтгээд дараа нь холбоно (fan-out)
+    "decompose": _CTE_HINT + (
+        "\n- If the question mixes several subject areas (e.g. loans and deposits, customers and branches) or asks "
+        "several things at once, answer each part in its own CTE aggregated to the join key first, then join the "
+        "CTEs; never join two one-to-many tables before aggregating (it double counts)."),
+}
+
+
+def gen_style_hint(style: str) -> str:
+    """gen_style-ийн Instructions-д нэмэх мөрүүд ("default" → хоосон). Мэдэгдэхгүй нэр → ValueError (үсгийн алдаа)."""
+    if style not in GEN_STYLE_HINTS:
+        raise ValueError(f"gen_style мэдэгдэхгүй: {style!r} (боломжит: {', '.join(GEN_STYLE_HINTS)})")
+    return GEN_STYLE_HINTS[style]
+
+
 def build_omnisql(ctx: PromptContext, schema_text: str) -> tuple[list[dict], str | None]:
     """Arctic-Text2SQL-R1 (family omnisql): system + user (Figure C.1) + prefill. Evidence нь асуултын өмнө
     ({evidence + question}); few-shot (B4) нь Question-ийн өмнөх тусдаа хэсэг; dialect/pivot заавар Instructions-д."""
@@ -356,6 +401,9 @@ def build_omnisql(ctx: PromptContext, schema_text: str) -> tuple[list[dict], str
         extra += "\n- " + PG_NOTE
     if ctx.pivot:
         extra += _pivot_instruction()
+    if ctx.value_note:
+        extra += "\n- " + VALUE_NOTE
+    extra += gen_style_hint(ctx.gen_style)
     user = ARCTIC_USER_TEMPLATE.format(engine=ENGINE_LABEL[ctx.dialect], schema=schema_text,
                                        examples=_examples_text(ctx, "omnisql"), question=question,
                                        extra_instructions=extra)
@@ -371,6 +419,9 @@ def build_omnisql_plain(ctx: PromptContext, schema_text: str) -> tuple[list[dict
         extra += "\n- " + PG_NOTE
     if ctx.pivot:
         extra += _pivot_instruction()
+    if ctx.value_note:
+        extra += "\n- " + VALUE_NOTE
+    extra += gen_style_hint(ctx.gen_style)
     user = OMNISQL_TEMPLATE.format(engine=ENGINE_LABEL[ctx.dialect], schema=schema_text,
                                    examples=_examples_text(ctx, "omnisql"), question=question,
                                    extra_instructions=extra)

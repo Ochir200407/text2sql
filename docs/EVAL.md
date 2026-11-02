@@ -36,7 +36,8 @@
 - **Тохиргоо ба асуулт:** `question_id`, `config_id`, `model`, `split`, `variant`, `seed`, `category`, `difficulty`,
   `domain`, `contains_value`, `tags`, `question`, `question_used` (A4 орчуулга), `sql`, `status`.
 - **Үр дүн:** `result_hash`, `row_count`, `correct`, `strict_correct`, `raw_correct` (татгалзалтыг үл тооцсон),
-  `soft_f1`, `exec_ok`, `empty`, `error_stage` (extract | guard | exec | empty | llm), `error`.
+  `soft_f1`, `exec_ok`, `empty`, `error_stage` (extract | guard | exec | empty | llm | infra), `error`; gold амжилтгүй үед л
+  `gold_error`, `gold_error_code` (доорх «Тасалдал ба gold-ийн алдаа»).
 - **Санал хураалт:** `confidence` (санал нэгдэл), `unanimous`, `n_candidates`, `cand_hashes`, `cand_sqls`,
   `cand_correct`.
 - **Зардал:** `repairs`, `agent_steps`, `latency_ms`, `gen_ms`, `prompt_tokens`, `completion_tokens`.
@@ -83,9 +84,10 @@ vLLM-ийн хаяг, served model, токены нийлбэр.
   - Санал нэгдлийн хувь ба тухайн үеийн нарийвчлал, oracle@8.
   - Татгалзалтын муруй (E3).
   - p50/p95 хугацаа, токен, үүсгэх секунд.
-  - Bootstrap-аар 95% CI.
-- **Seed.** Sampling-тай run (E2) 3 seed-ээр ажиллана. Тайланд дундаж ± std гарна. McNemar-д асуулт бүрийн олонхын
-  санал ашиглагдана.
+  - 95% CI: диплом ба `scripts/ingest/ingest_results.py` нь **Wilson** (score) интервал ашиглана; run-ийн `.summary.json`-ийн
+    `ex_ci95` (`metrics.bootstrap_ci`) нь bootstrap хэвээр — тайлагнахдаа Wilson-ыг ашиглана.
+- **Seed.** Sampling-тай run (E2)-ийг төлөвлөгөөнд 3 seed-ээр ажиллуулахаар заасан (тайланд дундаж ± std); бодитоор E2–E5-д
+  зөвхөн seed 1 ажилласан (GPU-ийн төсөв). McNemar-д асуулт бүрийн олонхын санал ашиглагдана.
 
 ## Хүлээн авах дүрэм (тайлангийн «Төлөв»)
 
@@ -93,10 +95,31 @@ vLLM-ийн хаяг, served model, токены нийлбэр.
 нөхцөл:
 
 1. Dev дээрх өсөлт p < 0.05.
-2. Англи ба латин хувилбар 2 пунктээс илүү буураагүй (тэдгээр хувилбарыг ажиллуулсан бол).
+2. Англи ба латин хувилбар 2 хувиас илүү буураагүй (тэдгээр хувилбарыг ажиллуулсан бол).
 3. p95 хугацаа `eval.latency_budget_p95_ms`-д (30 с) багтсан.
 
-Жишээ: 300 асуултад 30 зөрүүтэй хос байвал шинэ тохиргоо ≥ 11-ээр илүү ялах ёстой (≈ +3.7 пункт).
+Жишээ: 300 асуултад 30 зөрүүтэй хос байвал шинэ тохиргоо ≥ 12-оор илүү ялах ёстой (21/9, p = 0.043; 20/10 бол p = 0.099)
+(≈ +4.0 хувь).
+
+## Тасалдал ба gold-ийн алдаа (2026-10-31; `eval/runner.py`, `metrics.py`, `goldcheck.py`)
+
+- **Gold.** Амжилтгүй gold-ийн гүйцэтгэлийг кэшлэхгүй (guard-ийн татгалзлаас бусад; дараагийн асуулт/хувилбар дахин
+  оролдоно); timeout эсвэл холболтын алдааг нэг удаа дахин оролдоно. Амжилтгүй хэвээр бол бичлэгт `gold_error: true`,
+  `gold_error_code` (guard | connection | timeout | cost_too_high | db_error); оноо өмнөхтэй ижил (тэр gold-той таарахгүй).
+  Summary-д `gold_errors` (байвал).
+- **Дэд бүтэц.** DB-ийн холболтын түвшний алдаа (таамаг эсвэл gold SQL-ийн; SQL-ийн «ERROR:» хэзээ ч биш) нь LLM-ийн
+  тасалдал шиг дэд бүтцийн алдаа — бичлэг хийхгүй, дахин ажиллуулахад тэр асуулт дахин асуугдана. Session-ийн төгсгөлд
+  DB/vLLM хэвийн үед л асуулт бүрийн тоолуурыг (`<run>.attempts.json`) нэмж, `eval.max_infra_attempts` (анхдагч 3; ≤ 0 —
+  хязгааргүй) session-ий дараа `error_stage="infra"` (status error — буруу, TrustSQL −c) гэж бичнэ. Summary-д `infra_errors`.
+- **Resume.** Тасарсан сүүлийн JSONL мөрийг `<run>.jsonl.partial` руу зөөж (устгахгүй), файлыг сүүлийн бүтэн мөр хүртэл
+  тайрна — тэр асуулт дахин асуугдана.
+- **check-gold.** Eval-ийн гүйцэтгэгчтэй ижил EXPLAIN өртгийн хязгаар (`db.max_explain_cost`); ганц мөрийн бүх утга 0/NULL
+  (degenerate — vote_filter хасдаг) gold-д, eval-ийн мөрийн хязгаараас олон мөртэй gold-д анхааруулна.
+- **Татгалзалтын муруй.** TrustSQL нь бүх ангиллын олон хувилбартай бичлэгээр (өмнө нь зөвхөн хариулах боломжтой);
+  coverage/selective accuracy хариулах боломжтой дээр хэвээр.
+- **Засаагүй, мэдэгдэж буй хязгаар.** `eval/compare.py` нь хүлцлийн шалгалтаас өмнө тоог бөөрөнхийлдөг (|x| ≥ 1 — 2 орон,
+  < 1 — 6 орон): gold ба таамаг өөр тоон төрөлтэй үед ховор худал сөрөг гарч болно. Санал хураалтын бүлэг (`result_hash`)
+  мөрийн дарааллыг үл тоодог (хэмжигдсэн нөлөө алга).
 
 ## Алдааны шинжилгээ
 

@@ -2,7 +2,7 @@
 
 Хүснэгтийн формат туршилтын төлөвлөгөөний дагуу: ID | Тохиргоо | Arctic-R1-7B EX % | sqrl-9b EX % | Төлөв | Тэмдэглэл.
 Хүлээн авах дүрэм (төлөвлөгөө): dev дээрх өсөлт статистикийн хувьд ач холбогдолтой (McNemar p < 0.05), англи ба
-латин хувилбар 2 пунктээс илүү буураагүй, p95 хугацаа төсөвтөө багтсан.
+латин хувилбар 2 хувиас илүү буураагүй, p95 хугацаа төсөвтөө багтсан.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from ..config import ROOT, Config, resolve_path
 from ..pipeline.options import load_experiments, resolve_run
-from .metrics import load_records, mcnemar, seed_stats
+from .metrics import fmt_p, load_records, mcnemar, seed_stats
 
 log = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ def verdict(cfg: Config, runs: dict, config_id: str, baseline: str | None, model
             return "—", note
         return ("✅ хүлээн авна" if tc > tb else ("➖ ялгаагүй" if tc == tb else "❌ буурсан")), note
     mc = mcnemar(base.majority_records(), cur.majority_records())
-    note = f"Δ{mc['delta_ex']:+.1f} vs {baseline} (+{mc['wins']}/−{mc['losses']}, p={mc['p_value']:.3f})"
+    note = f"Δ{mc['delta_ex']:+.1f} vs {baseline} (+{mc['wins']}/−{mc['losses']}, p={fmt_p(mc['p_value'])})"
     warn = []
     for v in ("en", "latin"):
         c, b = runs.get((config_id, model, v)), runs.get((baseline, model, v))
@@ -166,7 +166,7 @@ def build_report(cfg: Config, runs_args: list[str] | None = None, out: str = "re
     lines = [f"# Туршилтын тайлан ({split})", "",
              f"_Үүсгэсэн: {datetime.now().strftime('%Y-%m-%d %H:%M')}. Гол үзүүлэлт: кирилл асуултын EX (хариулах "
              f"боломжтой асуулт дээр). Олон seed бол дундаж ± std. Төлөв: McNemar p < 0.05 өсөлт, англи/латин "
-             f"−2 пунктээс ихгүй, p95 төсөвтөө._", ""]
+             f"−2 хувиас ихгүй, p95 төсөвтөө._", ""]
     report_json: dict = {"split": split, "groups": {}}
     by_group = defaultdict(list)
     for rid, spec in exp["runs"].items():
@@ -383,6 +383,7 @@ def derive_abstention(cfg: Config, src_config: str, dst_config: str, threshold: 
         recs = load_records(f)
         for r in recs:
             r["config_id"] = dst_config
+            had_strict, prev_strict = "strict_correct" in r, bool(r.get("strict_correct"))
             low = r.get("confidence") is not None and r["confidence"] < threshold
             if action == "clarify" and low and r.get("status") in ("answered", "error", "abstained"):
                 r["status"] = "clarify"
@@ -392,6 +393,11 @@ def derive_abstention(cfg: Config, src_config: str, dst_config: str, threshold: 
                 r["correct"] = r.get("category") == "unanswerable"
             elif r.get("category") == "unanswerable":
                 r["correct"] = r.get("status") in ("abstained", "refused", "clarify")
+            if had_strict:
+                # runner.score_answer-тэй ижил: хариулах боломжгүйд strict = correct, бусдад correct ∧ (үр дүнгийн хатуу
+                # таарал); хариулсан эх бичлэгийн strict_correct нь тэр таарлыг хадгална. Дахин тооцохгүй бол
+                # тодруулга/татгалзалтад шилжсэн асуулт хуучин strict-ээ үлдээж ex_strict > ex болно (E3c: 44.2 > 39.29).
+                r["strict_correct"] = bool(r["correct"]) and (r.get("category") == "unanswerable" or prev_strict)
         dst = root / dst_config / f.name
         dst.parent.mkdir(parents=True, exist_ok=True)
         with open(dst, "w", encoding="utf-8") as fh:

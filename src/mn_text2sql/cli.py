@@ -150,6 +150,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--extra", nargs="*", default=None,
                    help="E5: хамт санал хураах нэмэлт run-ууд (жишээ нь I3t; <model>__<variant>__s0.jsonl)")
     p.add_argument("--extra-weight", type=int, default=1, help="нэмэлт run-ийн хувилбар бүрийн жин (давталт)")
+    p.add_argument("--pick", action="store_true", help="P: санал зөрвөл шилдэг 2 бүлгийг Arctic-аар хос харьцуулж сонгоно")
+    p.add_argument("--pick-model", default="d2", help="P: харьцуулах загварын served name (vLLM)")
+    p.add_argument("--pick-max-conf", type=float, default=1.0, help="P: санал нийлэлт энэ босгоос бага үед л харьцуулна")
+    p.add_argument("--pick-diff", action="store_true",
+                   help="T2: --pick-ийг зөвхөн ялгаатай WHERE/GROUP BY/агрегат/хүснэгтээр асуух (eval/pick.py diff_clauses)")
+    p.add_argument("--abstain-v2", action="store_true",
+                   help="Abstain v2: асуултын шинж + LR-ээр татгалзах/тодруулах (pipeline/abstain.py; дүрэмтэй хамт бол дүрэм эхэлнэ)")
+    p.add_argument("--trunc-date", action="store_true",
+                   help="R7: хувилбарын гаралтын DATE_TRUNC-ийг DATE болгож гүйцэтгэнэ (RunOptions.trunc_date-тэй ижил; GPU-гүй)")
+    p.add_argument("--refix", choices=["afx", "none"], default=None,
+                   help="хувилбарыг raw_output-оос дахин гаргана: afx — M1afx-ийн 4 засвартай, none — засваргүй тулгалт (GPU-гүй)")
+    p.add_argument("--rules", choices=["v1", "v2"], default="v1",
+                   help="татгалзал/тодруулгын дүрэм: v1 (E4) эсвэл v2 (AUTHORING-ийн 5 ангилал + англи орчуулга; RunOptions.rules_version)")
+    p.add_argument("--lint", action="store_true",
+                   help="санал хураалтаас fan/chasm ба KPI-ийн lint-д унасан хувилбарыг хасах (RunOptions.vote_lint; GPU-гүй)")
+    p.add_argument("--kpi-fix", action="store_true",
+                   help="хадгалсан хувилбарт KPI/схемийн детерминист засвар (RunOptions.kpi_fix; GPU-гүй)")
 
     p = sub.add_parser("score-external")
     p.add_argument("--pred", required=True, help="JSONL: {question_id, sql, variant?, status?, latency_ms?}")
@@ -338,7 +355,10 @@ def main(argv: list[str] | None = None) -> int:
         _print(reselect_run(cfg, args.src, args.dst, args.split, args.tag, vote_filter=not args.no_filter,
                             rule_refuse=not args.no_refuse, rule_clarify=not args.no_clarify,
                             clarify_threshold=args.clarify_threshold, extra=args.extra,
-                            extra_weight=args.extra_weight))
+                            extra_weight=args.extra_weight, pick_model=args.pick_model if args.pick else None,
+                            pick_max_conf=args.pick_max_conf, abstain_v2=args.abstain_v2,
+                            pick_diff=args.pick_diff, trunc_date=args.trunc_date, refix=args.refix,
+                            rules=args.rules, lint=args.lint, kpi=args.kpi_fix))
         return 0
     if args.cmd == "score-external":
         from .eval.runner import score_external
@@ -424,10 +444,15 @@ def main(argv: list[str] | None = None) -> int:
             _print(bench.compare_report(cfg, reference=args.reference, out=args.out))
         return 0
     if args.cmd == "flow-ui":
+        import os
+
         import uvicorn
 
-        from .service.flow import create_builder_app
-        uvicorn.run(create_builder_app(demo=args.demo), host=args.host, port=args.port, log_level="info")
+        from .service.auth import safe_bind_host
+        from .service.flow import BUILDER_MODE, create_builder_app
+        # L3: T2S_WEB_KEY-гүй бол 127.0.0.1-д л (main app-тай ижил); хүсэлт бүр итгэмжлэгдсэн Host-оор (DNS rebinding)
+        host = safe_bind_host(args.host, BUILDER_MODE, os.environ.get("T2S_WEB_KEY"))
+        uvicorn.run(create_builder_app(demo=args.demo), host=host, port=args.port, log_level="info")
         return 0
     if args.cmd == "serve":
         from .service.api import serve

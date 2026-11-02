@@ -9,6 +9,10 @@ Backend:
 Сургалтын дараа val хосоор (pairs.jsonl-ийн split=val; сургалтад ороогүй) chrF++-ийг хэмжиж `<out>/val_report.json`-д бичнэ.
 Dev-ийн орчуулгыг `m0_translate.py --adapter <out> --prompt sft`-ээр (сургалтын prompt-той ижил хэлбэр) гаргана.
 
+seq2seq-ийг torchrun-гүй 2×T4 дээр ажиллуулбал Trainer DataParallel хэрэглэнэ: алхмын batch = --batch × n_gpu (M1: 4 × 2
+× grad-acc 8 = 64, 32 биш). t2s_meta.json-д n_gpu, world_size, effective_batch бичигдэнэ (B7). Анхдагч warmup нь хуучин
+дүрэм (0.03 × нэг GPU-гээр тооцсон алхам); --warmup-ratio өгвөл Trainer бодит алхмын тоогоор (DataParallel-ийг тооцож) бодно.
+
 Жишээ (Kaggle T4):
   python scripts/mt/train_mt.py --backend seq2seq --model google/madlad400-3b-mt --data data/mt/v2/sft/sft_madlad.jsonl \
       --pairs data/mt/v2/pairs.jsonl --out /kaggle/working/mt/madlad_m1
@@ -20,6 +24,7 @@ Dev-ийн орчуулгыг `m0_translate.py --adapter <out> --prompt sft`-э�
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import gc
 import json
 import math
@@ -41,6 +46,32 @@ SEQ2SEQ_TARGETS = ["q", "k", "v", "o", "wi_0", "wi_1", "wo"]
 
 def read_jsonl(p: Path) -> list[dict]:
     return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
+
+
+def warmup_kwargs(config_fields: set[str], n_rows: int, batch: int, grad_acc: int, epochs: float,
+                  ratio: float | None = None) -> dict:
+    """Seq2SeqTrainingArguments-ийн warmup. ratio=None: хуучин дүрэм (M1-тэй ижил) — 0.03 × ceil(n / (batch × GA)) ×
+    epochs алхам (нэг GPU гэж тооцсон; DataParallel-д бодит алхам цөөн тул warmup-ийн хувь их). ratio өгвөл
+    Trainer бодит optimizer алхмын тооноос бодно: warmup_ratio талбартай хувилбарт тэр, үгүй бол (transformers ≥ 5)
+    warmup_steps < 1 = харьцаа."""
+    if ratio is None:
+        steps = math.ceil(n_rows / (batch * grad_acc)) * epochs
+        return {"warmup_steps": max(1, int(0.03 * steps))}
+    if not 0 <= float(ratio) < 1:
+        raise ValueError(f"--warmup-ratio [0, 1) байх ёстой: {ratio}")
+    if "warmup_ratio" in config_fields:
+        return {"warmup_ratio": float(ratio), "warmup_steps": 0}
+    return {"warmup_steps": float(ratio)}
+
+
+def batch_info(targs, per_device: int, grad_acc: int) -> dict:
+    """Нэг optimizer алхмын бодит batch (B7): DataParallel (torchrun-гүй олон GPU) бол per_device × n_gpu."""
+    from mn_text2sql.training.provenance import effective_batch
+    n_gpu = int(getattr(targs, "n_gpu", 1) or 1)
+    world = int(getattr(targs, "world_size", 1) or 1)
+    return {"n_gpu": n_gpu, "world_size": world, "per_device_batch": per_device, "grad_acc": grad_acc,
+            "data_parallel": n_gpu > 1 and world == 1,
+            "effective_batch": effective_batch(per_device, grad_acc, n_gpu, world)}
 
 
 def chat_prompt(tok, msgs: list[dict]) -> str:
@@ -114,15 +145,20 @@ def train_seq2seq(args) -> None:
             return x
         ds = Dataset.from_list([{"src": r["src"], "tgt": r["tgt"]} for r in rows]).map(
             enc, batched=True, remove_columns=["src", "tgt"])
-        steps = math.ceil(len(rows) / (args.batch * args.grad_acc)) * args.epochs
+        warm = warmup_kwargs({f.name for f in dataclasses.fields(Seq2SeqTrainingArguments)}, len(rows), args.batch,
+                             args.grad_acc, args.epochs, args.warmup_ratio)
         targs = Seq2SeqTrainingArguments(
             output_dir=str(out), num_train_epochs=args.epochs, per_device_train_batch_size=args.batch,
             gradient_accumulation_steps=args.grad_acc, learning_rate=args.lr, lr_scheduler_type="cosine",
-            warmup_steps=max(1, int(0.03 * steps)), logging_steps=10, save_strategy="steps", save_steps=args.save_steps,
+            logging_steps=10, save_strategy="steps", save_steps=args.save_steps,
             save_total_limit=2, report_to="none", seed=42, gradient_checkpointing=True,
-            gradient_checkpointing_kwargs={"use_reentrant": False})
+            gradient_checkpointing_kwargs={"use_reentrant": False}, **warm)
         trainer = Seq2SeqTrainer(model=model, args=targs, train_dataset=ds,
                                  data_collator=DataCollatorForSeq2Seq(tok, model=model))
+        batch = batch_info(trainer.args, args.batch, args.grad_acc)
+        if batch["data_parallel"]:
+            print(f"анхааруулга: torchrun-гүй {batch['n_gpu']} GPU — DataParallel, алхмын batch "
+                  f"{batch['effective_batch']} (--batch {args.batch} × {batch['n_gpu']} × --grad-acc {args.grad_acc})")
         from mn_text2sql.training.sft import deadline_callback, last_checkpoint
         stopper = None
         if os.environ.get("T2S_TRAIN_DEADLINE"):      # run_sft-тэй ижил: хязгаарт checkpoint хадгалаад зогсоно
@@ -135,10 +171,13 @@ def train_seq2seq(args) -> None:
             return
         trainer.save_model(str(out))
         tok.save_pretrained(str(out))
+        from mn_text2sql.training.provenance import provenance
         (out / "t2s_meta.json").write_text(json.dumps(
             {"backend": "seq2seq", "base": args.model, "records": len(rows), "train_loss": res.training_loss,
              "embedding": emb_choice,
-             "minutes": round((time.time() - t0) / 60, 1), "args": vars(args)}, ensure_ascii=False, indent=2),
+             "minutes": round((time.time() - t0) / 60, 1), "args": vars(args), **batch,
+             "warmup": warm, "global_step": trainer.state.global_step,
+             **provenance(train=args.data)}, ensure_ascii=False, indent=2, default=str),
             encoding="utf-8")
         for c in out.glob("checkpoint-*"):
             import shutil
@@ -245,6 +284,8 @@ def main() -> None:
     ap.add_argument("--grad-acc", type=int, default=2)
     ap.add_argument("--max-len", type=int, default=256)
     ap.add_argument("--save-steps", type=int, default=100)
+    ap.add_argument("--warmup-ratio", type=float, default=None,
+                    help="seq2seq: warmup-ийг бодит алхмын тооны харьцаагаар (анхдагч: хуучин 0.03 × нэг GPU-гийн алхам)")
     ap.add_argument("--val-limit", type=int, default=0)
     args = ap.parse_args()
     (train_seq2seq if args.backend == "seq2seq" else train_causal)(args)

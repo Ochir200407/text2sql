@@ -58,6 +58,91 @@ def rule_decision(question: str, refuse: bool = True, clarify: bool = True) -> t
     return None
 
 
+# Rules v2 (2026-11-02, RunOptions.rules_version="v2"): AUTHORING-ийн 5 ангилал (pii-г intent_check/guard барина) —
+# монгол үйл үгийн хэлбэр (тушаах «-аад өг», «болго», ирээдүйн «ирэх … хүрэх вэ») + англи орчуулга (write/draft, forecast,
+# imperative change/close/waive). v1-ийн хуурамч татгалзал: «хэд болох вэ» (төгрөгт шилжүүлбэл — ирээдүй биш), «цалингийн зээл»,
+# «хуулийн этгээд», «Монголбанкны ханш», «өндөр эрсдэлтэй» (тодорхой ангилал), «X нь хамгийн том» (хэмжүүр заасан).
+_GIVE = r"(өг|өгөөч|өгнө үү|өгөөрэй)"
+_FUT_VERB = r"(хүрэх|болох|өсөх|буурах|хаагдах|бүртгүүлэх|олгогдох|шилжих|нэмэгдэх)"
+REFUSE_RULES_V2: dict[str, list[str]] = {
+    "non_sql": [rf"(бичиж|бичээд|зохиож|зохиоод|боловсруулж|боловсруулаад|бэлтгэж|бэлтгээд|бэлдэж|бэлдээд) {_GIVE}\b",
+                r"(захидал|мессеж|имэйл|бичвэр|илтгэл|зөвлөмж|стратеги|текст|албан бичиг|мэдэгдэл|гэрээ)\w*\s+(\S+\s+){0,3}"
+                r"(бич|зохио|боловсруул)", r"зөвлөгөө өг"],
+    "future": [r"таамаг", r"чиг хандлага",
+               rf"(ирэх|дараа(гийн|ачийн)|ойрын|цаашид)\b[^?!]{{0,60}}{_FUT_VERB}\s+(вэ|бол|болов уу)",   # «ам.доллар»-ын цэг
+               r"\w+х төлөвтэй (вэ|байна)"],
+    "write_operation": [r"\b(болгоод|болгож өг|болгоорой|шилжүүлээд|сунгаад|хаагаад|бууруулаад|чөлөөлж|чөлөөлөөд|өөрчлөөд|"
+                        r"устгаад|суутгаад|тавиад|цуцлаад|батлаад)\b",
+                        r"\b(өөрчил|болго|устга|хаа|тавь|сунга|шилжүүл|цуцал|чөлөөл)\s*[.!]?\s*$"],
+    "external_knowledge": [r"\bжурм", r"арилжааны банк", r"(ббсб|банк)\w*\s+(салбарын\s+)?дунд", r"хүн ам",
+                           r"(өөрийн хөрөнгийн|капиталын) хүрэлцээ", r"инфляц", r"бодлогын хүү",
+                           r"хуул(иар|ийн)(?! этгээд)"],
+    "missing_data": [r"урамшуул", r"(өдрийн|аль) цаг(т|аар)", r"сэтгэл ханамж", r"өрсөлдөгч", r"түрээс", r"\broe\b",
+                     r"(?<!\S)цалин(?!гийн зээл|тай|г?аас суутгал|г?аас суутга)",
+                     # схемд зөвхөн татгалзлын шалтгаан (loan_applications.rejection_reason) бий — бусад шалтгаан алга
+                     r"^(?!.*татгалз).*шалтгаан", r"төлөвлөгөө", r"\bатм\w*\s+(\S+\s+){0,2}(байршил|бэлэн мөнгөний үлдэгдэл)"],
+}
+REFUSE_RULES_V2_EN: dict[str, list[str]] = {
+    "non_sql": [r"\b(write|draft|compose)\b(?![- ]?off)", r"\btemplate\b"],
+    "future": [r"\b(forecast|predict|projection|projected)\w*", r"\bexpected to\b", r"\bcurrent trends?\b",
+               r"\bnext (year|quarter|month)\b[^.?]{0,60}\bwill\b|\bwill\b[^.?]{0,60}\bnext (year|quarter|month)\b"],
+    "write_operation": [r"^(please\s+)?(change|update|set|mark|close|cancel|delete|remove|waive|extend|renew|reduce|lower|"
+                        r"raise|increase|transfer|assign|approve|reject|activate|deactivate|suspend|freeze|deduct|offset|"
+                        r"move)\b"],
+    "external_knowledge": [r"\b(central bank|inflation|policy rate|regulation|legal limit|industry average|other banks|"
+                           r"commercial banks|population|capital adequacy)\b", r"\bunder (mongolian|civil) law\b"],
+    "missing_data": [r"\b(salary|salaries)\b(?! (loan|deduction|advance))", r"\b(bonus|satisfaction|rent|ROE|competitors?)\b",
+                     r"\btime of (the )?day\b"],
+}
+CLARIFY_RULES_V2 = [r"сүүлийн (\d+|хоёр|гурав|гурван|зургаа|зургаан) сар", r"сүүлийн улирал",
+                    r"хамгийн (том|сайн|шилдэг|ашигтай|муу)\s+(\S+\s+){0,2}(байгууллага|харилцагч|салбар|зээл|мэргэжилтэн|"
+                    r"ажилтан|барагдуулагч|бүтээгдэхүүн)",
+                    r"хамгийн сайн ажилла", r"асуудалтай (зээл|харилцагч)",
+                    r"(?<!өндөр )(?<!бага )(?<!дунд )(?<!маш )эрсдэлтэй (харилцагч|зээл)"]
+_CLARIFY_RESOLVED_V2 = [r"\d+[- ]?р сар", r"\d{4}-\d{2}", r"\w+(аар|ээр|оор|өөр) хамгийн", r"\S+ нь хамгийн", r"хамгийн их\b",
+                        r"(дүнгээр|тоогоор|хувиар|үлдэгдлээр|үнэлгээгээр)"]
+RULE_VERSIONS = ("v1", "v2")
+
+
+# Glossary/AUTHORING-ийн хоёрдмол нэр томьёо тодотголгүй (тус бүр өөрийн «тодорхой болгосон» хэв маягтай; dev+test-ийн
+# хариулах асуултад хуурамч тодруулга 0 — 2026-11-02)
+CLARIFY_TERMS_V2: list[tuple[str, str]] = [
+    (r"хугацаа (нь )?хэтэрсэн зээл", r"хоног|dpd|1\+|төлөвтэй"),
+    (r"идэвхтэй зээл", r"багц"),
+    (r"зээлгүй харилцагч", r"(хэзээ ч|идэвхтэй|багц)"),
+    (r"барьцаа\w*\s+(\S+\s+){0,3}үнэ цэнэ", r"зах зээлийн|хүлээн зөвшөөрөх|албадан"),
+    (r"оноо\w* өндөр", r"\d"),
+    (r"хэдэн хувиар (өссөн|буурсан|өөрчлөгдсөн)",
+     r"өмнөх|харьцуул|\d{4}\D+\d{4}|\d-р улирал\D+\d-р улирал|хагас\D+хагас|(аас|ээс|оос|өөс)\b"),
+]
+
+
+def rule_decision_v2(question: str, question_en: str | None = None, refuse: bool = True,
+                     clarify: bool = True) -> tuple[str, str] | None:
+    """rule_decision-тэй ижил гэрээ; question_en (загварт өгөх англи орчуулга) байвал англи хэв маягийг мөн шалгана."""
+    q = cyr_key(question or "")
+    e = (question_en or "").strip()
+    if refuse:
+        for reason, pats in REFUSE_RULES_V2.items():
+            if any(re.search(p, q) for p in pats) or (
+                    e and any(re.search(p, e, re.I) for p in REFUSE_RULES_V2_EN.get(reason, ()))):
+                return "refuse", reason
+    if clarify and any(re.search(p, q) for p in CLARIFY_RULES_V2) and not any(
+            re.search(p, q) for p in _CLARIFY_RESOLVED_V2):
+        return "clarify", "vague"
+    if clarify and any(re.search(t, q) and not re.search(ok, q) for t, ok in CLARIFY_TERMS_V2):
+        return "clarify", "ambiguous_term"
+    return None
+
+
+def rule_decision_for(version: str, question: str, question_en: str | None = None, refuse: bool = True,
+                      clarify: bool = True) -> tuple[str, str] | None:
+    """RunOptions.rules_version-оор: "v1" (анхдагч, E4) эсвэл "v2"."""
+    if version == "v2":
+        return rule_decision_v2(question, question_en, refuse, clarify)
+    return rule_decision(question, refuse, clarify)
+
+
 def is_fromless(sql: str | None) -> bool:
     """Хүснэгтгүй SELECT (жишээ нь `SELECT 3`) — загвар DB-ээс бус тогтмол утга таасан."""
     if not sql:

@@ -28,7 +28,7 @@ from ..llm.prompts import (
 )
 from ..pipeline.options import RunOptions
 from ..security.sql_guard import extract_sql
-from .data import DIFF_MAP, bird_dir, db_path, load_bird_mn
+from .data import DIFF_MAP, bird_dir, db_path, load_bird_mn, placeholders_bad
 
 log = logging.getLogger(__name__)
 _local = threading.local()
@@ -150,19 +150,24 @@ HINT_TEMPLATE = ("\n\n(Private note for you only: a correct query is\n```sql\n{s
 
 
 def bird_generate(path, messages: list[dict], prefill: str | None, family: str, llm, max_tokens: int,
-                  opts: RunOptions, temperature: float = 0.0, top_p: float = 1.0, n: int = 1) -> list[dict]:
-    """n гаралт. omnisql/generic: нэг хүсэлтээр n; sqrl: n тусдаа agent траектор."""
+                  opts: RunOptions, temperature: float = 0.0, top_p: float = 1.0, n: int = 1,
+                  seed: int | None = None) -> list[dict]:
+    """n гаралт. omnisql/generic: нэг хүсэлтээр n; sqrl: n тусдаа agent траектор.
+    seed (L2, сургалтын sampling): omnisql/generic — хүсэлтийн seed; sqrl — k-р траекторын бүх ээлжид seed + k
+    (Pipeline._agent-тай ижил: нэг траектор нэг seed). None (анхдагч, үнэлгээ) бол хүсэлтэд seed илгээхгүй."""
     outs = []
     if family != "sqrl":
-        r = llm.chat(messages, n=n, temperature=temperature, top_p=top_p, max_tokens=max_tokens, prefill=prefill)
+        kw = {"seed": seed} if seed is not None else {}
+        r = llm.chat(messages, n=n, temperature=temperature, top_p=top_p, max_tokens=max_tokens, prefill=prefill, **kw)
         for t in r.texts:
             outs.append({"sql": extract_sql(t), "messages": list(messages), "prefill": prefill, "raw_turns": [t],
                          "steps": 0, "tokens": (r.prompt_tokens // max(1, n), r.completion_tokens // max(1, n))})
         return outs
-    for _ in range(n):
+    for k in range(n):
+        kw = {"seed": (seed + k) & 0x7FFFFFFF} if seed is not None else {}
         conv, raw, steps, tin, tout, sql = list(messages), [], 0, 0, 0, None
         for _turn in range(opts.agent_max_steps + 3):
-            r = llm.chat(conv, temperature=temperature, top_p=top_p, max_tokens=max_tokens)
+            r = llm.chat(conv, temperature=temperature, top_p=top_p, max_tokens=max_tokens, **kw)
             tin, tout = tin + r.prompt_tokens, tout + r.completion_tokens
             raw.append(r.texts[0])
             content = strip_think(r.texts[0]).strip()
@@ -206,7 +211,11 @@ def _bird_examples(cfg: Config) -> list[dict]:
     p = bird_dir(cfg) / "train_examples.jsonl"
     if not p.exists():
         return []
-    return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
+    rows = [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
+    bad = sum(1 for d in rows if placeholders_bad(d))
+    if bad:      # H3: placeholder сэргээгдээгүй орчуулга few-shot болохгүй (load_bird_mn-тэй ижил)
+        log.warning("F1b: train_examples.jsonl-ийн placeholder сэргээгдээгүй %d мөрийг хасав", bad)
+    return [d for d in rows if not placeholders_bad(d)]
 
 
 def run_bird_experiment(cfg: Config, opts: RunOptions, model: str | None = None, split: str = "dev",
@@ -214,7 +223,8 @@ def run_bird_experiment(cfg: Config, opts: RunOptions, model: str | None = None,
                         reviewed_only: bool = False, tag: str = "") -> list[dict]:
     from ..eval.metrics import summarize
     registry = load_models()
-    rows = load_bird_mn(cfg, reviewed_only)
+    load_stats: dict = {}
+    rows = load_bird_mn(cfg, reviewed_only, stats=load_stats)     # H3: placeholder сэргээгдээгүй мөр хасагдана
     if limit:
         rows = rows[:limit]
     examples = _bird_examples(cfg) if opts.fewshot_k > 0 else []
@@ -271,7 +281,8 @@ def run_bird_experiment(cfg: Config, opts: RunOptions, model: str | None = None,
             data_path = bird_dir(cfg) / "bird_mn.jsonl"
             meta = {"config_id": cid, "model": m, "split": "bird_mn", "variant": variant, "options": opts.fingerprint(),
                     "eval_set": {"file": str(data_path), "sha1": hashlib.sha1(data_path.read_bytes()).hexdigest()[:12],
-                                 "reviewed_only": reviewed_only},
+                                 "reviewed_only": reviewed_only,
+                                 "dropped_placeholders": load_stats.get("dropped_placeholders", 0)},
                     "prompt_version": prompt_version(family), "model_revision": model_revision(mspec),
                     "code_version": code_version(), "served_model": llm_cfg["model"], "baseline": opts.baseline(),
                     "finished": datetime.now(timezone.utc).isoformat(timespec="seconds")}

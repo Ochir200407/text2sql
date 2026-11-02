@@ -13,7 +13,7 @@ t2s db-build            # схем + синтетик өгөгдөл (648 205 м
 t2s testsuite-build     # 8 test-suite хуулбар
 t2s knowledge-check     # мэдлэгийн сан <-> DB-ийн нийцэл
 t2s index-build         # BM25 + BGE-M3 индекс
-t2s check-gold --split all
+t2s check-gold --testsuite  # dev + test gold SQL, 8 хуулбар дээр ч
 \end{lstlisting}
 
 \textbf{Үнэлгээ.}
@@ -21,8 +21,9 @@ t2s check-gold --split all
 t2s eval --run A7,B5 --split dev          # туршилтын ID-аар
 t2s eval --run E2 --split test            # шилдэг тохиргоог test дээр нэг удаа
 t2s eval --run B5 --oracle                # дамжлагыг gold SQL-ээр шалгах
-t2s reselect --from E2 --to E4 --split dev   # GPU-гүй дахин сонголт (E4)
-t2s derive-abstain --from E2 --to E3c --threshold 0.5 --action clarify
+t2s reselect --from E2 --to E4 --tag h_H4 --split dev  # GPU-гүй дахин сонголт
+t2s derive-abstain --from E2 --to E3c --tag h_H4 \
+    --threshold 0.5 --action clarify
 t2s compare --a <H4.jsonl> --b <E2.jsonl>     # McNemar
 t2s report && t2s report-latex
 \end{lstlisting}

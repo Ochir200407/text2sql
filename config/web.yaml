@@ -1,3 +1,5 @@
 # Вэб (T2S_CONFIG=config/web.yaml): хариултыг хэрэглэгчид харуулна, LLM нь SSH tunnel-ээр (Vast GPU) localhost:8000.
-service: {mode: pilot, run_id: WEB, model: arctic-r1-7b}
+# max_result_bytes: нэг SQL үр дүнгийн санах ойн төсөв (server-side cursor; хэтэрвэл too_large; 0 = унтраах);
+# max_body_bytes: хүсэлтийн биеийн дээд хэмжээ (413). Аль аль нь байхгүй бол service/auth.py-ийн анхдагч.
+service: {mode: pilot, run_id: WEB, model: arctic-r1-7b, max_result_bytes: 5000000, max_body_bytes: 262144}
 llm: {base_url: "http://localhost:8000/v1", model: arctic-r1-7b, family: omnisql}

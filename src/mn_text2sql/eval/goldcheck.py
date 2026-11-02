@@ -17,6 +17,7 @@ from ..config import Config
 from ..db.conn import bot_dsn
 from ..db.executor import Executor
 from ..knowledge.semantic import cached_model
+from ..pipeline.selection import is_degenerate
 from ..security.sql_guard import SqlGuard
 from .compare import result_hash, results_match
 from .dataset import load_items, validate_item
@@ -24,11 +25,12 @@ from .dataset import load_items, validate_item
 log = logging.getLogger(__name__)
 
 
-def make_guard(cfg: Config, enforce_limit: int | None = None) -> SqlGuard:
+def make_guard(cfg: Config, enforce_limit: int | None = None, **kw) -> SqlGuard:
+    """kw: SqlGuard-ийн нэмэлт сонголт (reselect --refix afx: scoped_columns=True — RunOptions.guard_scope)."""
     model = cached_model(cfg["knowledge"]["semantic_model"])
     return SqlGuard(allowed_tables=model.allowed(), schema=model.schema,
                     forbidden_functions=set(cfg["security"]["forbid_functions"]),
-                    as_of_date=str(cfg["project"]["as_of_date"]), enforce_limit=enforce_limit)
+                    as_of_date=str(cfg["project"]["as_of_date"]), enforce_limit=enforce_limit, **kw)
 
 
 def _tie_check(executor: Executor, sql: str) -> str | None:
@@ -80,8 +82,10 @@ def check_gold_files(cfg: Config, files: list[str], testsuite: bool = False, dbn
     files = files or [cfg["eval"]["dev_file"], cfg["eval"]["test_file"]]
     items = load_items(files)
     guard = make_guard(cfg)
+    # M2: eval-ийн (runner) гүйцэтгэгчтэй ижил EXPLAIN өртгийн хязгаар — eval-д cost_too_high болох gold энд алдаа болно
     executor = Executor(bot_dsn(cfg, dbname), statement_timeout_ms=cfg["db"]["statement_timeout_ms"],
-                        max_rows=200000)
+                        max_rows=200000, max_cost=float(cfg["db"]["max_explain_cost"]))
+    eval_max_rows = int(cfg["pipeline"]["max_result_rows"]) * 100   # runner-ийн гүйцэтгэгчийн мөрийн хязгаар
     report = {"files": files, "items": len(items), "errors": [], "warnings": [], "stats": {}}
     ids = Counter(it.id for it in items)
     for dup, n in ids.items():
@@ -115,10 +119,19 @@ def check_gold_files(cfg: Config, files: list[str], testsuite: bool = False, dbn
                 continue
             if ms > 3000:
                 slow.append((it.id, round(ms)))
-            if (res.rowcount == 0 or all(all(v is None for v in r) for r in res.rows)) and "gold_empty" not in it.tags:
+            empty = res.rowcount == 0 or all(all(v is None for v in r) for r in res.rows)
+            if empty and "gold_empty" not in it.tags:
                 report["errors"].append({"id": it.id, "error": f"{label}: хоосон үр дүн (эсвэл бүгд NULL)"})
+            elif is_degenerate(res):
+                # L9: ганц мөрийн бүх утга 0/NULL (эсвэл gold_empty) — vote_filter (E4) үүнийг «degenerate» гэж санал
+                # хураалтаас хасаж, зөв хариултыг abstain болгоно (pipeline/selection.is_degenerate ийм gold байхгүй гэж үздэг)
+                report["warnings"].append({"id": it.id, "warning": f"{label}: үр дүн degenerate (ганц мөрийн бүх утга "
+                                                                   "0/NULL эсвэл хоосон) — vote_filter зөв хариултыг хасна"})
             if res.truncated:
                 report["warnings"].append({"id": it.id, "warning": f"{label}: үр дүн хэт олон мөртэй ({res.rowcount}+)"})
+            elif res.rowcount > eval_max_rows:
+                report["warnings"].append({"id": it.id, "warning": f"{label}: {res.rowcount} мөр — eval-ийн гүйцэтгэгч "
+                                                                   f"{eval_max_rows} мөрөөр тасална"})
             tie = _tie_check(executor, g.sql)
             if tie:
                 report["warnings"].append({"id": it.id, "warning": f"{label}: {tie}"})
